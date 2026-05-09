@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rm *)",
+      "Bash(git filter-branch *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \"git rm --cached --ignore-unmatch backend/.env frontend/.env\" --prune-empty --tag-name-filter cat -- --all)",
+      "Bash(git push *)"
+    ]
+  }
+}
