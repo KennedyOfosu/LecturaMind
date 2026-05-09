@@ -9,21 +9,22 @@ from flask_socketio import SocketIO
 from config import Config
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = Config.SUPABASE_SERVICE_KEY[:32]
+app.config["SECRET_KEY"] = (Config.SUPABASE_SERVICE_KEY or "fallback-secret")[:32]
 
-# Allow cross-origin requests from the React frontend
+# Allow all origins in production (Vercel URL set via FRONTEND_URL env var)
+frontend_url = Config.FRONTEND_URL or "*"
 CORS(
     app,
-    resources={r"/api/*": {"origins": Config.FRONTEND_URL}},
+    resources={r"/api/*": {"origins": ["http://localhost:5173", frontend_url]}},
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
 
-# Use threading mode — compatible with Python 3.13, no monkey patching needed
+# Threading mode — works with gunicorn on Render, no eventlet needed
 socketio = SocketIO(
     app,
-    cors_allowed_origins=Config.FRONTEND_URL,
+    cors_allowed_origins=["http://localhost:5173", frontend_url],
     async_mode="threading",
     logger=False,
     engineio_logger=False,
