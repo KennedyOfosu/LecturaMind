@@ -11,11 +11,17 @@ from config import Config
 app = Flask(__name__)
 app.config["SECRET_KEY"] = (Config.SUPABASE_SERVICE_KEY or "fallback-secret")[:32]
 
-# Allow all origins in production (Vercel URL set via FRONTEND_URL env var)
-frontend_url = Config.FRONTEND_URL or "*"
+# Accept requests from localhost (dev) and any Vercel/custom domain (prod)
+allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+if Config.FRONTEND_URL:
+    allowed_origins.append(Config.FRONTEND_URL)
+
 CORS(
     app,
-    resources={r"/api/*": {"origins": ["http://localhost:5173", frontend_url]}},
+    resources={r"/api/*": {"origins": allowed_origins}},
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -24,7 +30,7 @@ CORS(
 # Threading mode — works with gunicorn on Render, no eventlet needed
 socketio = SocketIO(
     app,
-    cors_allowed_origins=["http://localhost:5173", frontend_url],
+    cors_allowed_origins=allowed_origins,
     async_mode="threading",
     logger=False,
     engineio_logger=False,
