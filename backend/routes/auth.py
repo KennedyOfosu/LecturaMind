@@ -3,9 +3,11 @@ auth.py — Bulletproof registration and login with three fallback strategies.
 Works regardless of Supabase email confirmation settings or admin API availability.
 """
 
+import requests as http_requests
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
 from middleware.auth_middleware import require_auth
+from config import Config
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -56,48 +58,59 @@ def register():
     user_id = None
     last_error = ""
 
-    # ── Strategy 1: Admin API (auto-confirms email, most reliable) ──
+    # ── Strategy 1: Direct Supabase Admin REST API (most reliable) ──
     try:
-        res = supabase.auth.admin.create_user({
+        api_url = f"{Config.SUPABASE_URL}/auth/v1/admin/users"
+        headers = {
+            "apikey": Config.SUPABASE_SERVICE_KEY,
+            "Authorization": f"Bearer {Config.SUPABASE_SERVICE_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
             "email": email,
             "password": password,
             "email_confirm": True,
             "user_metadata": {"full_name": full_name, "role": role},
-        })
-        if res and res.user:
-            user_id = res.user.id
-            print(f"[REGISTER] Strategy 1 (admin) succeeded: {user_id}")
+        }
+        r = http_requests.post(api_url, json=payload, headers=headers, timeout=15)
+        rdata = r.json()
+        print(f"[REGISTER] Strategy 1 HTTP status={r.status_code} body={rdata}")
+        if r.status_code in (200, 201) and rdata.get("id"):
+            user_id = rdata["id"]
+            print(f"[REGISTER] Strategy 1 (REST admin) succeeded: {user_id}")
+        else:
+            last_error = rdata.get("msg") or rdata.get("message") or str(rdata)
     except Exception as e:
         last_error = str(e)
-        print(f"[REGISTER] Strategy 1 (admin) failed: {e}")
+        print(f"[REGISTER] Strategy 1 (REST admin) failed: {e}")
 
-    # ── Strategy 2: Regular sign_up (works when admin API is restricted) ──
+    # ── Strategy 2: Python client sign_up ──
     if not user_id:
         try:
             res = supabase.auth.sign_up({
                 "email": email,
                 "password": password,
-                "options": {
-                    "data": {"full_name": full_name, "role": role}
-                },
+                "options": {"data": {"full_name": full_name, "role": role}},
             })
             if res and res.user:
                 user_id = res.user.id
                 print(f"[REGISTER] Strategy 2 (sign_up) succeeded: {user_id}")
+            else:
+                last_error = "sign_up returned no user"
         except Exception as e:
             last_error = str(e)
             print(f"[REGISTER] Strategy 2 (sign_up) failed: {e}")
 
-    # ── Strategy 3: Account already exists — try signing in ──
+    # ── Strategy 3: Account already exists — sign in instead ──
     if not user_id:
         already_exists = any(
             phrase in last_error.lower()
-            for phrase in ["already", "exists", "registered", "unique"]
+            for phrase in ["already", "exists", "registered", "unique", "duplicate"]
         )
         if already_exists:
             try:
                 token, user_id = _sign_in_and_get_token(email, password)
-                print(f"[REGISTER] Strategy 3 (existing account) succeeded: {user_id}")
+                print(f"[REGISTER] Strategy 3 (existing account sign-in) succeeded: {user_id}")
                 profile = _upsert_profile(user_id, full_name, role, email)
                 return jsonify({
                     "token": token,
@@ -113,11 +126,10 @@ def register():
                     "error": "This email is already registered. Please log in with your existing password.",
                     "code": 409
                 }), 409
-        else:
-            return jsonify({
-                "error": f"Could not create account: {last_error}",
-                "code": 400
-            }), 400
+        return jsonify({
+            "error": f"Could not create account: {last_error}",
+            "code": 400
+        }), 400
 
     if not user_id:
         return jsonify({"error": "Registration failed. Please try again.", "code": 400}), 400
