@@ -11,26 +11,20 @@ from config import Config
 app = Flask(__name__)
 app.config["SECRET_KEY"] = (Config.SUPABASE_SERVICE_KEY or "fallback-secret")[:32]
 
-# Accept requests from localhost (dev) and any Vercel/custom domain (prod)
-allowed_origins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-]
-if Config.FRONTEND_URL:
-    allowed_origins.append(Config.FRONTEND_URL)
-
+# Allow all origins — safe for Bearer token auth (no cookies used)
 CORS(
     app,
-    resources={r"/api/*": {"origins": allowed_origins}},
-    supports_credentials=True,
+    resources={r"/api/*": {"origins": "*"}},
     allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
 
-# Threading mode — works with gunicorn on Render, no eventlet needed
+allowed_origins = "*"
+
+# Threading mode — works with gunicorn on Render
 socketio = SocketIO(
     app,
-    cors_allowed_origins=allowed_origins,
+    cors_allowed_origins="*",
     async_mode="threading",
     logger=False,
     engineio_logger=False,
