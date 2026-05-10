@@ -60,8 +60,16 @@ register_socket_events(socketio)
 
 @app.get("/api/health")
 def health():
-    """Simple health check endpoint."""
-    return jsonify({"status": "ok", "service": "LecturaMind API"}), 200
+    """Health check — also confirms env vars are loaded."""
+    return jsonify({
+        "status": "ok",
+        "service": "LecturaMind API",
+        "supabase_url_set": bool(Config.SUPABASE_URL),
+        "service_key_set": bool(Config.SUPABASE_SERVICE_KEY),
+        "openai_key_set": bool(Config.OPENAI_API_KEY),
+        "frontend_url": Config.FRONTEND_URL,
+        "allowed_origins": allowed_origins,
+    }), 200
 
 
 @app.errorhandler(404)
