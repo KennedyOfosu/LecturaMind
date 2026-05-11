@@ -1,6 +1,7 @@
 """
-auth.py — Bulletproof registration and login with three fallback strategies.
-Works regardless of Supabase email confirmation settings or admin API availability.
+auth.py — ID-number based authentication.
+Role is automatically detected from the ID prefix (LEC- or STU-).
+Login uses ID number + password instead of email + password.
 """
 
 import requests as http_requests
@@ -12,53 +13,26 @@ from config import Config
 auth_bp = Blueprint("auth", __name__)
 
 
-def _upsert_profile(user_id: str, full_name: str, role: str, email: str) -> dict:
-    """Create profile if missing, return existing one if already there."""
-    existing = supabase.table("profiles").select("*").eq("id", user_id).execute()
-    if existing.data:
-        return existing.data[0]
-    res = supabase.table("profiles").insert({
-        "id": user_id,
-        "full_name": full_name,
-        "role": role,
-        "email": email,
-    }).execute()
-    return res.data[0]
-
-
-def _sign_in_and_get_token(email: str, password: str):
-    """Sign in and return (session_token, user_id) or raise on failure."""
-    res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-    if not res.user or not res.session:
-        raise Exception("Sign in returned no session")
-    return res.session.access_token, res.user.id
-
-
-@auth_bp.post("/register")
-def register():
+def detect_role_from_id(id_number: str):
     """
-    Three-strategy registration — tries each approach until one works:
-    1. Admin API with email_confirm=True (best — no confirmation email)
-    2. Regular sign_up (fallback if admin API unavailable)
-    3. Sign in (if account already exists with same password)
+    Detects role from ID number prefix.
+    Returns 'lecturer', 'student', or None if invalid.
     """
-    data = request.get_json(silent=True) or {}
-    full_name = data.get("full_name", "").strip()
-    email     = data.get("email", "").strip().lower()
-    password  = data.get("password", "")
-    role      = data.get("role", "").strip().lower()
+    id_upper = id_number.strip().upper()
+    if id_upper.startswith("LEC-") and len(id_upper) == 8:
+        return "lecturer"
+    elif id_upper.startswith("STU-") and len(id_upper) == 8:
+        return "student"
+    return None
 
-    if not all([full_name, email, password, role]):
-        return jsonify({"error": "All fields are required", "code": 400}), 400
-    if role not in ("lecturer", "student"):
-        return jsonify({"error": "Role must be 'lecturer' or 'student'", "code": 400}), 400
-    if len(password) < 6:
-        return jsonify({"error": "Password must be at least 6 characters", "code": 400}), 400
 
-    user_id = None
-    last_error = ""
-
-    # ── Strategy 1: Direct Supabase Admin REST API (most reliable) ──
+def _create_auth_user(email: str, password: str, full_name: str, role: str):
+    """
+    Create Supabase Auth user via Admin REST API (auto-confirms email).
+    Falls back to sign_up if admin API fails.
+    Returns user_id or raises Exception.
+    """
+    # Strategy 1: Admin REST API
     try:
         api_url = f"{Config.SUPABASE_URL}/auth/v1/admin/users"
         headers = {
@@ -66,143 +40,98 @@ def register():
             "Authorization": f"Bearer {Config.SUPABASE_SERVICE_KEY}",
             "Content-Type": "application/json",
         }
-        payload = {
+        r = http_requests.post(api_url, json={
             "email": email,
             "password": password,
             "email_confirm": True,
             "user_metadata": {"full_name": full_name, "role": role},
-        }
-        r = http_requests.post(api_url, json=payload, headers=headers, timeout=15)
-        rdata = r.json()
-        print(f"[REGISTER] Strategy 1 HTTP status={r.status_code} body={rdata}")
-        if r.status_code in (200, 201) and rdata.get("id"):
-            user_id = rdata["id"]
-            print(f"[REGISTER] Strategy 1 (REST admin) succeeded: {user_id}")
-        else:
-            last_error = rdata.get("msg") or rdata.get("message") or str(rdata)
+        }, headers=headers, timeout=15)
+        data = r.json()
+        print(f"[REGISTER] Admin API status={r.status_code} id={data.get('id')}")
+        if r.status_code in (200, 201) and data.get("id"):
+            return data["id"]
     except Exception as e:
-        last_error = str(e)
-        print(f"[REGISTER] Strategy 1 (REST admin) failed: {e}")
+        print(f"[REGISTER] Admin API failed: {e}")
 
-    # ── Strategy 2: Python client sign_up ──
-    if not user_id:
-        try:
-            res = supabase.auth.sign_up({
-                "email": email,
-                "password": password,
-                "options": {"data": {"full_name": full_name, "role": role}},
-            })
-            if res and res.user:
-                user_id = res.user.id
-                print(f"[REGISTER] Strategy 2 (sign_up) succeeded: {user_id}")
-            else:
-                last_error = "sign_up returned no user"
-        except Exception as e:
-            last_error = str(e)
-            print(f"[REGISTER] Strategy 2 (sign_up) failed: {e}")
+    # Strategy 2: sign_up fallback
+    try:
+        res = supabase.auth.sign_up({
+            "email": email,
+            "password": password,
+            "options": {"data": {"full_name": full_name, "role": role}},
+        })
+        if res and res.user:
+            print(f"[REGISTER] sign_up succeeded: {res.user.id}")
+            return res.user.id
+    except Exception as e:
+        raise Exception(str(e))
 
-    # ── Strategy 3: Account already exists — sign in instead ──
-    if not user_id:
-        already_exists = any(
-            phrase in last_error.lower()
-            for phrase in ["already", "exists", "registered", "unique", "duplicate"]
-        )
-        if already_exists:
-            try:
-                token, user_id = _sign_in_and_get_token(email, password)
-                print(f"[REGISTER] Strategy 3 (existing account sign-in) succeeded: {user_id}")
-                profile = _upsert_profile(user_id, full_name, role, email)
-                return jsonify({
-                    "token": token,
-                    "user": {
-                        "id": user_id,
-                        "full_name": profile["full_name"],
-                        "email": email,
-                        "role": profile["role"],
-                    },
-                }), 200
-            except Exception:
-                return jsonify({
-                    "error": "This email is already registered. Please log in with your existing password.",
-                    "code": 409
-                }), 409
+    raise Exception("Could not create auth user")
+
+
+@auth_bp.post("/register")
+def register():
+    """
+    Register with full_name, email, password, id_number.
+    Role is detected automatically from the ID prefix.
+    """
+    data = request.get_json(silent=True) or {}
+    full_name = data.get("full_name", "").strip()
+    email     = data.get("email", "").strip().lower()
+    password  = data.get("password", "")
+    id_number = data.get("id_number", "").strip().upper()
+
+    # Step 1: Validate all fields present
+    if not all([full_name, email, password, id_number]):
+        return jsonify({"error": "All fields are required.", "code": 400}), 400
+
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters.", "code": 400}), 400
+
+    # Step 2: Detect role from ID — BEFORE creating any account
+    role = detect_role_from_id(id_number)
+    if not role:
         return jsonify({
-            "error": f"Could not create account: {last_error}",
+            "error": "Invalid ID number format. ID must start with LEC- for lecturers or STU- for students, followed by 4 digits (e.g. LEC-1001).",
             "code": 400
         }), 400
 
-    if not user_id:
-        return jsonify({"error": "Registration failed. Please try again.", "code": 400}), 400
+    # Step 3: Check for duplicate ID number
+    existing_id = supabase.table("profiles").select("id").eq("user_id_number", id_number).execute()
+    if existing_id.data:
+        return jsonify({"error": "An account with this ID number already exists.", "code": 409}), 409
 
-    # ── Create profile record ──
+    # Step 4: Create Supabase Auth user
     try:
-        profile = _upsert_profile(user_id, full_name, role, email)
+        user_id = _create_auth_user(email, password, full_name, role)
     except Exception as e:
-        print(f"[REGISTER] Profile creation failed: {e}")
-        return jsonify({"error": f"Account created but profile setup failed: {str(e)}", "code": 500}), 500
+        err = str(e).lower()
+        if "already" in err or "exists" in err or "registered" in err:
+            return jsonify({"error": "An account with this email address already exists.", "code": 409}), 409
+        return jsonify({"error": f"Account creation failed: {str(e)}", "code": 400}), 400
 
-    # ── Sign in to get session token ──
+    # Step 5: Insert profile record
     try:
-        token, _ = _sign_in_and_get_token(email, password)
+        existing_profile = supabase.table("profiles").select("id").eq("id", user_id).execute()
+        if not existing_profile.data:
+            supabase.table("profiles").insert({
+                "id": user_id,
+                "full_name": full_name,
+                "role": role,
+                "email": email,
+                "user_id_number": id_number,
+            }).execute()
     except Exception as e:
-        print(f"[REGISTER] Post-registration sign in failed: {e}")
-        # Account exists but can't sign in yet (email confirmation pending)
-        return jsonify({
-            "error": "Account created! If you don't get signed in automatically, please log in manually.",
-            "code": 201
-        }), 201
+        return jsonify({"error": f"Profile setup failed: {str(e)}", "code": 500}), 500
 
-    print(f"[REGISTER] Complete success for {email} as {role}")
-    return jsonify({
-        "token": token,
-        "user": {
-            "id": user_id,
-            "full_name": profile["full_name"],
-            "email": email,
-            "role": profile["role"],
-        },
-    }), 201
-
-
-@auth_bp.post("/login")
-def login():
-    """Authenticate using Supabase session. Returns Supabase access_token."""
-    data = request.get_json(silent=True) or {}
-    email    = data.get("email", "").strip().lower()
-    password = data.get("password", "")
-
-    if not email or not password:
-        return jsonify({"error": "Email and password are required", "code": 400}), 400
-
+    # Step 6: Sign in to get session token
     try:
-        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        session_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        token = session_res.session.access_token
     except Exception as e:
-        print(f"[LOGIN] Failed for {email}: {e}")
-        return jsonify({"error": "Incorrect email or password.", "code": 401}), 401
+        return jsonify({"error": f"Account created but sign-in failed: {str(e)}", "code": 500}), 500
 
-    if not res.user or not res.session:
-        return jsonify({"error": "Incorrect email or password.", "code": 401}), 401
-
-    user_id = res.user.id
-    token   = res.session.access_token
-
-    # Get role from user_metadata first, fallback to profiles table
-    meta      = res.user.user_metadata or {}
-    role      = meta.get("role")
-    full_name = meta.get("full_name", "")
-
-    if not role:
-        profile_res = supabase.table("profiles").select("role, full_name, email").eq("id", user_id).execute()
-        if not profile_res.data:
-            return jsonify({
-                "error": "Your account setup is incomplete. Please register again.",
-                "code": 404
-            }), 404
-        profile   = profile_res.data[0]
-        role      = profile["role"]
-        full_name = profile.get("full_name", full_name)
-
-    print(f"[LOGIN] Success: {email} as {role}")
+    print(f"[REGISTER] Success: {id_number} as {role}")
     return jsonify({
         "token": token,
         "user": {
@@ -210,6 +139,56 @@ def login():
             "full_name": full_name,
             "email": email,
             "role": role,
+            "user_id_number": id_number,
+        },
+    }), 201
+
+
+@auth_bp.post("/login")
+def login():
+    """
+    Login with id_number + password.
+    Looks up email from profiles table, then authenticates with Supabase.
+    """
+    data = request.get_json(silent=True) or {}
+    id_number = data.get("id_number", "").strip().upper()
+    password  = data.get("password", "")
+
+    if not id_number or not password:
+        return jsonify({"error": "ID number and password are required.", "code": 400}), 400
+
+    # Look up profile by ID number to get email
+    profile_res = supabase.table("profiles").select("*").eq("user_id_number", id_number).execute()
+    if not profile_res.data:
+        return jsonify({
+            "error": "No account found with that ID number. Please check and try again.",
+            "code": 404
+        }), 404
+
+    profile = profile_res.data[0]
+    email   = profile.get("email")
+
+    if not email:
+        return jsonify({"error": "Account data is incomplete. Please contact support.", "code": 500}), 500
+
+    # Authenticate with Supabase
+    try:
+        auth_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        if not auth_res.session:
+            raise Exception("No session")
+        token = auth_res.session.access_token
+    except Exception:
+        return jsonify({"error": "Incorrect password. Please try again.", "code": 401}), 401
+
+    print(f"[LOGIN] Success: {id_number} as {profile['role']}")
+    return jsonify({
+        "token": token,
+        "user": {
+            "id": profile["id"],
+            "full_name": profile["full_name"],
+            "email": email,
+            "role": profile["role"],
+            "user_id_number": id_number,
         },
     }), 200
 
@@ -233,3 +212,28 @@ def me():
     profile = profile_res.data[0]
     profile["email"] = g.user_email
     return jsonify(profile), 200
+
+
+@auth_bp.post("/seed")
+def seed():
+    """
+    Creates the two default test accounts. Call once after deployment.
+    LEC-1001 / lecturer@lecturamind.com / lecturer123
+    STU-2001 / student@lecturamind.com  / student123
+    """
+    accounts = [
+        {"full_name": "Dr. Amidini", "email": "lecturer@lecturamind.com",
+         "password": "lecturer123", "id_number": "LEC-1001"},
+        {"full_name": "Kennedy Ofosu", "email": "student@lecturamind.com",
+         "password": "student123", "id_number": "STU-2001"},
+    ]
+    results = []
+    for acc in accounts:
+        import requests as req_module
+        r = req_module.post(
+            f"{request.host_url}api/auth/register",
+            json=acc,
+            timeout=30
+        )
+        results.append({"id_number": acc["id_number"], "status": r.status_code, "body": r.json()})
+    return jsonify(results), 200

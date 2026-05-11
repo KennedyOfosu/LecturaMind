@@ -1,31 +1,23 @@
 /**
- * AuthContext.jsx — Global authentication state.
- * Provides login, logout, register functions and the current user object.
+ * AuthContext.jsx — Global auth state using ID-number based login.
+ * Token and user are persisted in localStorage for page-refresh survival.
  */
 
 import { createContext, useState, useEffect, useCallback } from 'react'
 import { authService } from '../services/authService'
-import { dashboardPath } from '../utils/roleGuard'
 
 export const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('lm_user')) || null
-    } catch {
-      return null
-    }
+    try { return JSON.parse(localStorage.getItem('lm_user')) || null } catch { return null }
   })
   const [loading, setLoading] = useState(true)
 
-  // Verify stored token on mount
+  // Restore session on mount
   useEffect(() => {
     const token = localStorage.getItem('lm_token')
-    if (!token) {
-      setLoading(false)
-      return
-    }
+    if (!token) { setLoading(false); return }
     authService.me()
       .then((res) => setUser(res.data))
       .catch(() => {
@@ -36,8 +28,8 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
-  const login = useCallback(async (email, password) => {
-    const res = await authService.login({ email, password })
+  const login = useCallback(async (idNumber, password) => {
+    const res = await authService.login({ id_number: idNumber, password })
     const { token, user: userData } = res.data
     localStorage.setItem('lm_token', token)
     localStorage.setItem('lm_user', JSON.stringify(userData))
@@ -45,8 +37,13 @@ export function AuthProvider({ children }) {
     return userData
   }, [])
 
-  const register = useCallback(async (formData) => {
-    const res = await authService.register(formData)
+  const register = useCallback(async (fullName, email, password, idNumber) => {
+    const res = await authService.register({
+      full_name: fullName,
+      email,
+      password,
+      id_number: idNumber,
+    })
     const { token, user: userData } = res.data
     localStorage.setItem('lm_token', token)
     localStorage.setItem('lm_user', JSON.stringify(userData))
