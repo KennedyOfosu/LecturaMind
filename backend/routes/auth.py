@@ -214,26 +214,54 @@ def me():
     return jsonify(profile), 200
 
 
-@auth_bp.post("/seed")
+@auth_bp.get("/seed")
 def seed():
     """
-    Creates the two default test accounts. Call once after deployment.
+    Creates two default test accounts directly (no HTTP self-call).
+    Visit GET /api/auth/seed once after deployment to set up test accounts.
     LEC-1001 / lecturer@lecturamind.com / lecturer123
     STU-2001 / student@lecturamind.com  / student123
     """
     accounts = [
-        {"full_name": "Dr. Amidini", "email": "lecturer@lecturamind.com",
-         "password": "lecturer123", "id_number": "LEC-1001"},
+        {"full_name": "Dr. Amidini",   "email": "lecturer@lecturamind.com",
+         "password": "lecturer123",    "id_number": "LEC-1001"},
         {"full_name": "Kennedy Ofosu", "email": "student@lecturamind.com",
-         "password": "student123", "id_number": "STU-2001"},
+         "password": "student123",     "id_number": "STU-2001"},
     ]
     results = []
     for acc in accounts:
-        import requests as req_module
-        r = req_module.post(
-            f"{request.host_url}api/auth/register",
-            json=acc,
-            timeout=30
-        )
-        results.append({"id_number": acc["id_number"], "status": r.status_code, "body": r.json()})
-    return jsonify(results), 200
+        id_number = acc["id_number"]
+        email     = acc["email"]
+        password  = acc["password"]
+        full_name = acc["full_name"]
+        role      = detect_role_from_id(id_number)
+
+        # Skip if ID already registered
+        existing = supabase.table("profiles").select("id").eq("user_id_number", id_number).execute()
+        if existing.data:
+            results.append({"id_number": id_number, "status": "already exists"})
+            continue
+
+        # Create auth user
+        try:
+            user_id = _create_auth_user(email, password, full_name, role)
+        except Exception as e:
+            results.append({"id_number": id_number, "status": f"auth failed: {e}"})
+            continue
+
+        # Create profile
+        try:
+            existing_profile = supabase.table("profiles").select("id").eq("id", user_id).execute()
+            if not existing_profile.data:
+                supabase.table("profiles").insert({
+                    "id": user_id,
+                    "full_name": full_name,
+                    "role": role,
+                    "email": email,
+                    "user_id_number": id_number,
+                }).execute()
+            results.append({"id_number": id_number, "status": "created", "role": role})
+        except Exception as e:
+            results.append({"id_number": id_number, "status": f"profile failed: {e}"})
+
+    return jsonify({"message": "Seed complete", "results": results}), 200
