@@ -1,6 +1,6 @@
 /**
- * Register.jsx — Exact match to Sign Up Page.jpg (Step 1) and Sign Up Page 2.jpg (Step 2).
- * White card left, library background, two-step form.
+ * Register.jsx — Exact replica of Sign Up Page.jpg and Sign Up Page 2.jpg.
+ * Full-height white card on the left, library background fills the right.
  */
 
 import { useState } from 'react'
@@ -8,18 +8,27 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { dashboardPath } from '../utils/roleGuard'
 
+const LogoMark = () => (
+  <div className="flex justify-center mb-14">
+    <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
+      <path d="M2 30L20 4L38 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M10 30L20 14L30 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  </div>
+)
+
 export default function Register() {
   const { register } = useAuth()
-  const navigate = useNavigate()
+  const navigate     = useNavigate()
 
-  const [step, setStep]         = useState(1)
+  const [step,      setStep]      = useState(1)
   const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors]     = useState({})
-  const [apiError, setApiError] = useState('')
+  const [errors,    setErrors]    = useState({})
+  const [apiError,  setApiError]  = useState('')
 
   const [form, setForm] = useState({
     fullName: '',
-    email: '',
+    email:    '',
     password: '',
     idNumber: '',
   })
@@ -31,13 +40,12 @@ export default function Register() {
     setApiError('')
   }
 
-  /* ── Step 1 validation ── */
   const validateStep1 = () => {
     const errs = {}
-    if (!form.fullName.trim()) errs.fullName = 'Full name is required.'
-    if (!form.email.trim()) errs.email = 'Email address is required.'
+    if (!form.fullName.trim())  errs.fullName = 'Full name is required.'
+    if (!form.email.trim())     errs.email    = 'Email address is required.'
     else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Enter a valid email.'
-    if (!form.password) errs.password = 'Password is required.'
+    if (!form.password)         errs.password = 'Password is required.'
     else if (form.password.length < 6) errs.password = 'Minimum 6 characters.'
     setErrors(errs)
     return !Object.keys(errs).length
@@ -48,7 +56,6 @@ export default function Register() {
     if (validateStep1()) setStep(2)
   }
 
-  /* ── Step 2 submission ── */
   const handleSubmit = async (e) => {
     e.preventDefault()
     setApiError('')
@@ -67,39 +74,25 @@ export default function Register() {
     }
   }
 
-  /* Shared input style */
   const inputClass = (field) =>
-    `w-full px-4 py-3 rounded-xl border bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 ${
-      errors[field] ? 'border-red-300 bg-red-50' : 'border-gray-200'
+    `w-full px-4 py-3.5 rounded-xl border text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400 ${
+      errors[field] ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
     }`
 
-  /* Logo mark SVG */
-  const LogoMark = () => (
-    <div className="flex justify-center mb-10">
-      <svg width="36" height="28" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2 26L18 4L34 26" stroke="#111111" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M9 26L18 12L27 26" stroke="#111111" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </div>
-  )
-
   return (
-    /* Full-screen background — library image */
-    <div
-      className="min-h-screen w-full bg-cover bg-center flex items-center"
-      style={{ backgroundImage: "url('/library-bg.png')" }}
-    >
-      {/* White card — left side */}
-      <div className="bg-white rounded-2xl shadow-xl mx-8 md:mx-16 w-full max-w-sm p-10 flex flex-col">
+    <div className="flex min-h-screen">
+
+      {/* ── Left panel: full-height white card ── */}
+      <div className="relative z-10 flex flex-col justify-center px-14 py-16 bg-white w-full max-w-md min-h-screen shadow-2xl">
 
         {/* ── STEP 1: Create your account ── */}
         <div className={step === 1 ? 'flex flex-col' : 'hidden'}>
           <LogoMark />
 
-          <h1 className="text-2xl font-semibold text-gray-900 text-center mb-1">
-            Create your account
-          </h1>
-          <p className="text-sm text-gray-400 text-center mb-8">Join LecturaMind today</p>
+          <div className="mb-10 text-center">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-1.5">Create your account</h1>
+            <p className="text-sm text-gray-400">Join LecturaMind today</p>
+          </div>
 
           <form onSubmit={handleContinue} className="flex flex-col gap-3">
             <div>
@@ -137,15 +130,15 @@ export default function Register() {
 
             <button
               type="submit"
-              className="w-full py-3 mt-2 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors"
+              className="w-full py-3.5 mt-3 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors"
             >
               Continue
             </button>
           </form>
 
-          <p className="text-center text-xs text-gray-400 mt-6">
+          <p className="text-center text-sm text-gray-400 mt-8">
             Already have an account?{' '}
-            <Link to="/login" className="text-gray-800 font-semibold hover:underline">
+            <Link to="/login" className="text-gray-900 font-semibold hover:underline">
               Sign in
             </Link>
           </p>
@@ -155,13 +148,12 @@ export default function Register() {
         <div className={step === 2 ? 'flex flex-col' : 'hidden'}>
           <LogoMark />
 
-          <h1 className="text-2xl font-semibold text-gray-900 text-center mb-1">
-            Enter Your ID
-          </h1>
-          <p className="text-sm text-gray-400 text-center mb-8 leading-relaxed">
-            In LecturaMind your ID tells us who you are.{' '}
-            <span className="block">Never share your ID.</span>
-          </p>
+          <div className="mb-10 text-center">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Enter Your ID</h1>
+            <p className="text-sm text-gray-400 leading-relaxed">
+              In LecturaMind your ID tells us who you are.<br />Never share your ID.
+            </p>
+          </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
@@ -174,13 +166,13 @@ export default function Register() {
                 className={inputClass('idNumber')}
               />
               {errors.idNumber && <p className="text-red-500 text-xs mt-1">{errors.idNumber}</p>}
-              {apiError && <p className="text-red-500 text-xs mt-2 text-center">{apiError}</p>}
+              {apiError        && <p className="text-red-500 text-xs mt-2 text-center">{apiError}</p>}
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 mt-2 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              className="w-full py-3.5 mt-3 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {isLoading && (
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -192,11 +184,12 @@ export default function Register() {
             </button>
           </form>
 
-          <p className="text-center text-xs text-gray-400 mt-6">
+          <p className="text-center text-sm text-gray-400 mt-8">
             Already have an account?{' '}
             <button
+              type="button"
               onClick={() => { setStep(1); setApiError('') }}
-              className="text-gray-800 font-semibold hover:underline"
+              className="text-gray-900 font-semibold hover:underline"
             >
               Sign in
             </button>
@@ -204,6 +197,12 @@ export default function Register() {
         </div>
 
       </div>
+
+      {/* ── Right panel: full-height library background image ── */}
+      <div
+        className="flex-1 bg-cover bg-center"
+        style={{ backgroundImage: "url('/library-bg.png')" }}
+      />
     </div>
   )
 }

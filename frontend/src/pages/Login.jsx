@@ -1,6 +1,6 @@
 /**
- * Login.jsx — Exact match to Login Page.jpg design.
- * White card left, autumn campus background, ID + Password login.
+ * Login.jsx — Exact replica of Login Page.jpg.
+ * Full-height white card on the left, campus background fills the right.
  */
 
 import { useState } from 'react'
@@ -10,12 +10,12 @@ import { dashboardPath } from '../utils/roleGuard'
 
 export default function Login() {
   const { login } = useAuth()
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
 
-  const [idNumber, setIdNumber] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError]       = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [idNumber,   setIdNumber]   = useState('')
+  const [password,   setPassword]   = useState('')
+  const [error,      setError]      = useState('')
+  const [isLoading,  setIsLoading]  = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -36,54 +36,50 @@ export default function Login() {
   }
 
   return (
-    /* Full-screen background — campus image */
-    <div
-      className="min-h-screen w-full bg-cover bg-center flex items-center"
-      style={{ backgroundImage: "url('/campus-bg.png')" }}
-    >
-      {/* White card — left side */}
-      <div className="bg-white rounded-2xl shadow-xl mx-8 md:mx-16 w-full max-w-xs p-10 flex flex-col">
+    <div className="flex min-h-screen">
+
+      {/* ── Left panel: full-height white card ── */}
+      <div className="relative z-10 flex flex-col justify-center px-14 py-16 bg-white w-full max-w-md min-h-screen shadow-2xl">
 
         {/* Logo mark */}
-        <div className="flex justify-center mb-10">
-          <svg width="36" height="28" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2 26L18 4L34 26" stroke="#111111" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M9 26L18 12L27 26" stroke="#111111" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        <div className="flex justify-center mb-14">
+          <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
+            <path d="M2 30L20 4L38 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M10 30L20 14L30 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
 
         {/* Heading */}
-        <h1 className="text-2xl font-semibold text-gray-900 text-center mb-1">Welcome Back</h1>
-        <p className="text-sm text-gray-400 text-center mb-8">Sign in to your LecturaMind account</p>
+        <div className="mb-10 text-center">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-1.5">Welcome Back</h1>
+          <p className="text-sm text-gray-400">Sign in to your LecturaMind account</p>
+        </div>
 
+        {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          {/* ID input */}
           <input
             type="text"
             placeholder="Enter ID"
             value={idNumber}
             onChange={(e) => setIdNumber(e.target.value.toUpperCase())}
             autoComplete="off"
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400"
           />
 
-          {/* Password input */}
           <input
             type="password"
             placeholder="Enter Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400"
           />
 
-          {/* Error */}
           {error && <p className="text-red-500 text-xs text-center">{error}</p>}
 
-          {/* Sign In button */}
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 mt-1 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full py-3.5 mt-2 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {isLoading && (
               <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -95,14 +91,19 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Sign up link */}
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-sm text-gray-400 mt-8">
           Don't have an account?{' '}
-          <Link to="/register" className="text-gray-800 font-semibold hover:underline">
+          <Link to="/register" className="text-gray-900 font-semibold hover:underline">
             Sign Up
           </Link>
         </p>
       </div>
+
+      {/* ── Right panel: full-height campus background image ── */}
+      <div
+        className="flex-1 bg-cover bg-center"
+        style={{ backgroundImage: "url('/campus-bg.png')" }}
+      />
     </div>
   )
 }
