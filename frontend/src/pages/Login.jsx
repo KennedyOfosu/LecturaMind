@@ -1,21 +1,15 @@
-/**
- * Login.jsx — Exact replica of Login Page.jpg.
- * Full-height white card on the left, campus background fills the right.
- */
-
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { dashboardPath } from '../utils/roleGuard'
 
 export default function Login() {
-  const { login } = useAuth()
-  const navigate  = useNavigate()
-
-  const [idNumber,   setIdNumber]   = useState('')
-  const [password,   setPassword]   = useState('')
-  const [error,      setError]      = useState('')
-  const [isLoading,  setIsLoading]  = useState(false)
+  const { login }   = useAuth()
+  const navigate    = useNavigate()
+  const [idNumber,  setIdNumber]  = useState('')
+  const [password,  setPassword]  = useState('')
+  const [error,     setError]     = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -36,13 +30,16 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    /* Full-screen campus background */
+    <div
+      className="min-h-screen w-full bg-cover bg-center flex items-stretch p-8"
+      style={{ backgroundImage: "url('/campus-bg.png')" }}
+    >
+      {/* Floating white card — left side, gap on all edges */}
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col justify-center px-12 py-14">
 
-      {/* ── Left panel: full-height white card ── */}
-      <div className="relative z-10 flex flex-col justify-center px-14 py-16 bg-white w-full max-w-md min-h-screen shadow-2xl">
-
-        {/* Logo mark */}
-        <div className="flex justify-center mb-14">
+        {/* Logo */}
+        <div className="flex justify-center mb-12">
           <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
             <path d="M2 30L20 4L38 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M10 30L20 14L30 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -50,7 +47,7 @@ export default function Login() {
         </div>
 
         {/* Heading */}
-        <div className="mb-10 text-center">
+        <div className="text-center mb-10">
           <h1 className="text-2xl font-semibold text-gray-900 mb-1.5">Welcome Back</h1>
           <p className="text-sm text-gray-400">Sign in to your LecturaMind account</p>
         </div>
@@ -65,7 +62,6 @@ export default function Login() {
             autoComplete="off"
             className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400"
           />
-
           <input
             type="password"
             placeholder="Enter Password"
@@ -73,9 +69,7 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400"
           />
-
           {error && <p className="text-red-500 text-xs text-center">{error}</p>}
-
           <button
             type="submit"
             disabled={isLoading}
@@ -98,12 +92,6 @@ export default function Login() {
           </Link>
         </p>
       </div>
-
-      {/* ── Right panel: full-height campus background image ── */}
-      <div
-        className="flex-1 bg-cover bg-center"
-        style={{ backgroundImage: "url('/campus-bg.png')" }}
-      />
     </div>
   )
 }
