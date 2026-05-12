@@ -70,9 +70,13 @@ export default function App() {
                 <Route path="/lecturer/live-qna" element={<LecturerLiveQnA />} />
               </Route>
 
-              {/* Student routes */}
+              {/* Student dashboard — custom full-page layout */}
+              <Route path="/student/dashboard" element={
+                <ProtectedRoute role="student"><StudentDashboard /></ProtectedRoute>
+              } />
+
+              {/* Other student routes — standard layout */}
               <Route element={<DashboardLayout role="student" />}>
-                <Route path="/student/dashboard" element={<StudentDashboard />} />
                 <Route path="/student/courses/:courseId" element={<CourseView />} />
               </Route>
 
