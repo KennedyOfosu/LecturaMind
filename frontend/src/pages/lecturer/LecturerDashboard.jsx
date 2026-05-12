@@ -148,56 +148,67 @@ export default function LecturerDashboard() {
         ))}
       </div>
 
-      {/* ── Summary grid ── */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* ── Summary grid: 2 cols left (students) + 1 col right (stacked cards) ── */}
+      <div className="grid grid-cols-3 gap-4 items-start">
 
-        {/* Students table — spans 2 columns */}
-        <div className="col-span-2" style={{ minHeight: 280 }}>
-          <Card title="Enrolled Students" Icon={Ic.Users} linkText="Manage courses" onLink={() => navigate('/lecturer/courses')}>
-            {!allStudents.length ? (
-              <div className="flex items-center justify-center h-32 text-xs text-gray-400">
-                No students enrolled yet
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ backgroundColor: '#F0F0F2' }}>
-                    {['Student', 'Course', 'Status'].map((h) => (
-                      <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {allStudents.map((s, i) => (
-                    <tr key={i} className="border-t hover:bg-gray-50 transition-colors" style={{ borderColor: '#F0F0F2' }}>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="h-7 w-7 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0">
-                            {s.full_name?.[0] || '?'}
-                          </div>
-                          <span className="font-medium text-gray-800 text-sm">{s.full_name}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-xs text-gray-500">{s.course_name}</td>
-                      <td className="px-5 py-3">
-                        <span className="inline-flex items-center text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-medium">
-                          Enrolled
-                        </span>
-                      </td>
-                    </tr>
+        {/* ── Enrolled Students — tall, spans 2 cols ── */}
+        <div className="col-span-2 rounded-2xl overflow-hidden"
+          style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
+          <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: '#F0F0F2' }}>
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <Ic.Users /> Enrolled Students
+            </div>
+            <button onClick={() => navigate('/lecturer/courses')}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors">
+              Manage courses <Ic.Arrow />
+            </button>
+          </div>
+
+          {!allStudents.length ? (
+            <div className="flex items-center justify-center py-16 text-xs text-gray-400">
+              No students enrolled yet
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ backgroundColor: '#F0F0F2' }}>
+                  {['Student', 'Course', 'Status'].map((h) => (
+                    <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">{h}</th>
                   ))}
-                </tbody>
-              </table>
-            )}
-          </Card>
+                </tr>
+              </thead>
+              <tbody>
+                {allStudents.map((s, i) => (
+                  <tr key={i} className="border-t hover:bg-gray-50 transition-colors" style={{ borderColor: '#F0F0F2' }}>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0">
+                          {s.full_name?.[0] || '?'}
+                        </div>
+                        <span className="font-medium text-gray-800 text-sm">{s.full_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-gray-500">{s.course_name}</td>
+                    <td className="px-5 py-3.5">
+                      <span className="inline-flex items-center text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
+                        Enrolled
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
-        {/* Live Monitor — 1 column */}
-        <div style={{ minHeight: 280 }}>
+        {/* ── Right column: Live Monitor → Announcements → Materials (stacked) ── */}
+        <div className="flex flex-col gap-4">
+
+          {/* Live Monitor */}
           <Card title="Live Monitor" Icon={Ic.Eye} linkText="Open" onLink={() => navigate('/lecturer/live-monitor')}>
-            <div className="p-5 flex flex-col gap-4">
+            <div className="p-5 flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-xl flex items-center justify-center text-2xl font-bold"
+                <div className="h-11 w-11 rounded-xl flex items-center justify-center text-xl font-bold"
                   style={{ backgroundColor: onlineUsers.length ? '#ecfdf5' : '#F0F0F2',
                            color: onlineUsers.length ? '#059669' : '#9ca3af' }}>
                   {onlineUsers.length}
@@ -209,24 +220,22 @@ export default function LecturerDashboard() {
                   <p className="text-xs text-gray-400">across all courses</p>
                 </div>
               </div>
-              {onlineUsers.slice(0, 5).map((u, i) => (
+              {onlineUsers.slice(0, 4).map((u, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs text-gray-600">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
                   {u.name || 'Student'}
                 </div>
               ))}
               {!onlineUsers.length && (
-                <p className="text-xs text-gray-400">Students will appear here when they log in</p>
+                <p className="text-xs text-gray-400">Students appear here when active</p>
               )}
             </div>
           </Card>
-        </div>
 
-        {/* Announcements */}
-        <div style={{ minHeight: 220 }}>
+          {/* Announcements */}
           <Card title="Announcements" Icon={Ic.Bell} linkText="Manage" onLink={() => navigate('/lecturer/announcements')}>
             {!announcements.length ? (
-              <div className="flex items-center justify-center h-24 text-xs text-gray-400">No announcements yet</div>
+              <div className="flex items-center justify-center py-6 text-xs text-gray-400">No announcements yet</div>
             ) : (
               <div>
                 {announcements.map((a) => (
@@ -238,39 +247,11 @@ export default function LecturerDashboard() {
               </div>
             )}
           </Card>
-        </div>
 
-        {/* Recent Chats */}
-        <div style={{ minHeight: 220 }}>
-          <Card title="Recent Chats" Icon={Ic.Chat} linkText="View logs" onLink={() => navigate('/lecturer/chat-logs')}>
-            {!chatLogs.length ? (
-              <div className="flex items-center justify-center h-24 text-xs text-gray-400">No chat activity yet</div>
-            ) : (
-              <div>
-                {chatLogs.map((log) => (
-                  <div key={log.id} className="px-5 py-3.5 border-t" style={{ borderColor: '#F0F0F2' }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="h-5 w-5 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0">
-                        {log.profiles?.full_name?.[0] || '?'}
-                      </div>
-                      <span className="text-xs font-medium text-gray-700 flex-1 truncate">
-                        {log.profiles?.full_name || 'Student'}
-                      </span>
-                      <span className="text-xs text-gray-400 shrink-0">{timeAgo(log.timestamp)}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 truncate">{log.query}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Materials */}
-        <div style={{ minHeight: 220 }}>
+          {/* Course Materials */}
           <Card title="Course Materials" Icon={Ic.File} linkText="Upload" onLink={() => navigate('/lecturer/materials')}>
             {!materials.length ? (
-              <div className="flex flex-col items-center justify-center h-24 gap-2">
+              <div className="flex flex-col items-center justify-center py-6 gap-2">
                 <p className="text-xs text-gray-400">No materials uploaded yet</p>
                 <button onClick={() => navigate('/lecturer/materials')}
                   className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium"
@@ -295,8 +276,8 @@ export default function LecturerDashboard() {
               </div>
             )}
           </Card>
-        </div>
 
+        </div>
       </div>
     </div>
   )
