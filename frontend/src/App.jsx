@@ -41,13 +41,9 @@ export default function App() {
               <Route path="/login"    element={<Login />} />
               <Route path="/register" element={<Register />} />
 
-              {/* ── Lecturer dashboard (standalone layout) ── */}
-              <Route path="/lecturer/dashboard" element={
-                <ProtectedRoute role="lecturer"><LecturerDashboard /></ProtectedRoute>
-              } />
-
-              {/* ── Lecturer inner pages (Synapse layout) ── */}
+              {/* ── All lecturer pages inside LecturerLayout (shared sidebar) ── */}
               <Route element={<ProtectedRoute role="lecturer"><LecturerLayout /></ProtectedRoute>}>
+                <Route path="/lecturer/dashboard"     element={<LecturerDashboard />} />
                 <Route path="/lecturer/courses"       element={<CourseManager />} />
                 <Route path="/lecturer/materials"     element={<MaterialUploader />} />
                 <Route path="/lecturer/announcements" element={<AnnouncementManager />} />
