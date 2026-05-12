@@ -134,6 +134,28 @@ export default function StudentDashboard() {
             </div>
           </div>
 
+          {/* Quick Actions */}
+          <div className="px-3 mt-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
+              Quick Actions
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {quickActions.map(({ label, icon, tab }) => (
+                <button
+                  key={tab}
+                  onClick={() => {
+                    const course = selectedCourse || courses[0]
+                    if (course) goTo(course.id, tab)
+                  }}
+                  className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-white transition-colors"
+                >
+                  <span className="text-base leading-none">{icon}</span>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Spacer */}
           <div className="flex-1" />
 
@@ -225,24 +247,6 @@ export default function StudentDashboard() {
             </button>
           </div>
         </form>
-
-        {/* Quick action chips */}
-        <div className="flex flex-wrap justify-center gap-2.5 mt-5">
-          {quickActions.map(({ label, icon, tab }) => (
-            <button
-              key={tab}
-              onClick={() => {
-                if (selectedCourse) goTo(selectedCourse.id, tab)
-                else if (courses.length) goTo(courses[0].id, tab)
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 transition-all hover:shadow-sm active:scale-95"
-              style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}
-            >
-              <span>{icon}</span>
-              {label}
-            </button>
-          ))}
-        </div>
 
       </main>
     </div>
