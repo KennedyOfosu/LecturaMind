@@ -1,6 +1,7 @@
 """
 courses.py — Course CRUD routes and enrolment management.
 Lecturers own courses; students are enrolled into them.
+Supports level-based filtering (100, 200, 300, 400).
 """
 
 from flask import Blueprint, request, jsonify, g
@@ -9,30 +10,36 @@ from middleware.auth_middleware import require_auth, require_role
 
 courses_bp = Blueprint("courses", __name__)
 
+VALID_LEVELS = [100, 200, 300, 400]
+
 
 @courses_bp.route("/", methods=["POST"], strict_slashes=False)
 @require_auth
 @require_role("lecturer")
 def create_course():
-    """
-    Create a new course owned by the authenticated lecturer.
-
-    Body: { course_name, course_code, description }
-    Returns: the created course record.
-    """
     data = request.get_json(silent=True) or {}
     course_name = data.get("course_name", "").strip()
     course_code = data.get("course_code", "").strip().upper()
     description = data.get("description", "").strip()
+    level       = data.get("level")
 
     if not course_name or not course_code:
         return jsonify({"error": "course_name and course_code are required", "code": 400}), 400
+
+    try:
+        level = int(level)
+    except (TypeError, ValueError):
+        level = None
+
+    if level not in VALID_LEVELS:
+        return jsonify({"error": "Level must be one of: 100, 200, 300, 400.", "code": 400}), 400
 
     try:
         res = supabase.table("courses").insert({
             "course_name": course_name,
             "course_code": course_code,
             "description": description,
+            "level": level,
             "lecturer_id": g.user_id,
         }).execute()
     except Exception as e:
@@ -45,10 +52,16 @@ def create_course():
 @require_auth
 @require_role("lecturer")
 def get_my_courses():
-    """Return all courses created by the authenticated lecturer with enrolment and material counts."""
-    res = supabase.table("courses").select("*, enrolments(count), materials(count)").eq(
+    level_filter = request.args.get("level")
+    query = supabase.table("courses").select("*, enrolments(count), materials(count)").eq(
         "lecturer_id", g.user_id
-    ).order("created_at", desc=True).execute()
+    )
+    if level_filter:
+        try:
+            query = query.eq("level", int(level_filter))
+        except ValueError:
+            pass
+    res = query.order("level").order("created_at", desc=True).execute()
     return jsonify(res.data), 200
 
 
@@ -56,11 +69,9 @@ def get_my_courses():
 @require_auth
 @require_role("student")
 def get_enrolled_courses():
-    """Return all courses the authenticated student is enrolled in, including lecturer profile."""
     res = supabase.table("enrolments").select(
         "*, courses(*, profiles!courses_lecturer_id_fkey(full_name, avatar_url))"
     ).eq("student_id", g.user_id).execute()
-
     courses = [row["courses"] for row in res.data if row.get("courses")]
     return jsonify(courses), 200
 
@@ -68,7 +79,6 @@ def get_enrolled_courses():
 @courses_bp.get("/<course_id>")
 @require_auth
 def get_course(course_id: str):
-    """Return a single course by ID."""
     res = supabase.table("courses").select(
         "*, profiles!courses_lecturer_id_fkey(full_name, avatar_url)"
     ).eq("id", course_id).single().execute()
@@ -81,19 +91,18 @@ def get_course(course_id: str):
 @require_auth
 @require_role("lecturer")
 def update_course(course_id: str):
-    """
-    Update course name or description. Lecturer must own the course.
-
-    Body: { course_name?, description? }
-    """
     data = request.get_json(silent=True) or {}
     updates = {}
-    if "course_name" in data:
-        updates["course_name"] = data["course_name"].strip()
-    if "description" in data:
-        updates["description"] = data["description"].strip()
-    if "course_code" in data:
-        updates["course_code"] = data["course_code"].strip().upper()
+    if "course_name" in data:  updates["course_name"] = data["course_name"].strip()
+    if "description"  in data: updates["description"]  = data["description"].strip()
+    if "course_code"  in data: updates["course_code"]  = data["course_code"].strip().upper()
+    if "level"        in data:
+        try:
+            lvl = int(data["level"])
+            if lvl in VALID_LEVELS:
+                updates["level"] = lvl
+        except (TypeError, ValueError):
+            pass
 
     if not updates:
         return jsonify({"error": "Nothing to update", "code": 400}), 400
@@ -110,7 +119,6 @@ def update_course(course_id: str):
 @require_auth
 @require_role("lecturer")
 def delete_course(course_id: str):
-    """Delete a course and all associated data. Lecturer must own the course."""
     res = supabase.table("courses").delete().eq("id", course_id).eq(
         "lecturer_id", g.user_id
     ).execute()
@@ -123,49 +131,68 @@ def delete_course(course_id: str):
 @require_auth
 @require_role("lecturer")
 def enrol_student(course_id: str):
-    """
-    Enrol a student into a course by email address.
-
-    Body: { email }
-    """
+    """Enrol a student by their institution Student ID number (e.g. STU-2001)."""
     data = request.get_json(silent=True) or {}
-    email = data.get("email", "").strip().lower()
-    if not email:
-        return jsonify({"error": "Student email is required", "code": 400}), 400
+    student_id_number = data.get("student_id_number", "").strip().upper()
 
-    # Look up student directly from profiles table by email
-    profile_res = supabase.table("profiles").select("id, role, full_name").eq("email", email).execute()
+    if not student_id_number:
+        return jsonify({"error": "Student ID number is required.", "code": 400}), 400
+
+    if not student_id_number.startswith("STU-"):
+        return jsonify({
+            "error": "Invalid ID. Student IDs must start with STU- (e.g. STU-2001).",
+            "code": 400
+        }), 400
+
+    profile_res = supabase.table("profiles").select("id, full_name, role").eq(
+        "user_id_number", student_id_number
+    ).execute()
 
     if not profile_res.data:
-        return jsonify({"error": "No account found for that email. Make sure the student has registered first.", "code": 404}), 404
+        return jsonify({
+            "error": f"No account found with ID {student_id_number}. Ask the student to register first.",
+            "code": 404
+        }), 404
 
-    profile = profile_res.data[0]
+    student = profile_res.data[0]
 
-    if profile.get("role") != "student":
-        return jsonify({"error": "That account is not registered as a student.", "code": 400}), 400
+    if student["role"] != "student":
+        return jsonify({
+            "error": f"{student_id_number} belongs to a Lecturer, not a Student.",
+            "code": 400
+        }), 400
 
-    student_id = profile["id"]
+    existing = supabase.table("enrolments").select("id").eq(
+        "student_id", student["id"]
+    ).eq("course_id", course_id).execute()
 
-    try:
-        res = supabase.table("enrolments").insert({
-            "student_id": student_id,
-            "course_id": course_id,
-        }).execute()
-    except Exception as e:
-        if "unique" in str(e).lower():
-            return jsonify({"error": "Student is already enrolled", "code": 409}), 409
-        return jsonify({"error": str(e), "code": 500}), 500
+    if existing.data:
+        return jsonify({
+            "error": f"{student['full_name']} is already enrolled in this course.",
+            "code": 409
+        }), 409
 
-    return jsonify({"message": "Student enrolled successfully"}), 201
+    supabase.table("enrolments").insert({
+        "student_id": student["id"],
+        "course_id": course_id,
+    }).execute()
+
+    return jsonify({
+        "message": f"{student['full_name']} has been successfully enrolled.",
+        "student": {
+            "id": student["id"],
+            "full_name": student["full_name"],
+            "user_id_number": student_id_number,
+        }
+    }), 201
 
 
 @courses_bp.get("/<course_id>/students")
 @require_auth
 @require_role("lecturer")
 def get_course_students(course_id: str):
-    """Return all students enrolled in a course."""
     res = supabase.table("enrolments").select(
-        "*, profiles!enrolments_student_id_fkey(id, full_name, avatar_url)"
+        "*, profiles!enrolments_student_id_fkey(id, full_name, avatar_url, user_id_number)"
     ).eq("course_id", course_id).execute()
     students = [row["profiles"] for row in res.data if row.get("profiles")]
     return jsonify(students), 200

@@ -8,6 +8,7 @@ import { useSocket } from '../../hooks/useSocket'
 import { Card } from '../../components/ui/Card'
 import { ActiveUsersList } from '../../components/realtime/ActiveUsersList'
 import { timeAgo } from '../../utils/formatDate'
+import { GroupedCourseSelect } from '../../components/ui/LevelFilter'
 
 export default function LiveStudentMonitor() {
   const { socket } = useSocket()
@@ -51,15 +52,7 @@ export default function LiveStudentMonitor() {
         <p className="text-gray-500 text-sm mt-1">See who's actively studying right now</p>
       </div>
 
-      <select
-        value={selectedCourse}
-        onChange={(e) => setSelectedCourse(e.target.value)}
-        className="w-fit px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal/50"
-      >
-        {courses.map((c) => (
-          <option key={c.id} value={c.id}>{c.course_name}</option>
-        ))}
-      </select>
+      <GroupedCourseSelect courses={courses} value={selectedCourse} onChange={setSelectedCourse} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

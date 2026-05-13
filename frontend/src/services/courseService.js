@@ -7,6 +7,7 @@ export const courseService = {
   getById: (id) => api.get(`/api/courses/${id}`),
   update: (id, data) => api.put(`/api/courses/${id}`, data),
   delete: (id) => api.delete(`/api/courses/${id}`),
-  enrolStudent: (courseId, email) => api.post(`/api/courses/${courseId}/enrol`, { email }),
+  enrolStudent: (courseId, studentIdNumber) =>
+    api.post(`/api/courses/${courseId}/enrol`, { student_id_number: studentIdNumber }),
   getStudents: (courseId) => api.get(`/api/courses/${courseId}/students`),
 }

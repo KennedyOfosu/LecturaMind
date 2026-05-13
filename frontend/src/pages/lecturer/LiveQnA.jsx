@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button'
 import { LiveQuestionFeed } from '../../components/realtime/LiveQuestionFeed'
 import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../components/ui/Toast'
+import { LevelTabs, GroupedCourseSelect } from '../../components/ui/LevelFilter'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function LecturerLiveQnA() {
@@ -73,13 +74,11 @@ export default function LecturerLiveQnA() {
       </div>
 
       <div className="flex items-center gap-4 flex-wrap">
-        <select
+        <GroupedCourseSelect
+          courses={courses}
           value={selectedCourse}
-          onChange={(e) => { setSelectedCourse(e.target.value); setQuestions([]) }}
-          className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal/50"
-        >
-          {courses.map((c) => <option key={c.id} value={c.id}>{c.course_name}</option>)}
-        </select>
+          onChange={(val) => { setSelectedCourse(val); setQuestions([]) }}
+        />
 
         <Button
           variant={sessionActive ? 'danger' : 'teal'}

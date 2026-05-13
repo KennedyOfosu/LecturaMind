@@ -149,10 +149,10 @@ export default function LecturerDashboard() {
       </div>
 
       {/* ── Summary grid: 2 cols left (students) + 1 col right (stacked cards) ── */}
-      <div className="grid grid-cols-3 gap-4 items-start">
+      <div className="grid grid-cols-3 gap-4 items-stretch">
 
-        {/* ── Enrolled Students — tall, spans 2 cols ── */}
-        <div className="col-span-2 rounded-2xl overflow-hidden"
+        {/* ── Enrolled Students — tall, spans 2 cols, fills height ── */}
+        <div className="col-span-2 rounded-2xl overflow-hidden flex flex-col"
           style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
           <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: '#F0F0F2' }}>
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
@@ -231,6 +231,28 @@ export default function LecturerDashboard() {
               )}
             </div>
           </Card>
+
+          {/* Level breakdown */}
+          {stats?.level_stats && Object.keys(stats.level_stats).length > 0 && (
+            <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
+              <div className="flex items-center gap-2 px-5 py-4 border-b text-sm font-semibold text-gray-800" style={{ borderColor: '#F0F0F2' }}>
+                <Ic.Folder /> Level Breakdown
+              </div>
+              <div className="divide-y" style={{ borderColor: '#F0F0F2' }}>
+                {[100, 200, 300, 400].filter((l) => stats.level_stats[l]).map((l) => (
+                  <div key={l} className="flex items-center justify-between px-5 py-3">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                      Level {l}
+                    </span>
+                    <div className="flex gap-4 text-xs text-gray-500">
+                      <span>{stats.level_stats[l].courses} course{stats.level_stats[l].courses !== 1 ? 's' : ''}</span>
+                      <span>{stats.level_stats[l].students} student{stats.level_stats[l].students !== 1 ? 's' : ''}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Announcements */}
           <Card title="Announcements" Icon={Ic.Bell} linkText="Manage" onLink={() => navigate('/lecturer/announcements')}>

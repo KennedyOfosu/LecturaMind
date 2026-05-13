@@ -11,6 +11,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
+import { LevelTabs, GroupedCourseSelect } from '../../components/ui/LevelFilter'
 import { formatDateTime } from '../../utils/formatDate'
 
 export default function ChatLogs() {
@@ -60,15 +61,7 @@ export default function ChatLogs() {
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <select
-          value={selectedCourse}
-          onChange={(e) => setSelectedCourse(e.target.value)}
-          className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal/50"
-        >
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>{c.course_name}</option>
-          ))}
-        </select>
+        <GroupedCourseSelect courses={courses} value={selectedCourse} onChange={setSelectedCourse} />
 
         <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
           {['all', 'flagged'].map((f) => (

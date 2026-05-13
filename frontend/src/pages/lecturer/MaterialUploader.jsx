@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../components/ui/Toast'
 import { formatDate } from '../../utils/formatDate'
+import { LevelTabs, GroupedCourseSelect } from '../../components/ui/LevelFilter'
 
 export default function MaterialUploader() {
   const toast = useToast()
@@ -96,18 +97,15 @@ export default function MaterialUploader() {
         <p className="text-gray-500 text-sm mt-1">Upload PDF or DOCX course materials — the AI indexes them instantly</p>
       </div>
 
-      {/* Course selector */}
+      {/* Course selector with grouped levels */}
       <Card>
         <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
-        <select
+        <GroupedCourseSelect
+          courses={courses}
           value={selectedCourse}
-          onChange={(e) => setSelectedCourse(e.target.value)}
-          className="w-full md:w-80 px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal/50"
-        >
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>{c.course_name} ({c.course_code})</option>
-          ))}
-        </select>
+          onChange={setSelectedCourse}
+          className="w-full md:w-80"
+        />
       </Card>
 
       {/* Drop zone */}

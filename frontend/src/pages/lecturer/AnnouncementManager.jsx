@@ -11,6 +11,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
+import { LevelTabs, GroupedCourseSelect } from '../../components/ui/LevelFilter'
 import { formatDate } from '../../utils/formatDate'
 import { truncateText } from '../../utils/truncateText'
 
@@ -99,18 +100,8 @@ export default function AnnouncementManager() {
         <Button variant="teal" onClick={openCreate}>+ New Announcement</Button>
       </div>
 
-      {/* Course selector */}
-      <div>
-        <select
-          value={selectedCourse}
-          onChange={(e) => setSelectedCourse(e.target.value)}
-          className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal/50"
-        >
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>{c.course_name} ({c.course_code})</option>
-          ))}
-        </select>
-      </div>
+      {/* Grouped course selector */}
+      <GroupedCourseSelect courses={courses} value={selectedCourse} onChange={setSelectedCourse} />
 
       {loading ? (
         <div className="flex justify-center py-16"><Spinner size="lg" /></div>
