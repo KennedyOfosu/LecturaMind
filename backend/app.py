@@ -38,6 +38,8 @@ from routes.announcements import announcements_bp
 from routes.chatbot import chatbot_bp
 from routes.quiz import quiz_bp
 from routes.dashboard import dashboard_bp
+from routes.assignments import assignments_bp
+from routes.profile import profile_bp
 
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
 app.register_blueprint(courses_bp, url_prefix="/api/courses")
@@ -46,6 +48,8 @@ app.register_blueprint(announcements_bp, url_prefix="/api/announcements")
 app.register_blueprint(chatbot_bp, url_prefix="/api/chatbot")
 app.register_blueprint(quiz_bp, url_prefix="/api/quiz")
 app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
+app.register_blueprint(assignments_bp, url_prefix="/api/assignments")
+app.register_blueprint(profile_bp, url_prefix="/api/profile")
 
 # Register Socket.IO events
 from sockets.events import register_socket_events

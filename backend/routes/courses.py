@@ -23,6 +23,8 @@ def create_course():
     description = data.get("description", "").strip()
     level       = data.get("level")
 
+    programme   = (data.get("programme") or "").strip() or None
+
     if not course_name or not course_code:
         return jsonify({"error": "course_name and course_code are required", "code": 400}), 400
 
@@ -40,6 +42,7 @@ def create_course():
             "course_code": course_code,
             "description": description,
             "level": level,
+            "programme": programme,
             "lecturer_id": g.user_id,
         }).execute()
     except Exception as e:

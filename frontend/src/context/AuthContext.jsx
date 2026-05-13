@@ -37,19 +37,23 @@ export function AuthProvider({ children }) {
     return userData
   }, [])
 
-  const register = useCallback(async (fullName, email, password, idNumber) => {
-    const res = await authService.register({
-      full_name: fullName,
-      email,
-      password,
-      id_number: idNumber,
-    })
+  const register = useCallback(async (payload) => {
+    // Accepts: { full_name, email, password, id_number, programme?, level?, academic_year? }
+    const res = await authService.register(payload)
     const { token, user: userData } = res.data
     localStorage.setItem('lm_token', token)
     localStorage.setItem('lm_user', JSON.stringify(userData))
     setUser(userData)
     return userData
   }, [])
+
+  const refreshUser = useCallback(async () => {
+    const res = await authService.me()
+    const merged = { ...user, ...res.data }
+    localStorage.setItem('lm_user', JSON.stringify(merged))
+    setUser(merged)
+    return merged
+  }, [user])
 
   const logout = useCallback(async () => {
     try { await authService.logout() } catch { /* ignore */ }
@@ -59,7 +63,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

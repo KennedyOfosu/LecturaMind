@@ -28,6 +28,10 @@ import LecturerLiveQnA      from './pages/lecturer/LiveQnA'
 // Student pages
 import StudentDashboard from './pages/student/StudentDashboard'
 import CourseView       from './pages/student/CourseView'
+import StudentProfile   from './pages/student/StudentProfile'
+
+// Lecturer profile page
+import LecturerProfile  from './pages/lecturer/LecturerProfile'
 
 export default function App() {
   return (
@@ -51,6 +55,7 @@ export default function App() {
                 <Route path="/lecturer/live-monitor"  element={<LiveStudentMonitor />} />
                 <Route path="/lecturer/quizzes"       element={<QuizManager />} />
                 <Route path="/lecturer/live-qna"      element={<LecturerLiveQnA />} />
+                <Route path="/lecturer/profile"       element={<LecturerProfile />} />
               </Route>
 
               {/* ── Student dashboard (standalone layout) ── */}
@@ -61,6 +66,7 @@ export default function App() {
               {/* ── Student inner pages (Synapse layout) ── */}
               <Route element={<ProtectedRoute role="student"><StudentLayout /></ProtectedRoute>}>
                 <Route path="/student/courses/:courseId" element={<CourseView />} />
+                <Route path="/student/profile"           element={<StudentProfile />} />
               </Route>
 
               {/* ── Fallback ── */}

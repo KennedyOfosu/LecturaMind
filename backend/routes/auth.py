@@ -76,32 +76,47 @@ def register():
     Role is detected automatically from the ID prefix.
     """
     data = request.get_json(silent=True) or {}
-    full_name = data.get("full_name", "").strip()
-    email     = data.get("email", "").strip().lower()
-    password  = data.get("password", "")
-    id_number = data.get("id_number", "").strip().upper()
+    full_name     = data.get("full_name", "").strip()
+    email         = data.get("email", "").strip().lower()
+    password      = data.get("password", "")
+    id_number     = data.get("id_number", "").strip().upper()
+    programme     = (data.get("programme") or "").strip()
+    raw_level     = data.get("level")
+    academic_year = (data.get("academic_year") or "").strip()
 
-    # Step 1: Validate all fields present
+    # Validate required fields
     if not all([full_name, email, password, id_number]):
-        return jsonify({"error": "All fields are required.", "code": 400}), 400
+        return jsonify({"error": "Full name, email, password, and ID number are required.", "code": 400}), 400
 
     if len(password) < 6:
         return jsonify({"error": "Password must be at least 6 characters.", "code": 400}), 400
 
-    # Step 2: Detect role from ID — BEFORE creating any account
+    # Detect role from ID
     role = detect_role_from_id(id_number)
     if not role:
         return jsonify({
-            "error": "Invalid ID number format. ID must start with LEC- for lecturers or STU- for students, followed by 4 digits (e.g. LEC-1001).",
+            "error": "Invalid ID number format. IDs must start with LEC- or STU- followed by 4 digits (e.g. STU-2001).",
             "code": 400
         }), 400
 
-    # Step 3: Check for duplicate ID number
+    # Students MUST provide programme and level
+    level = None
+    if role == "student":
+        if not programme:
+            return jsonify({"error": "Programme is required for student registration.", "code": 400}), 400
+        try:
+            level = int(raw_level)
+        except (TypeError, ValueError):
+            level = None
+        if level not in [100, 200, 300, 400]:
+            return jsonify({"error": "Level must be 100, 200, 300, or 400.", "code": 400}), 400
+
+    # Duplicate ID check
     existing_id = supabase.table("profiles").select("id").eq("user_id_number", id_number).execute()
     if existing_id.data:
         return jsonify({"error": "An account with this ID number already exists.", "code": 409}), 409
 
-    # Step 4: Create Supabase Auth user
+    # Create auth user
     try:
         user_id = _create_auth_user(email, password, full_name, role)
     except Exception as e:
@@ -110,21 +125,41 @@ def register():
             return jsonify({"error": "An account with this email address already exists.", "code": 409}), 409
         return jsonify({"error": f"Account creation failed: {str(e)}", "code": 400}), 400
 
-    # Step 5: Insert profile record
+    # Build profile payload
+    profile_payload = {
+        "id": user_id,
+        "full_name": full_name,
+        "role": role,
+        "email": email,
+        "user_id_number": id_number,
+    }
+    if role == "student":
+        profile_payload["programme"]     = programme
+        profile_payload["level"]         = level
+        profile_payload["academic_year"] = academic_year or None
+
+    # Insert profile (skip if already exists)
     try:
         existing_profile = supabase.table("profiles").select("id").eq("id", user_id).execute()
         if not existing_profile.data:
-            supabase.table("profiles").insert({
-                "id": user_id,
-                "full_name": full_name,
-                "role": role,
-                "email": email,
-                "user_id_number": id_number,
-            }).execute()
+            supabase.table("profiles").insert(profile_payload).execute()
+        else:
+            # Update with new fields if profile already existed
+            update_data = {k: v for k, v in profile_payload.items() if k != "id" and v is not None}
+            supabase.table("profiles").update(update_data).eq("id", user_id).execute()
     except Exception as e:
         return jsonify({"error": f"Profile setup failed: {str(e)}", "code": 500}), 500
 
-    # Step 6: Sign in to get session token
+    # Auto-enrol student into matching courses
+    if role == "student":
+        try:
+            from services.enrolment_service import auto_enrol_student_by_programme
+            count = auto_enrol_student_by_programme(user_id, programme, level)
+            print(f"[REGISTER] Auto-enrolled in {count} course(s)")
+        except Exception as e:
+            print(f"[REGISTER] Auto-enrolment failed (non-fatal): {e}")
+
+    # Sign in for session token
     try:
         session_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
         token = session_res.session.access_token
@@ -135,11 +170,13 @@ def register():
     return jsonify({
         "token": token,
         "user": {
-            "id": user_id,
-            "full_name": full_name,
-            "email": email,
-            "role": role,
+            "id":             user_id,
+            "full_name":      full_name,
+            "email":          email,
+            "role":           role,
             "user_id_number": id_number,
+            "programme":      programme if role == "student" else None,
+            "level":          level if role == "student" else None,
         },
     }), 201
 

@@ -5,12 +5,14 @@
 
 import { useState, useEffect } from 'react'
 import { courseService } from '../../services/courseService'
+import api from '../../services/api'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
+import { PROGRAMMES, SEMESTERS } from '../../utils/constants'
 
 const LEVELS = [100, 200, 300, 400]
 
@@ -125,6 +127,9 @@ export default function CourseManager() {
   const [enrolId,      setEnrolId]      = useState('')
   const [enrolMsg,     setEnrolMsg]     = useState({ text: '', isError: false })
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [justCreated,  setJustCreated]  = useState(null)
+  const [assignForm,   setAssignForm]   = useState({ programme: '', level: '', semester: '', academic_year: '' })
+  const [savingAssign, setSavingAssign] = useState(false)
 
   const fetchCourses = () => {
     setLoading(true)
@@ -143,13 +148,43 @@ export default function CourseManager() {
   const handleCreate = async (form) => {
     setActionLoading(true)
     try {
-      await courseService.create(form)
+      const res = await courseService.create(form)
       toast.success('Course created!')
-      setModalState({ type: null })
+      // Open assignment prompt with the new course
+      setJustCreated(res.data)
+      setAssignForm({ programme: '', level: form.level || '', semester: '', academic_year: '' })
+      setModalState({ type: 'assign' })
       fetchCourses()
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to create course')
     } finally { setActionLoading(false) }
+  }
+
+  const handleSaveAssignment = async () => {
+    if (!assignForm.programme || !assignForm.level) {
+      toast.error('Programme and level are required')
+      return
+    }
+    setSavingAssign(true)
+    try {
+      const res = await api.post('/api/assignments/create', {
+        course_id:     justCreated.id,
+        programme:     assignForm.programme,
+        level:         parseInt(assignForm.level),
+        semester:      assignForm.semester || null,
+        academic_year: assignForm.academic_year || null,
+      })
+      toast.success(res.data.message || 'Assignment saved!')
+      setModalState({ type: null })
+      setJustCreated(null)
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to save assignment')
+    } finally { setSavingAssign(false) }
+  }
+
+  const skipAssignment = () => {
+    setModalState({ type: null })
+    setJustCreated(null)
   }
 
   const handleEdit = async (form) => {
@@ -308,6 +343,62 @@ export default function CourseManager() {
           <Button variant="teal" onClick={handleEnrol} loading={actionLoading} className="w-full">
             Enrol Student
           </Button>
+        </div>
+      </Modal>
+
+      {/* Assignment prompt (after course creation) */}
+      <Modal isOpen={modalState.type === 'assign'} onClose={skipAssignment} title="Assign this course to a class">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-500">
+            Link <strong>{justCreated?.course_name}</strong> to a programme and level so students
+            in that class are automatically connected. You can also do this later from your profile.
+          </p>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Programme</label>
+            <select value={assignForm.programme}
+              onChange={(e) => setAssignForm({ ...assignForm, programme: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+              <option value="">Select programme</option>
+              {PROGRAMMES.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Level</label>
+              <select value={assignForm.level}
+                onChange={(e) => setAssignForm({ ...assignForm, level: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+                <option value="">Level</option>
+                {[100, 200, 300, 400].map((l) => <option key={l} value={l}>Level {l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Semester (optional)</label>
+              <select value={assignForm.semester}
+                onChange={(e) => setAssignForm({ ...assignForm, semester: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+                <option value="">—</option>
+                {SEMESTERS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Academic Year (optional)</label>
+            <input value={assignForm.academic_year}
+              onChange={(e) => setAssignForm({ ...assignForm, academic_year: e.target.value })}
+              placeholder="e.g. 2025/2026"
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
+          </div>
+
+          <div className="flex gap-3 mt-2">
+            <Button variant="outline" onClick={skipAssignment} className="flex-1">Skip for now</Button>
+            <Button variant="teal" onClick={handleSaveAssignment} loading={savingAssign} className="flex-1">
+              Save Assignment
+            </Button>
+          </div>
         </div>
       </Modal>
 
