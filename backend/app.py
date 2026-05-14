@@ -42,6 +42,7 @@ from routes.quiz import quiz_bp
 from routes.dashboard import dashboard_bp
 from routes.assignments import assignments_bp
 from routes.profile import profile_bp
+from routes.marks import marks_bp
 
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
 app.register_blueprint(courses_bp, url_prefix="/api/courses")
@@ -52,6 +53,7 @@ app.register_blueprint(quiz_bp, url_prefix="/api/quiz")
 app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 app.register_blueprint(assignments_bp, url_prefix="/api/assignments")
 app.register_blueprint(profile_bp, url_prefix="/api/profile")
+app.register_blueprint(marks_bp, url_prefix="/api/marks")
 
 # Make socketio accessible to route blueprints (avoids circular imports)
 from services.socket_service import init_socketio

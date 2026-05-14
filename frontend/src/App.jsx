@@ -26,6 +26,7 @@ import LiveStudentMonitor  from './pages/lecturer/LiveStudentMonitor'
 import QuizManager         from './pages/lecturer/QuizManager'
 import LecturerLiveQnA     from './pages/lecturer/LiveQnA'
 import LecturerProfile     from './pages/lecturer/LecturerProfile'
+import CourseStudentView   from './pages/lecturer/CourseStudentView'
 
 // Student pages
 import StudentDashboard from './pages/student/StudentDashboard'
@@ -54,7 +55,8 @@ export default function App() {
                 <Route path="/lecturer/live-monitor"  element={<LiveStudentMonitor />} />
                 <Route path="/lecturer/quizzes"       element={<QuizManager />} />
                 <Route path="/lecturer/live-qna"      element={<LecturerLiveQnA />} />
-                <Route path="/lecturer/profile"       element={<LecturerProfile />} />
+                <Route path="/lecturer/profile"                           element={<LecturerProfile />} />
+                <Route path="/lecturer/courses/:courseId/students"    element={<CourseStudentView />} />
               </Route>
 
               {/* ── All student pages wrapped in SessionsProvider + StudentLayout ── */}

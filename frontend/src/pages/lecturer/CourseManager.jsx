@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
 import { Card } from '../../components/ui/Card'
@@ -118,7 +119,8 @@ function CourseForm({ initial = {}, onSubmit, loading }) {
 }
 
 export default function CourseManager() {
-  const toast = useToast()
+  const toast    = useToast()
+  const navigate = useNavigate()
   const [courses,      setCourses]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [levelFilter,  setLevelFilter]  = useState('all')
@@ -260,8 +262,11 @@ export default function CourseManager() {
                 <span>{course.materials?.[0]?.count ?? 0} materials</span>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100 gap-2">
-                <span className="text-xs text-gray-400 italic">Students auto-enrol by programme &amp; level</span>
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100 gap-2 flex-wrap">
+                <Button size="sm" variant="outline"
+                  onClick={() => navigate(`/lecturer/courses/${course.id}/students`)}>
+                  View Students →
+                </Button>
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setModalState({ type: 'edit', course })}>
                     Edit
