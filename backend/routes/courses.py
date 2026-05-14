@@ -133,6 +133,44 @@ def delete_course(course_id: str):
     return jsonify({"message": "Course deleted"}), 200
 
 
+@courses_bp.post("/enrol-self")
+@require_auth
+@require_role("student")
+def enrol_self():
+    """Student self-enrols into a course by entering the course code."""
+    data = request.get_json(silent=True) or {}
+    course_code = (data.get("course_code") or "").strip().upper()
+
+    if not course_code:
+        return jsonify({"error": "Course code is required.", "code": 400}), 400
+
+    course_res = supabase.table("courses").select(
+        "id, course_name, course_code, level, programme"
+    ).eq("course_code", course_code).execute()
+
+    if not course_res.data:
+        return jsonify({"error": f"No course found with code \"{course_code}\". Check the code and try again.", "code": 404}), 404
+
+    course = course_res.data[0]
+
+    existing = supabase.table("enrolments").select("id").eq(
+        "student_id", g.user_id
+    ).eq("course_id", course["id"]).execute()
+
+    if existing.data:
+        return jsonify({"error": f"You are already enrolled in {course['course_name']}.", "code": 409}), 409
+
+    supabase.table("enrolments").insert({
+        "student_id": g.user_id,
+        "course_id":  course["id"],
+    }).execute()
+
+    return jsonify({
+        "message": f"Successfully enrolled in {course['course_name']}.",
+        "course":  course,
+    }), 201
+
+
 @courses_bp.post("/<course_id>/enrol")
 @require_auth
 @require_role("lecturer")
