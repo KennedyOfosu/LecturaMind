@@ -47,13 +47,16 @@ export default function StudentDashboard() {
     }
   }, [socket, user, courses])
 
+  // Greeting rendered in the CENTRE of the empty chat area by AIChatInterface
   const greeting = (
-    <div className="flex flex-col items-center justify-center gap-2 pt-10 pb-4 text-center shrink-0">
+    <div className="flex flex-col items-center gap-3">
       <h1 className="text-3xl font-semibold text-gray-900">
         {getGreeting()}, {firstName}
       </h1>
       <p className="text-gray-400 text-sm">
-        {courses.length ? 'Click ⊕ to pick a course, then ask anything' : 'You have no enrolled courses yet'}
+        {courses.length
+          ? 'Click ⊕ to pick a course, then ask anything'
+          : 'You have no enrolled courses yet'}
       </p>
     </div>
   )

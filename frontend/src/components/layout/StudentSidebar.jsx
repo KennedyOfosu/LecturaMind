@@ -111,9 +111,40 @@ export default function StudentSidebar({ open, onToggle }) {
     refreshSessions()
   }, [refreshSessions])
 
-  if (!open) return null
-
   const isActive = (path) => location.pathname === path
+
+  /* ── Collapsed state: narrow icon-only strip ── */
+  if (!open) {
+    return (
+      <aside className="flex flex-col h-full w-14 shrink-0 items-center py-4 gap-3"
+        style={{ backgroundColor: '#F0F0F2', borderRight: '1px solid #D2D4D9' }}>
+
+        {/* Re-open toggle */}
+        <button onClick={onToggle}
+          className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-lg hover:bg-white">
+          <I.Toggle />
+        </button>
+
+        <div className="flex flex-col gap-2 mt-2">
+          <button onClick={() => navigate('/student/dashboard')} title="Home"
+            className={`p-2 rounded-lg transition-colors ${isActive('/student/dashboard') ? 'bg-white text-gray-900' : 'text-gray-500 hover:bg-white'}`}>
+            <I.Home />
+          </button>
+          <button onClick={() => navigate('/student/profile')} title="My Profile"
+            className={`p-2 rounded-lg transition-colors ${isActive('/student/profile') ? 'bg-white text-gray-900' : 'text-gray-500 hover:bg-white'}`}>
+            <I.User />
+          </button>
+        </div>
+
+        <div className="flex-1" />
+
+        <button onClick={logout} title="Logout"
+          className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white transition-colors mb-2">
+          <I.Logout />
+        </button>
+      </aside>
+    )
+  }
 
   // Find the course with the most recent session
   const mostRecentCourseId = sessions[0]?.course_id

@@ -251,47 +251,66 @@ export default function AIChatInterface({
 
   const dashboardMode = !fixedCourseId
 
+  const hasMessages = messages.length > 0 || isTyping
+
   return (
     <div className="flex flex-col h-full min-h-0">
 
-      {/* Greeting area (only in dashboard mode) */}
-      {greeting}
+      {/* Scrollable area — greeting OR messages, never both */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
 
-      {/* Messages — scrolls internally */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-6 py-6 flex flex-col gap-6">
-        {messages.length === 0 && !isTyping && !greeting && (
-          <div className="flex-1 flex items-center justify-center text-center">
-            <p className="text-gray-400 text-sm">
-              {activeCourseId ? `Ask me anything about ${courseName || 'this course'}` : 'Select a course to start chatting'}
-            </p>
-          </div>
-        )}
-
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            {msg.role === 'user' ? (
-              <>
-                <div className="max-w-[78%] px-4 py-3 rounded-xl text-sm leading-relaxed text-white"
-                  style={{ backgroundColor: '#111' }}>
-                  {msg.content}
-                </div>
-                <span className="text-xs text-gray-400 mt-1 px-1">{formatMessageTime(msg.timestamp)}</span>
-              </>
-            ) : (
-              <AIMessage msg={msg} courseId={activeCourseId} msgId={msg.id} />
+        {!hasMessages ? (
+          /* ── Greeting — vertically centred when chat is empty ── */
+          <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center">
+            {greeting || (
+              <p className="text-gray-400 text-sm">
+                {activeCourseId
+                  ? `Ask me anything about ${courseName || 'this course'}`
+                  : 'Select a course to start chatting'}
+              </p>
             )}
           </div>
-        ))}
+        ) : (
+          /* ── Messages — once the student starts chatting ── */
+          <div className="px-6 py-6 flex flex-col gap-6 max-w-2xl mx-auto">
 
-        {isTyping && (
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1">
-              {[0,1,2].map((i) => <span key={i} className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
-            </div>
-            <span className="text-xs text-gray-400">LecturaMind AI is thinking…</span>
+            {/* "Chatting about X" pill — reminds student which course is active */}
+            {activeCourseId && (
+              <div className="flex justify-center">
+                <span className="text-xs text-gray-400 bg-white border px-3 py-1 rounded-full"
+                  style={{ borderColor: '#D2D4D9' }}>
+                  Chatting about: <strong>{courseName}</strong>
+                </span>
+              </div>
+            )}
+
+            {messages.map((msg) => (
+              <div key={msg.id} id={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                {msg.role === 'user' ? (
+                  <>
+                    <div className="max-w-[78%] px-4 py-3 rounded-xl text-sm leading-relaxed text-white"
+                      style={{ backgroundColor: '#111' }}>
+                      {msg.content}
+                    </div>
+                    <span className="text-xs text-gray-400 mt-1 px-1">{formatMessageTime(msg.timestamp)}</span>
+                  </>
+                ) : (
+                  <AIMessage msg={msg} courseId={activeCourseId} msgId={msg.id} />
+                )}
+              </div>
+            ))}
+
+            {isTyping && (
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  {[0,1,2].map((i) => <span key={i} className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
+                </div>
+                <span className="text-xs text-gray-400">LecturaMind AI is thinking…</span>
+              </div>
+            )}
+            <div ref={bottomRef} />
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input area */}
