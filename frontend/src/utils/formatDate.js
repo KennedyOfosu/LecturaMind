@@ -29,6 +29,26 @@ export function formatDateTime(iso) {
 }
 
 /**
+ * Format a timestamp for chat messages.
+ * Today → "2:45 PM"; previous days → "14 May · 2:45 PM"
+ * @param {string} timestamp - ISO 8601 string
+ * @returns {string}
+ */
+export function formatMessageTime(timestamp) {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  const now = new Date()
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  if (isToday) return timeStr
+  const dateStr = date.toLocaleDateString([], { day: 'numeric', month: 'short' })
+  return `${dateStr} · ${timeStr}`
+}
+
+/**
  * Return a relative time string (e.g. "3 minutes ago").
  * @param {string} iso
  * @returns {string}

@@ -2,6 +2,7 @@
 chatbot.py — AI chatbot query and chat history routes, plus lecturer log management.
 """
 
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
 from services.ai_service import process_student_query
@@ -28,7 +29,10 @@ def query():
         return jsonify({"error": "course_id and query are required", "code": 400}), 400
 
     response_text = process_student_query(course_id, g.user_id, student_query)
-    return jsonify({"response": response_text}), 200
+    return jsonify({
+        "response":  response_text,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }), 200
 
 
 @chatbot_bp.get("/history/<course_id>")

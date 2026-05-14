@@ -9,6 +9,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useSocket } from '../../hooks/useSocket'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
+import { formatMessageTime } from '../../utils/formatDate'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -98,6 +99,58 @@ const Icons = {
   ),
 }
 
+/* ── Copy Button for AI messages ── */
+function AICopyButton({ text }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      const el = document.createElement('textarea')
+      el.value = text
+      el.style.position = 'fixed'
+      el.style.opacity = '0'
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="relative group inline-block mt-1">
+      <button
+        onClick={handleCopy}
+        className="flex items-center gap-1 text-xs opacity-50 hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+        aria-label={copied ? 'Copied!' : 'Copy response'}
+      >
+        {copied ? (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>Copied!</span>
+          </>
+        ) : (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="9" y="2" width="6" height="4" rx="1" ry="1"/>
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+            </svg>
+            <span>Copy</span>
+          </>
+        )}
+      </button>
+      <span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-xs bg-gray-800 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+        {copied ? 'Copied!' : 'Copy response'}
+      </span>
+    </div>
+  )
+}
+
 const quickActions = [
   { label: 'View Materials', Icon: Icons.File,  tab: 'materials'     },
   { label: 'AI Chatbot',     Icon: Icons.Chat,  tab: 'chatbot'       },
@@ -164,7 +217,8 @@ export default function StudentDashboard() {
     const text = query.trim()
     if (!text || !selectedCourse) return
 
-    setMessages((prev) => [...prev, { role: 'user', content: text }])
+    const sentAt = new Date().toISOString()
+    setMessages((prev) => [...prev, { role: 'user', content: text, timestamp: sentAt }])
     setQuery('')
     setIsTyping(true)
 
@@ -173,11 +227,16 @@ export default function StudentDashboard() {
         course_id: selectedCourse.id,
         query: text,
       })
-      setMessages((prev) => [...prev, { role: 'ai', content: res.data.response }])
+      setMessages((prev) => [...prev, {
+        role: 'ai',
+        content: res.data.response,
+        timestamp: res.data.timestamp || new Date().toISOString(),
+      }])
     } catch {
       setMessages((prev) => [...prev, {
         role: 'ai',
         content: "I'm having trouble connecting right now. Please try again in a moment.",
+        timestamp: new Date().toISOString(),
       }])
     } finally {
       setIsTyping(false)
@@ -333,6 +392,19 @@ export default function StudentDashboard() {
                       : { backgroundColor: '#fff', borderColor: '#D2D4D9', color: '#374151' }}>
                     {msg.content}
                   </div>
+                  {/* Timestamp + copy button */}
+                  {msg.role === 'user' ? (
+                    <span className="text-xs text-gray-400 mt-1 px-1">
+                      {formatMessageTime(msg.timestamp)}
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-3 px-1 mt-0.5">
+                      <AICopyButton text={msg.content} />
+                      <span className="text-xs text-gray-400">
+                        {formatMessageTime(msg.timestamp)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
 
