@@ -23,11 +23,11 @@ CORS(
 
 allowed_origins = "*"
 
-# Gevent mode — required for Socket.IO WebSocket support on Render (gunicorn -k gevent)
+# Eventlet mode — required for Socket.IO WebSocket support on Render (gunicorn -k eventlet)
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
-    async_mode="gevent",
+    async_mode="eventlet",
     logger=True,
     engineio_logger=True,
 )
