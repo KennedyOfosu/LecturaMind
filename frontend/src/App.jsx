@@ -1,14 +1,15 @@
 /**
- * App.jsx — Root routing with Synapse-style layouts for all dashboard pages.
+ * App.jsx — Root routing with shared layouts for all dashboard pages.
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
-import { SocketProvider } from './context/SocketContext'
-import { ToastProvider } from './components/ui/Toast'
-import { ProtectedRoute } from './components/layout/ProtectedRoute'
-import LecturerLayout from './components/layout/LecturerLayout'
-import StudentLayout from './components/layout/StudentLayout'
+import { AuthProvider }     from './context/AuthContext'
+import { SocketProvider }   from './context/SocketContext'
+import { SessionsProvider } from './context/SessionsContext'
+import { ToastProvider }    from './components/ui/Toast'
+import { ProtectedRoute }   from './components/layout/ProtectedRoute'
+import LecturerLayout       from './components/layout/LecturerLayout'
+import StudentLayout        from './components/layout/StudentLayout'
 
 // Public pages
 import Landing  from './pages/Landing'
@@ -16,22 +17,20 @@ import Login    from './pages/Login'
 import Register from './pages/Register'
 
 // Lecturer pages
-import LecturerDashboard    from './pages/lecturer/LecturerDashboard'
-import CourseManager        from './pages/lecturer/CourseManager'
-import MaterialUploader     from './pages/lecturer/MaterialUploader'
-import AnnouncementManager  from './pages/lecturer/AnnouncementManager'
-import ChatLogs             from './pages/lecturer/ChatLogs'
-import LiveStudentMonitor   from './pages/lecturer/LiveStudentMonitor'
-import QuizManager          from './pages/lecturer/QuizManager'
-import LecturerLiveQnA      from './pages/lecturer/LiveQnA'
+import LecturerDashboard   from './pages/lecturer/LecturerDashboard'
+import CourseManager       from './pages/lecturer/CourseManager'
+import MaterialUploader    from './pages/lecturer/MaterialUploader'
+import AnnouncementManager from './pages/lecturer/AnnouncementManager'
+import ChatLogs            from './pages/lecturer/ChatLogs'
+import LiveStudentMonitor  from './pages/lecturer/LiveStudentMonitor'
+import QuizManager         from './pages/lecturer/QuizManager'
+import LecturerLiveQnA     from './pages/lecturer/LiveQnA'
+import LecturerProfile     from './pages/lecturer/LecturerProfile'
 
 // Student pages
 import StudentDashboard from './pages/student/StudentDashboard'
 import CourseView       from './pages/student/CourseView'
 import StudentProfile   from './pages/student/StudentProfile'
-
-// Lecturer profile page
-import LecturerProfile  from './pages/lecturer/LecturerProfile'
 
 export default function App() {
   return (
@@ -45,7 +44,7 @@ export default function App() {
               <Route path="/login"    element={<Login />} />
               <Route path="/register" element={<Register />} />
 
-              {/* ── All lecturer pages inside LecturerLayout (shared sidebar) ── */}
+              {/* ── Lecturer pages (shared sidebar layout) ── */}
               <Route element={<ProtectedRoute role="lecturer"><LecturerLayout /></ProtectedRoute>}>
                 <Route path="/lecturer/dashboard"     element={<LecturerDashboard />} />
                 <Route path="/lecturer/courses"       element={<CourseManager />} />
@@ -58,13 +57,15 @@ export default function App() {
                 <Route path="/lecturer/profile"       element={<LecturerProfile />} />
               </Route>
 
-              {/* ── Student dashboard (standalone layout) ── */}
-              <Route path="/student/dashboard" element={
-                <ProtectedRoute role="student"><StudentDashboard /></ProtectedRoute>
-              } />
-
-              {/* ── Student inner pages (Synapse layout) ── */}
-              <Route element={<ProtectedRoute role="student"><StudentLayout /></ProtectedRoute>}>
+              {/* ── All student pages wrapped in SessionsProvider + StudentLayout ── */}
+              <Route element={
+                <ProtectedRoute role="student">
+                  <SessionsProvider>
+                    <StudentLayout />
+                  </SessionsProvider>
+                </ProtectedRoute>
+              }>
+                <Route path="/student/dashboard"          element={<StudentDashboard />} />
                 <Route path="/student/courses/:courseId"  element={<CourseView />} />
                 <Route path="/student/course/:courseId"   element={<CourseView />} />
                 <Route path="/student/profile"            element={<StudentProfile />} />

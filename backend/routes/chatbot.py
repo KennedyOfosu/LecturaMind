@@ -5,7 +5,7 @@ chatbot.py — AI chatbot query and chat history routes, plus lecturer log manag
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
-from services.ai_service import process_student_query
+from services.ai_service import process_student_query, simplify_response
 from middleware.auth_middleware import require_auth, require_role
 
 chatbot_bp = Blueprint("chatbot", __name__)
@@ -92,7 +92,6 @@ def simplify_message():
     course_name = course_res.data[0].get("course_name", "this course") if course_res.data else "this course"
 
     try:
-        from services.ai_service import simplify_response
         simplified = simplify_response(original_response, course_name)
         return jsonify({
             "simplified": simplified,
