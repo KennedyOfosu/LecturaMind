@@ -3,9 +3,8 @@
  * Sidebar is provided by StudentLayout. This renders the main chat area.
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { useSocket } from '../../hooks/useSocket'
 import { courseService } from '../../services/courseService'
 import { useSessions } from '../../context/SessionsContext'
 import AIChatInterface from '../../components/chat/AIChatInterface'
@@ -19,9 +18,7 @@ function getGreeting() {
 
 export default function StudentDashboard() {
   const { user }            = useAuth()
-  const { socket }          = useSocket()
   const { refreshSessions } = useSessions()
-  const hasEmittedLogin     = useRef(false)
 
   const [courses, setCourses] = useState([])
   const firstName = user?.full_name?.split(' ')[0] || 'Student'
@@ -31,21 +28,6 @@ export default function StudentDashboard() {
       .then((res) => setCourses(res.data))
       .catch(() => {})
   }, [])
-
-  // Announce presence to live monitor once socket + courses are ready
-  useEffect(() => {
-    if (socket && user && courses.length > 0 && !hasEmittedLogin.current) {
-      socket.emit('student_login', {
-        student_id:        user.id,
-        student_name:      user.full_name,
-        student_id_number: user.user_id_number,
-        programme:         user.programme,
-        level:             user.level,
-        course_ids:        courses.map((c) => c.id),
-      })
-      hasEmittedLogin.current = true
-    }
-  }, [socket, user, courses])
 
   // Greeting rendered in the CENTRE of the empty chat area by AIChatInterface
   const greeting = (

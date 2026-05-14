@@ -53,6 +53,10 @@ app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 app.register_blueprint(assignments_bp, url_prefix="/api/assignments")
 app.register_blueprint(profile_bp, url_prefix="/api/profile")
 
+# Make socketio accessible to route blueprints (avoids circular imports)
+from services.socket_service import init_socketio
+init_socketio(socketio)
+
 # Register Socket.IO events
 from sockets.events import register_socket_events
 register_socket_events(socketio)

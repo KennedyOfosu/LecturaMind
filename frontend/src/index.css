@@ -30,6 +30,11 @@
 }
 .animate-slide-up { animation: slide-up 0.18s ease-out forwards; }
 
+@keyframes announcementSlideIn {
+  from { transform: translateY(-24px) scale(0.96); opacity: 0; }
+  to   { transform: translateY(0)     scale(1);    opacity: 1; }
+}
+
 @keyframes highlight-flash {
   0%   { background-color: rgba(13, 148, 136, 0.18); }
   100% { background-color: transparent; }

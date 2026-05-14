@@ -28,10 +28,15 @@ export default function CourseView() {
   const [searchParams]      = useSearchParams()
   const { refreshSessions } = useSessions()
   const sessionId           = searchParams.get('session')
+  const tabParam            = searchParams.get('tab')
 
   const [course,     setCourse]     = useState(null)
   const [loading,    setLoading]    = useState(true)
-  const [activeTab,  setActiveTab]  = useState(sessionId ? 'ai' : 'materials')
+  const [activeTab,  setActiveTab]  = useState(
+    tabParam && TABS.find((t) => t.id === tabParam) ? tabParam
+    : sessionId ? 'ai'
+    : 'materials'
+  )
 
   useEffect(() => {
     if (!courseId) return
