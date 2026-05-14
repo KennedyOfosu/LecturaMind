@@ -39,11 +39,14 @@ def create_announcement():
         p = course_res.data[0].get("profiles") or {}
         lecturer_name = p.get("full_name", "")
 
-    res = supabase.table("announcements").insert({
-        "course_id": course_id,
-        "title":     title,
-        "content":   content,
-    }).execute()
+    # Optional event_date lets the lecturer attach a specific date/time
+    event_date = (data.get("event_date") or "").strip() or None
+
+    insert_payload = {"course_id": course_id, "title": title, "content": content}
+    if event_date:
+        insert_payload["posted_at"] = event_date   # override the DB default
+
+    res = supabase.table("announcements").insert(insert_payload).execute()
     record = res.data[0]
 
     # Push real-time notification to every enrolled student
@@ -78,6 +81,23 @@ def create_announcement():
     return jsonify(record), 201
 
 
+@announcements_bp.get("/my")
+@require_auth
+@require_role("lecturer")
+def get_my_announcements():
+    """Return all announcements across every course owned by the lecturer."""
+    courses_res = supabase.table("courses").select("id").eq(
+        "lecturer_id", g.user_id
+    ).execute()
+    if not courses_res.data:
+        return jsonify([]), 200
+    course_ids = [c["id"] for c in courses_res.data]
+    res = supabase.table("announcements").select(
+        "*, courses(course_name, course_code)"
+    ).in_("course_id", course_ids).order("posted_at", desc=True).execute()
+    return jsonify(res.data or []), 200
+
+
 @announcements_bp.get("/course/<course_id>")
 @require_auth
 def get_course_announcements(course_id: str):
@@ -99,10 +119,12 @@ def update_announcement(announcement_id: str):
     """
     data = request.get_json(silent=True) or {}
     updates = {}
-    if "title" in data:
-        updates["title"] = data["title"].strip()
-    if "content" in data:
-        updates["content"] = data["content"].strip()
+    if "title"      in data: updates["title"]     = data["title"].strip()
+    if "content"    in data: updates["content"]   = data["content"].strip()
+    if "event_date" in data:
+        ed = (data["event_date"] or "").strip()
+        if ed:
+            updates["posted_at"] = ed
 
     if not updates:
         return jsonify({"error": "Nothing to update", "code": 400}), 400
