@@ -10,6 +10,7 @@ import { useSocket } from '../../hooks/useSocket'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
 import { formatMessageTime } from '../../utils/formatDate'
+import ReactMarkdown from 'react-markdown'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -368,7 +369,7 @@ export default function StudentDashboard() {
             </div>
           ) : (
             /* ── Chat messages ── */
-            <div className="max-w-2xl w-full mx-auto flex flex-col gap-5 pb-4">
+            <div className="max-w-2xl w-full mx-auto flex flex-col gap-6 pb-4">
               {/* Course chip indicator at top of chat */}
               {selectedCourse && (
                 <div className="flex justify-center">
@@ -381,24 +382,56 @@ export default function StudentDashboard() {
 
               {messages.map((msg, i) => (
                 <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+
+                  {/* ── AI label ── */}
                   {msg.role === 'ai' && (
-                    <span className="text-xs font-semibold mb-1 px-1 text-gray-500">LecturaMind AI</span>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Icons.Logo />
+                      <span className="text-xs font-semibold text-gray-500">LecturaMind AI</span>
+                    </div>
                   )}
-                  <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === 'user' ? 'text-white rounded-br-none' : 'rounded-bl-none border'
-                  }`}
-                    style={msg.role === 'user'
-                      ? { backgroundColor: '#111' }
-                      : { backgroundColor: '#fff', borderColor: '#D2D4D9', color: '#374151' }}>
-                    {msg.content}
-                  </div>
-                  {/* Timestamp + copy button */}
+
+                  {/* ── Student: flat card ── */}
+                  {msg.role === 'user' ? (
+                    <div
+                      className="max-w-[78%] px-4 py-3 rounded-xl text-sm leading-relaxed text-white"
+                      style={{ backgroundColor: '#111' }}
+                    >
+                      {msg.content}
+                    </div>
+                  ) : (
+                    /* ── AI: plain formatted text, no card ── */
+                    <div
+                      className="max-w-[85%] text-sm leading-relaxed text-gray-800"
+                    >
+                      <ReactMarkdown
+                        components={{
+                          h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-4 mb-2" {...props} />,
+                          h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-3 mb-2" {...props} />,
+                          h3: ({node, ...props}) => <h3 className="text-base font-semibold mt-2 mb-1" {...props} />,
+                          strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+                          ul: ({node, ...props}) => <ul className="list-disc list-inside my-2 space-y-1" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal list-inside my-2 space-y-1" {...props} />,
+                          li: ({node, ...props}) => <li className="ml-2" {...props} />,
+                          p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                          code: ({node, inline, ...props}) =>
+                            inline
+                              ? <code className="px-1 py-0.5 rounded text-sm font-mono bg-gray-100" {...props} />
+                              : <pre className="p-3 rounded-lg my-2 text-sm font-mono overflow-x-auto bg-gray-100"><code {...props} /></pre>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+
+                  {/* ── Timestamp + copy ── */}
                   {msg.role === 'user' ? (
                     <span className="text-xs text-gray-400 mt-1 px-1">
                       {formatMessageTime(msg.timestamp)}
                     </span>
                   ) : (
-                    <div className="flex items-center gap-3 px-1 mt-0.5">
+                    <div className="flex items-center gap-3 mt-1">
                       <AICopyButton text={msg.content} />
                       <span className="text-xs text-gray-400">
                         {formatMessageTime(msg.timestamp)}
@@ -409,16 +442,14 @@ export default function StudentDashboard() {
               ))}
 
               {isTyping && (
-                <div className="flex items-start">
-                  <div className="px-4 py-3 rounded-2xl rounded-bl-none border text-sm"
-                    style={{ backgroundColor: '#fff', borderColor: '#D2D4D9' }}>
-                    <div className="flex gap-1 items-center h-4">
-                      {[0, 1, 2].map((i) => (
-                        <span key={i} className="h-2 w-2 rounded-full bg-gray-400 animate-bounce"
-                          style={{ animationDelay: `${i * 0.15}s` }} />
-                      ))}
-                    </div>
+                <div className="flex items-start gap-2">
+                  <div className="flex gap-1 items-center h-5 pt-1">
+                    {[0, 1, 2].map((j) => (
+                      <span key={j} className="h-2 w-2 rounded-full bg-gray-400 animate-bounce"
+                        style={{ animationDelay: `${j * 0.15}s` }} />
+                    ))}
                   </div>
+                  <span className="text-xs text-gray-400 pt-1">LecturaMind AI is thinking…</span>
                 </div>
               )}
               <div ref={bottomRef} />
