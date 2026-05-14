@@ -105,12 +105,13 @@ export default function AnnouncementToast() {
   useEffect(() => {
     if (!socket) return
 
+    const shown = new Set()   // dedup within this socket session
+
     const handler = (data) => {
-      setQueue((q) => {
-        // Deduplicate — don't show the same announcement twice
-        if (q.find((n) => n.announcement_id === data.announcement_id)) return q
-        return [data, ...q]
-      })
+      if (shown.has(data.announcement_id)) return
+      shown.add(data.announcement_id)
+
+      setQueue((q) => [data, ...q])
 
       // Auto-dismiss after 12 seconds
       setTimeout(() => {

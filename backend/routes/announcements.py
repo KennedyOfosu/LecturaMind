@@ -63,9 +63,14 @@ def create_announcement():
                 "content":         content,
                 "posted_at":       record.get("posted_at", ""),
             }
+            # Emit to each student's personal room AND the course room so
+            # the notification arrives regardless of which room the client
+            # has joined first.
             for row in enrolments.data:
                 sio.emit("new_announcement", payload,
-                         room=f"student_{row['student_id']}")
+                         room=f"student_{row['student_id']}", namespace="/")
+            sio.emit("new_announcement", payload,
+                     room=f"course_{course_id}", namespace="/")
             print(f"[announcement] Notified {len(enrolments.data)} student(s) in {course_name}")
     except Exception as e:
         print(f"[announcement] Socket emit failed (non-fatal): {e}")
