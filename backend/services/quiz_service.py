@@ -1,37 +1,29 @@
 """
 quiz_service.py — AI-powered quiz generation from course material content.
-OpenAI is instructed to return strict JSON only to allow reliable parsing.
+Claude is instructed to return strict JSON only to allow reliable parsing.
 """
 
 import json
 import re
-from openai import OpenAI
+import datetime
+import anthropic
 from config import Config
 from services.supabase_client import supabase
 from services.file_service import get_all_course_text
 
-client = OpenAI(api_key=Config.OPENAI_API_KEY)
+client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
 
 
 def _parse_quiz_json(raw: str) -> list:
     """
-    Parse the raw OpenAI response into a list of question objects.
+    Parse the raw Claude response into a list of question objects.
     Strips markdown fences if present before parsing.
-
-    Args:
-        raw: Raw string response from OpenAI.
-
-    Returns:
-        List of question dicts.
-
-    Raises:
-        ValueError: If the response cannot be parsed as valid JSON.
     """
     cleaned = re.sub(r"```(?:json)?", "", raw).replace("```", "").strip()
     try:
         questions = json.loads(cleaned)
     except json.JSONDecodeError as e:
-        raise ValueError(f"OpenAI returned invalid JSON: {e}")
+        raise ValueError(f"Claude returned invalid JSON: {e}")
 
     if not isinstance(questions, list):
         raise ValueError("Expected a JSON array of questions")
@@ -58,8 +50,8 @@ def generate_quiz(course_id: str, num_questions: int = 10, difficulty: str = "me
     if not course_text.strip():
         raise ValueError("No course materials found. Upload materials before generating a quiz.")
 
-    course_res = supabase.table("courses").select("course_name").eq("id", course_id).single().execute()
-    course_name = course_res.data.get("course_name", "this course") if course_res.data else "this course"
+    course_res = supabase.table("courses").select("course_name").eq("id", course_id).execute()
+    course_name = course_res.data[0].get("course_name", "this course") if course_res.data else "this course"
 
     prompt = (
         f"You are a university lecturer creating a quiz for the course \"{course_name}\".\n"
@@ -71,20 +63,18 @@ def generate_quiz(course_id: str, num_questions: int = 10, difficulty: str = "me
         "- \"options\": array of exactly 4 strings\n"
         "- \"correct_answer\": string (must exactly match one of the options)\n"
         "- \"explanation\": string (brief explanation of why the answer is correct)\n\n"
-        f"Course Content:\n{course_text[:8000]}"  # Truncate to stay within token limits
+        f"Course Content:\n{course_text[:8000]}"
     )
 
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
         max_tokens=3000,
-        temperature=0.5,
+        messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = response.choices[0].message.content.strip()
+    raw = response.content[0].text.strip()
     questions = _parse_quiz_json(raw)
 
-    import datetime
     title = f"{course_name} Quiz — {difficulty.capitalize()} ({datetime.date.today().strftime('%d %b %Y')})"
 
     res = supabase.table("quizzes").insert({
