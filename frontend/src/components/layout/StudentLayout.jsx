@@ -13,7 +13,7 @@ export default function StudentLayout() {
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#F0F0F2' }}>
 
-      <StudentSidebar open={sidebarOpen} onToggle={() => setSidebarOpen(false)} />
+      <StudentSidebar open={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
 
       <main className="flex-1 overflow-hidden flex flex-col" style={{ backgroundColor: '#F0F0F2' }}>
         <div className="flex-1 overflow-y-auto p-8">
