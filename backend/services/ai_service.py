@@ -88,6 +88,9 @@ def process_student_query(course_id: str, student_id: str, student_query: str) -
         try:
             response_text = query_openai(messages)
         except Exception as e:
+            import traceback
+            print(f"[AI ERROR] OpenAI call failed: {e}")
+            traceback.print_exc()
             response_text = (
                 "I'm experiencing a technical issue and cannot answer your question right now. "
                 "Please try again in a moment or contact your lecturer directly."

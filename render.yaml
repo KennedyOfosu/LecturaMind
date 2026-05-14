@@ -4,7 +4,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 1 --threads 4 -b 0.0.0.0:$PORT app:app
+    startCommand: gunicorn -w 1 -k gevent --worker-connections 1000 -b 0.0.0.0:$PORT app:app
     envVars:
       - key: FLASK_ENV
         value: production

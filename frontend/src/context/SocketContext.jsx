@@ -27,7 +27,7 @@ export function SocketProvider({ children }) {
 
     const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
       auth: { token },
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
     })
 
     socket.on('connect', () => setConnected(true))
