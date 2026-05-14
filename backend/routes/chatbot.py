@@ -70,11 +70,14 @@ def get_student_sessions():
     except (TypeError, ValueError):
         limit = 8
 
-    result = supabase.table("chat_messages").select(
-        "id, course_id, query, timestamp, courses(course_name)"
-    ).eq("student_id", g.user_id).order("timestamp", desc=True).limit(limit).execute()
-
-    return jsonify({"sessions": result.data or []}), 200
+    try:
+        result = supabase.table("chat_messages").select(
+            "id, course_id, query, timestamp"
+        ).eq("student_id", g.user_id).order("timestamp", desc=True).limit(limit).execute()
+        return jsonify({"sessions": result.data or []}), 200
+    except Exception as e:
+        print(f"[SESSIONS] Query failed: {e}")
+        return jsonify({"sessions": []}), 200
 
 
 @chatbot_bp.post("/simplify")

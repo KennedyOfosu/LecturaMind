@@ -12,8 +12,8 @@ export function SessionsProvider({ children }) {
     try {
       const res = await chatService.getStudentSessions(40)
       setSessions(res.data.sessions || [])
-    } catch {
-      // non-critical — fail silently
+    } catch (err) {
+      console.warn('[Sessions] refresh failed:', err?.response?.status, err?.message)
     } finally {
       setIsLoadingSessions(false)
     }

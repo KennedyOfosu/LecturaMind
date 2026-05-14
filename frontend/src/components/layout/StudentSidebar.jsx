@@ -3,7 +3,7 @@
  * Tree-style course/session list matching the reference UI design.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { courseService } from '../../services/courseService'
@@ -72,6 +72,15 @@ function sessionTitle(query) {
 function CourseSessionGroup({ course, sessions, defaultOpen }) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
   const navigate = useNavigate()
+  const prevHadSessions = useRef(sessions.length > 0)
+
+  // Auto-open when this course gets its first session
+  useEffect(() => {
+    if (!prevHadSessions.current && sessions.length > 0) {
+      setIsOpen(true)
+    }
+    prevHadSessions.current = sessions.length > 0
+  }, [sessions.length])
 
   return (
     <div>
