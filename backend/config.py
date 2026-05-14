@@ -14,7 +14,7 @@ class Config:
 
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     JWT_SECRET: str = os.getenv("JWT_SECRET", "changeme")
     FLASK_ENV: str = os.getenv("FLASK_ENV", "development")
     FLASK_PORT: int = int(os.getenv("FLASK_PORT", "5000"))
@@ -23,7 +23,7 @@ class Config:
     @classmethod
     def validate(cls) -> None:
         """Raise an error at startup if critical env vars are missing."""
-        required = ["SUPABASE_URL", "SUPABASE_SERVICE_KEY", "OPENAI_API_KEY"]
+        required = ["SUPABASE_URL", "SUPABASE_SERVICE_KEY", "ANTHROPIC_API_KEY"]
         missing = [k for k in required if not getattr(cls, k)]
         if missing:
             raise EnvironmentError(

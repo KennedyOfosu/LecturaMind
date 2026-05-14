@@ -81,7 +81,7 @@ def health():
         "service": "LecturaMind API",
         "supabase_url_set": bool(Config.SUPABASE_URL),
         "service_key_set": bool(Config.SUPABASE_SERVICE_KEY),
-        "openai_key_set": bool(Config.OPENAI_API_KEY),
+        "anthropic_key_set": bool(Config.ANTHROPIC_API_KEY),
         "frontend_url": Config.FRONTEND_URL,
         "allowed_origins": allowed_origins,
     }), 200
@@ -89,18 +89,18 @@ def health():
 
 @app.get("/api/health/ai")
 def health_ai():
-    """Diagnostic: test OpenAI connectivity. Visit this URL to check if AI is working."""
-    if not Config.OPENAI_API_KEY:
-        return jsonify({"status": "error", "reason": "OPENAI_API_KEY is not set"}), 500
+    """Diagnostic: test Anthropic Claude connectivity."""
+    if not Config.ANTHROPIC_API_KEY:
+        return jsonify({"status": "error", "reason": "ANTHROPIC_API_KEY is not set"}), 500
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=Config.OPENAI_API_KEY)
-        resp = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+        import anthropic
+        c = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
+        resp = c.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=10,
             messages=[{"role": "user", "content": "Say OK"}],
-            max_tokens=5,
         )
-        return jsonify({"status": "ok", "response": resp.choices[0].message.content.strip()}), 200
+        return jsonify({"status": "ok", "response": resp.content[0].text.strip()}), 200
     except Exception as e:
         return jsonify({"status": "error", "reason": str(e)}), 500
 

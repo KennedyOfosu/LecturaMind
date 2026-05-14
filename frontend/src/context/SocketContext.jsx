@@ -1,6 +1,6 @@
 /**
  * SocketContext.jsx — Global Socket.IO connection state.
- * Initialises the socket on login and tears it down on logout.
+ * Uses React state (not just a ref) so consumers re-render when the socket connects.
  */
 
 import { createContext, useEffect, useRef, useState } from 'react'
@@ -12,38 +12,49 @@ export const SocketContext = createContext(null)
 export function SocketProvider({ children }) {
   const { user } = useAuth()
   const socketRef = useRef(null)
+  const [socket, setSocket] = useState(null)
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('lm_token')
+
     if (!user || !token) {
       if (socketRef.current) {
         socketRef.current.disconnect()
         socketRef.current = null
+        setSocket(null)
         setConnected(false)
       }
       return
     }
 
-    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+    const socketInstance = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
       auth: { token },
       transports: ['polling', 'websocket'],
     })
 
-    socket.on('connect', () => setConnected(true))
-    socket.on('disconnect', () => setConnected(false))
+    socketInstance.on('connect', () => {
+      setConnected(true)
+      setSocket(socketInstance) // expose only after confirmed connected
+    })
 
-    socketRef.current = socket
+    socketInstance.on('disconnect', () => {
+      setConnected(false)
+      setSocket(null)
+    })
+
+    socketRef.current = socketInstance
 
     return () => {
-      socket.disconnect()
+      socketInstance.disconnect()
       socketRef.current = null
+      setSocket(null)
       setConnected(false)
     }
   }, [user])
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected }}>
+    <SocketContext.Provider value={{ socket, connected }}>
       {children}
     </SocketContext.Provider>
   )

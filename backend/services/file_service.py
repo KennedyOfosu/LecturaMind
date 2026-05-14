@@ -4,34 +4,57 @@ Text is extracted at upload time and stored in the database to avoid re-processi
 """
 
 import io
+import uuid
 import pdfplumber
 import docx
 from pptx import Presentation
 from services.supabase_client import supabase
 
 
+MIME_BY_EXT = {
+    "pdf":  "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "ppt":  "application/vnd.ms-powerpoint",
+}
+
+
+def get_mime_type(file_name: str) -> str:
+    """Return the correct MIME type for a given filename based on extension."""
+    ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+    return MIME_BY_EXT.get(ext, "application/octet-stream")
+
+
 def upload_to_storage(file_bytes: bytes, file_name: str, course_id: str) -> str:
     """
-    Upload a file to the Supabase Storage bucket 'course-materials'.
+    Upload a file to the 'course-materials' bucket with a unique path.
 
-    Args:
-        file_bytes: Raw file content as bytes.
-        file_name: Original filename (used as part of the storage path).
-        course_id: UUID of the owning course (used to namespace the path).
-
-    Returns:
-        The storage path of the uploaded file.
-
-    Raises:
-        Exception: If the Supabase upload fails.
+    Returns the storage path. Raises on failure.
     """
-    path = f"{course_id}/{file_name}"
+    safe_name = file_name.replace("/", "_").replace("\\", "_")
+    unique_prefix = uuid.uuid4().hex[:8]
+    path = f"{course_id}/{unique_prefix}_{safe_name}"
     supabase.storage.from_("course-materials").upload(
         path,
         file_bytes,
-        {"content-type": "application/octet-stream", "upsert": "true"},
+        {"content-type": get_mime_type(safe_name), "upsert": "false"},
     )
     return path
+
+
+def ensure_storage_bucket():
+    """Create the course-materials bucket if it does not exist."""
+    try:
+        buckets = supabase.storage.list_buckets()
+        names = [b.name if hasattr(b, "name") else b.get("name") for b in buckets]
+        if "course-materials" not in names:
+            supabase.storage.create_bucket(
+                "course-materials",
+                options={"public": False, "file_size_limit": 10 * 1024 * 1024},
+            )
+            print("[storage] course-materials bucket created.")
+    except Exception as e:
+        print(f"[storage] Bucket check failed: {e}")
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:

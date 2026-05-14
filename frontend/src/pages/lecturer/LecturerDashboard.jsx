@@ -72,6 +72,7 @@ export default function LecturerDashboard() {
   const [chatLogs,      setChatLogs]      = useState([])
   const [materials,     setMaterials]     = useState([])
   const [onlineUsers,   setOnlineUsers]   = useState([])
+  const [myCourseIds,   setMyCourseIds]   = useState([])
   const [loading,       setLoading]       = useState(true)
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export default function LecturerDashboard() {
     ]).then(async ([statsRes, coursesRes]) => {
       setStats(statsRes.data)
       const courses = coursesRes.data
+      setMyCourseIds(courses.map((c) => c.id))
 
       if (courses.length) {
         const firstId = courses[0].id
@@ -104,9 +106,33 @@ export default function LecturerDashboard() {
 
   useEffect(() => {
     if (!socket) return
-    socket.on('active_users_updated', setOnlineUsers)
-    return () => socket.off('active_users_updated')
-  }, [socket])
+    // eslint-disable-next-line no-unused-vars
+    const _deps = myCourseIds.length
+    const onLegacy = (users) => setOnlineUsers(users || [])
+    const onJoin = (data) => {
+      setOnlineUsers((prev) => {
+        const id = data.student_id || data.user_id
+        if (prev.find((u) => (u.student_id || u.user_id) === id)) return prev
+        return [...prev, { ...data, name: data.student_name || data.name }]
+      })
+    }
+    const onLeave = (data) => {
+      setOnlineUsers((prev) =>
+        prev.filter((u) => (u.student_id || u.user_id) !== data.student_id)
+      )
+    }
+    // Watch every course we own for presence updates
+    myCourseIds.forEach((cid) => socket.emit('lecturer_watch_course', { course_id: cid }))
+
+    socket.on('active_users_updated', onLegacy)
+    socket.on('student_came_online', onJoin)
+    socket.on('student_went_offline', onLeave)
+    return () => {
+      socket.off('active_users_updated', onLegacy)
+      socket.off('student_came_online', onJoin)
+      socket.off('student_went_offline', onLeave)
+    }
+  }, [socket, myCourseIds])
 
   const statCards = [
     { label: 'Total Courses',    value: stats?.total_courses,    Icon: Ic.Folder, path: '/lecturer/courses'    },

@@ -14,8 +14,10 @@ import { useToast } from '../../components/ui/Toast'
 import { PROGRAMMES, LEVELS, SEMESTERS } from '../../utils/constants'
 
 export default function LecturerProfile() {
-  const { user, refreshUser } = useAuth()
+  const { user, token, refreshUser } = useAuth()
   const toast = useToast()
+  const [loadError, setLoadError] = useState('')
+  const [retryCount, setRetryCount] = useState(0)
 
   const [profile,     setProfile]     = useState(null)
   const [courses,     setCourses]     = useState([])
@@ -43,6 +45,7 @@ export default function LecturerProfile() {
 
   const fetchAll = async () => {
     setLoading(true)
+    setLoadError('')
     try {
       const [pRes, cRes, aRes] = await Promise.all([
         api.get('/api/profile/'),
@@ -57,15 +60,20 @@ export default function LecturerProfile() {
         bio:        pRes.data.bio        || '',
       })
       setCourses(cRes.data)
-      setAssignments(aRes.data)
-    } catch {
-      toast.error('Failed to load profile')
+      setAssignments(Array.isArray(aRes.data) ? aRes.data : [])
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to load your profile.'
+      setLoadError(msg)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => {
+    if (!user || !token) return
+    fetchAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, token, retryCount])
 
   const handleSaveInfo = async () => {
     setSavingInfo(true)
@@ -127,7 +135,23 @@ export default function LecturerProfile() {
     return acc
   }, {})
 
-  if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <Spinner size="lg" />
+        <p className="text-sm text-gray-500">Loading your profile…</p>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <p className="text-sm text-red-600">{loadError}</p>
+        <Button variant="teal" onClick={() => setRetryCount((c) => c + 1)}>Retry</Button>
+      </div>
+    )
+  }
 
   const initials = user?.full_name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'L'
 

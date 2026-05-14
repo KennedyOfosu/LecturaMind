@@ -22,7 +22,7 @@ def get_my_assignments():
     res = supabase.table("lecturer_assignments").select(
         "*, courses(id, course_name, course_code)"
     ).eq("lecturer_id", g.user_id).order("programme").order("level").execute()
-    return jsonify(res.data), 200
+    return jsonify(res.data or []), 200
 
 
 @assignments_bp.post("/create")

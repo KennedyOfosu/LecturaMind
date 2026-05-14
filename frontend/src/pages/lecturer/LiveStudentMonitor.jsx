@@ -27,21 +27,49 @@ export default function LiveStudentMonitor() {
   useEffect(() => {
     if (!socket || !selectedCourse) return
 
-    socket.emit('lecturer_join', { course_id: selectedCourse })
+    setActiveUsers([])
+    socket.emit('lecturer_watch_course', { course_id: selectedCourse })
+    socket.emit('lecturer_join', { course_id: selectedCourse })  // legacy
 
-    socket.on('active_users_updated', (users) => setActiveUsers(users))
-
-    socket.on('student_activity', (data) => {
+    const onList = (data) => {
+      if (data.course_id !== selectedCourse) return
+      setActiveUsers(data.active_students || [])
+    }
+    const onJoin = (data) => {
+      if (data.course_id !== selectedCourse) return
+      setActiveUsers((prev) =>
+        prev.find((s) => (s.student_id || s.user_id) === (data.student_id || data.user_id))
+          ? prev
+          : [...prev, data]
+      )
+    }
+    const onLeave = (data) => {
+      if (data.course_id !== selectedCourse) return
+      setActiveUsers((prev) =>
+        prev.filter((s) => (s.student_id || s.user_id) !== data.student_id)
+      )
+    }
+    const onLegacy = (users) => setActiveUsers(users || [])
+    const onActivity = (data) => {
       if (data.course_id !== selectedCourse) return
       setActivityFeed((prev) => [
         { ...data, timestamp: new Date().toISOString() },
         ...prev.slice(0, 19),
       ])
-    })
+    }
+
+    socket.on('active_students_list', onList)
+    socket.on('student_came_online', onJoin)
+    socket.on('student_went_offline', onLeave)
+    socket.on('active_users_updated', onLegacy)
+    socket.on('student_activity', onActivity)
 
     return () => {
-      socket.off('active_users_updated')
-      socket.off('student_activity')
+      socket.off('active_students_list', onList)
+      socket.off('student_came_online', onJoin)
+      socket.off('student_went_offline', onLeave)
+      socket.off('active_users_updated', onLegacy)
+      socket.off('student_activity', onActivity)
     }
   }, [socket, selectedCourse])
 

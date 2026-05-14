@@ -22,6 +22,8 @@ export default function MaterialUploader() {
   const [materials, setMaterials] = useState([])
   const [loadingMaterials, setLoadingMaterials] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -42,28 +44,46 @@ export default function MaterialUploader() {
   }, [selectedCourse])
 
   const handleUpload = async (file) => {
-    if (!file || !selectedCourse) return
+    if (!file) return
+    if (!selectedCourse) {
+      toast.error('Please select a course first')
+      return
+    }
     const ext = file.name.split('.').pop().toLowerCase()
     const allowedExts = ['pdf', 'docx', 'pptx', 'ppt']
     if (!allowedExts.includes(ext)) {
-      toast.error('Only PDF, DOCX, and PPTX files are allowed')
+      const msg = 'Only PDF, DOCX, and PPTX files are allowed'
+      setUploadError(msg); toast.error(msg)
       return
     }
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be under 10 MB')
+      const msg = 'File size must be under 10 MB'
+      setUploadError(msg); toast.error(msg)
+      return
+    }
+    if (file.size === 0) {
+      const msg = 'The selected file is empty'
+      setUploadError(msg); toast.error(msg)
       return
     }
     const formData = new FormData()
     formData.append('file', file)
     formData.append('course_id', selectedCourse)
     setUploading(true)
+    setUploadError('')
+    setUploadProgress(0)
     try {
-      await materialService.upload(formData)
-      toast.success('Material uploaded and indexed!')
+      await materialService.upload(formData, (e) => {
+        if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100))
+      })
+      toast.success(`${file.name} uploaded and indexed!`)
+      setUploadProgress(100)
       const res = await materialService.getByCourse(selectedCourse)
       setMaterials(res.data)
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Upload failed')
+      const msg = err.response?.data?.error || err.message || 'Upload failed. Please try again.'
+      setUploadError(msg)
+      toast.error(msg)
     } finally {
       setUploading(false)
     }
@@ -122,7 +142,12 @@ export default function MaterialUploader() {
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
               <Spinner size="lg" />
-              <p className="text-gray-500 text-sm">Uploading and extracting text…</p>
+              <p className="text-gray-500 text-sm">
+                Uploading… {uploadProgress > 0 && uploadProgress < 100 ? `${uploadProgress}%` : 'extracting text'}
+              </p>
+              <div className="w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div className="h-full bg-teal-500 transition-all" style={{ width: `${uploadProgress}%` }} />
+              </div>
             </div>
           ) : (
             <>
@@ -133,6 +158,11 @@ export default function MaterialUploader() {
           )}
         </div>
         <input ref={fileInputRef} type="file" accept=".pdf,.docx,.pptx,.ppt" className="hidden" onChange={(e) => handleUpload(e.target.files[0])} />
+        {uploadError && (
+          <div className="mt-3 px-3 py-2 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700">
+            {uploadError}
+          </div>
+        )}
       </Card>
 
       {/* Materials list */}

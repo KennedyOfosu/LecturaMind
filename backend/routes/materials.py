@@ -40,29 +40,41 @@ def upload_material():
         return jsonify({"error": "No file provided", "code": 400}), 400
 
     file = request.files["file"]
-    if not file.filename:
-        return jsonify({"error": "Empty filename", "code": 400}), 400
+    if not file or not file.filename:
+        return jsonify({"error": "No file was selected.", "code": 400}), 400
 
     file_bytes = file.read()
+    file_size = len(file_bytes)
 
-    if len(file_bytes) > MAX_FILE_SIZE:
-        return jsonify({"error": "File exceeds 10 MB limit", "code": 413}), 413
+    if file_size == 0:
+        return jsonify({"error": "The uploaded file is empty.", "code": 400}), 400
+
+    if file_size > MAX_FILE_SIZE:
+        size_mb = round(file_size / (1024 * 1024), 2)
+        return jsonify({
+            "error": f"File is too large ({size_mb} MB). Maximum allowed size is 10 MB.",
+            "code": 413,
+        }), 413
 
     mime = file.content_type or ""
     fn = file.filename.lower()
+    ext = fn.rsplit(".", 1)[-1] if "." in fn else ""
+    allowed_exts = {"pdf", "docx", "pptx", "ppt"}
 
-    # Infer MIME from extension if browser sends generic type
-    if mime not in ALLOWED_MIME_TYPES:
-        if fn.endswith(".pdf"):
-            mime = "application/pdf"
-        elif fn.endswith(".docx"):
-            mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        elif fn.endswith(".pptx"):
-            mime = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        elif fn.endswith(".ppt"):
-            mime = "application/vnd.ms-powerpoint"
-        else:
-            return jsonify({"error": "Only PDF, DOCX, and PPTX files are allowed", "code": 415}), 415
+    if ext not in allowed_exts:
+        return jsonify({
+            "error": "Unsupported file type. Please upload a PDF, DOCX, or PPTX file.",
+            "code": 415,
+        }), 415
+
+    # Normalise mime by extension
+    ext_to_mime = {
+        "pdf":  "application/pdf",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "ppt":  "application/vnd.ms-powerpoint",
+    }
+    mime = ext_to_mime[ext]
 
     # Extract text based on file type
     if mime == "application/pdf" or fn.endswith(".pdf"):

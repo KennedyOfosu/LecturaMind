@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { useSocket } from '../../hooks/useSocket'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
 
@@ -107,8 +108,10 @@ const quickActions = [
 
 export default function StudentDashboard() {
   const { user, logout } = useAuth()
+  const { socket }       = useSocket()
   const navigate          = useNavigate()
   const bottomRef         = useRef(null)
+  const hasEmittedLogin   = useRef(false)
 
   const [courses,        setCourses]        = useState([])
   const [sidebarOpen,    setSidebarOpen]    = useState(true)
@@ -131,6 +134,21 @@ export default function StudentDashboard() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
+
+  // Announce presence once courses are loaded and socket is connected
+  useEffect(() => {
+    if (socket && user && courses.length > 0 && !hasEmittedLogin.current) {
+      socket.emit('student_login', {
+        student_id:        user.id,
+        student_name:      user.full_name,
+        student_id_number: user.user_id_number,
+        programme:         user.programme,
+        level:             user.level,
+        course_ids:        courses.map((c) => c.id),
+      })
+      hasEmittedLogin.current = true
+    }
+  }, [socket, user, courses])
 
   const selectCourse = (c) => {
     setSelectedCourse(c)

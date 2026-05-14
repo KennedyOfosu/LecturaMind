@@ -1,188 +1,225 @@
 """
-events.py — Socket.IO real-time event handlers for live monitoring and Q&A.
-Rooms are course-scoped: students join 'course_{id}', lecturers join 'lecturer_{id}'.
+events.py — Socket.IO real-time event handlers.
+Tracks student presence per course and broadcasts to monitoring lecturers.
 """
 
-import jwt
+import datetime
 from flask import request
 from flask_socketio import emit, join_room, leave_room
-from config import Config
 from services.supabase_client import supabase
 
-# In-memory store: { course_id: { user_id: { name, avatar } } }
+# In-memory store: { course_id: { student_id: { name, id_number, sid, ... } } }
 active_users: dict = {}
 
 
-def _decode_token(token: str) -> dict | None:
-    """Decode the JWT handshake token. Returns payload or None on failure."""
-    try:
-        return jwt.decode(token, Config.JWT_SECRET, algorithms=["HS256"])
-    except Exception:
-        return None
+def _now_iso() -> str:
+    return datetime.datetime.utcnow().isoformat()
 
 
 def register_socket_events(socketio):
-    """
-    Register all Socket.IO event handlers on the given SocketIO instance.
-
-    Args:
-        socketio: The Flask-SocketIO instance from app.py.
-    """
+    """Register all Socket.IO event handlers on the given SocketIO instance."""
 
     @socketio.on("connect")
-    def on_connect(auth):
-        """Authenticate the connecting socket using the JWT token in auth data."""
-        token = (auth or {}).get("token", "")
-        payload = _decode_token(token)
-        if not payload:
-            return False  # Reject the connection
-
-        request.environ["user_id"] = payload["sub"]
-        request.environ["user_role"] = payload["role"]
-        request.environ["user_name"] = payload.get("email", "Unknown")
+    def on_connect(auth=None):
+        """Accept the connection. Identity is established via event payloads."""
+        print(f"[socket] Client connected: {request.sid}")
 
     @socketio.on("disconnect")
     def on_disconnect():
-        """Remove user from all active user lists on disconnect."""
-        user_id = request.environ.get("user_id")
-        if not user_id:
+        """Remove the disconnecting socket from all course presence lists."""
+        sid = request.sid
+        for course_id, students in list(active_users.items()):
+            for student_id, info in list(students.items()):
+                if info.get("sid") == sid:
+                    del active_users[course_id][student_id]
+                    emit("student_went_offline", {
+                        "student_id": student_id,
+                        "course_id":  course_id,
+                    }, room=f"lecturer_course_{course_id}")
+                    # Legacy event for existing listeners
+                    emit("active_users_updated",
+                         list(active_users[course_id].values()),
+                         room=f"lecturer_{course_id}")
+                    print(f"[socket] {info.get('student_name','?')} went offline (course {course_id}).")
+
+    @socketio.on("student_login")
+    def on_student_login(data):
+        """
+        Fired by the student client after dashboard load.
+        Registers presence in every enrolled course room.
+
+        Data:
+            student_id, student_name, student_id_number,
+            programme, level, course_ids: [..]
+        """
+        student_id   = data.get("student_id")
+        student_name = data.get("student_name", "Student")
+        id_number    = data.get("student_id_number", "")
+        programme    = data.get("programme")
+        level        = data.get("level")
+        course_ids   = data.get("course_ids", []) or []
+
+        if not student_id:
             return
 
-        for course_id, users in list(active_users.items()):
-            if user_id in users:
-                del users[user_id]
-                emit("active_users_updated", list(users.values()), room=f"lecturer_{course_id}")
+        join_room(f"student_{student_id}")
+
+        for course_id in course_ids:
+            join_room(f"course_{course_id}")
+
+            if course_id not in active_users:
+                active_users[course_id] = {}
+
+            payload = {
+                "student_id":   student_id,
+                "user_id":      student_id,     # legacy alias
+                "student_name": student_name,
+                "name":         student_name,   # legacy alias
+                "id_number":    id_number,
+                "programme":    programme,
+                "level":        level,
+                "course_id":    course_id,
+                "joined_at":    _now_iso(),
+                "sid":          request.sid,
+            }
+            active_users[course_id][student_id] = payload
+
+            emit("student_came_online", payload, room=f"lecturer_course_{course_id}")
+            # Legacy event for existing listeners
+            emit("active_users_updated",
+                 list(active_users[course_id].values()),
+                 room=f"lecturer_{course_id}")
+
+        print(f"[socket] {student_name} ({id_number}) is online in {len(course_ids)} course(s).")
+
+    @socketio.on("lecturer_watch_course")
+    def on_lecturer_watch_course(data):
+        """
+        Fired when a lecturer opens the live monitor for a course.
+        Joins the lecturer's monitoring room and replays the current presence list.
+        """
+        course_id = data.get("course_id")
+        if not course_id:
+            return
+
+        join_room(f"lecturer_course_{course_id}")
+        join_room(f"lecturer_{course_id}")  # legacy
+
+        current = list(active_users.get(course_id, {}).values())
+        emit("active_students_list", {
+            "course_id":       course_id,
+            "active_students": current,
+            "count":           len(current),
+        })
+        # Legacy
+        emit("active_users_updated", current)
+
+    # ── Legacy events kept for backward compatibility ────────────────────
 
     @socketio.on("join_course")
     def on_join_course(data):
-        """
-        Student joins a course room; updates the active users list for the lecturer.
-
-        Data: { course_id, user_name, avatar_url? }
-        """
-        user_id = request.environ.get("user_id")
-        course_id = data.get("course_id")
-        user_name = data.get("user_name", "Student")
-        avatar_url = data.get("avatar_url", "")
-
-        if not course_id:
+        """Legacy: a student announces presence in a course."""
+        user_id    = data.get("user_id") or data.get("student_id")
+        course_id  = data.get("course_id")
+        user_name  = data.get("user_name") or data.get("student_name", "Student")
+        if not user_id or not course_id:
             return
 
-        room = f"course_{course_id}"
-        join_room(room)
-
+        join_room(f"course_{course_id}")
         if course_id not in active_users:
             active_users[course_id] = {}
         active_users[course_id][user_id] = {
-            "user_id": user_id,
-            "name": user_name,
-            "avatar_url": avatar_url,
+            "student_id":   user_id,
+            "user_id":      user_id,
+            "student_name": user_name,
+            "name":         user_name,
+            "course_id":    course_id,
+            "joined_at":    _now_iso(),
+            "sid":          request.sid,
         }
-
-        emit("active_users_updated", list(active_users[course_id].values()), room=f"lecturer_{course_id}")
+        emit("active_users_updated",
+             list(active_users[course_id].values()),
+             room=f"lecturer_{course_id}")
+        emit("student_came_online",
+             active_users[course_id][user_id],
+             room=f"lecturer_course_{course_id}")
 
     @socketio.on("lecturer_join")
     def on_lecturer_join(data):
-        """
-        Lecturer joins their monitoring room for a course.
-
-        Data: { course_id }
-        """
-        course_id = data.get("course_id")
-        if course_id:
-            join_room(f"lecturer_{course_id}")
-            current_users = list(active_users.get(course_id, {}).values())
-            emit("active_users_updated", current_users)
-
-    @socketio.on("leave_course")
-    def on_leave_course(data):
-        """Student leaves a course room and is removed from the active list."""
-        user_id = request.environ.get("user_id")
+        """Legacy: lecturer joins their monitoring room."""
         course_id = data.get("course_id")
         if not course_id:
             return
+        join_room(f"lecturer_{course_id}")
+        join_room(f"lecturer_course_{course_id}")
+        emit("active_users_updated", list(active_users.get(course_id, {}).values()))
 
+    @socketio.on("leave_course")
+    def on_leave_course(data):
+        user_id   = data.get("user_id") or data.get("student_id")
+        course_id = data.get("course_id")
+        if not course_id or not user_id:
+            return
         leave_room(f"course_{course_id}")
-
         if course_id in active_users and user_id in active_users[course_id]:
             del active_users[course_id][user_id]
-            emit("active_users_updated", list(active_users[course_id].values()), room=f"lecturer_{course_id}")
+            emit("active_users_updated",
+                 list(active_users[course_id].values()),
+                 room=f"lecturer_{course_id}")
+            emit("student_went_offline",
+                 {"student_id": user_id, "course_id": course_id},
+                 room=f"lecturer_course_{course_id}")
 
     @socketio.on("student_active")
     def on_student_active(data):
-        """
-        Student signals activity (e.g., opened chatbot). Lecturer is notified.
-
-        Data: { course_id, action }
-        """
-        user_id = request.environ.get("user_id")
         course_id = data.get("course_id")
-        action = data.get("action", "is active")
-        user_name = data.get("user_name", "A student")
-
-        if course_id:
-            emit("student_activity", {
-                "user_id": user_id,
-                "user_name": user_name,
-                "action": action,
-                "course_id": course_id,
-            }, room=f"lecturer_{course_id}")
+        if not course_id:
+            return
+        emit("student_activity", {
+            "user_id":   data.get("user_id") or data.get("student_id"),
+            "user_name": data.get("user_name") or data.get("student_name", "A student"),
+            "action":    data.get("action", "is active"),
+            "course_id": course_id,
+        }, room=f"lecturer_{course_id}")
 
     @socketio.on("live_question")
     def on_live_question(data):
-        """
-        Student submits a live Q&A question. Stored in DB and broadcast to lecturer.
-
-        Data: { course_id, question, student_name, student_id }
-        """
-        course_id = data.get("course_id")
-        question_text = data.get("question", "").strip()
-        student_id = data.get("student_id") or request.environ.get("user_id")
-        student_name = data.get("student_name", "Student")
-
-        if not course_id or not question_text:
+        course_id     = data.get("course_id")
+        question_text = (data.get("question") or "").strip()
+        student_id    = data.get("student_id")
+        student_name  = data.get("student_name", "Student")
+        if not course_id or not question_text or not student_id:
             return
-
         try:
             res = supabase.table("live_questions").insert({
-                "course_id": course_id,
+                "course_id":  course_id,
                 "student_id": student_id,
-                "question": question_text,
+                "question":   question_text,
             }).execute()
-            question_record = res.data[0]
+            record = res.data[0]
         except Exception:
             return
-
-        payload = {
-            **question_record,
-            "student_name": student_name,
-        }
-
+        payload = {**record, "student_name": student_name}
         emit("new_live_question", payload, room=f"lecturer_{course_id}")
         emit("new_live_question", payload, room=f"course_{course_id}")
 
     @socketio.on("lecturer_answer")
     def on_lecturer_answer(data):
-        """
-        Lecturer answers a live question. Updated in DB and broadcast to all students.
-
-        Data: { question_id, answer, course_id }
-        """
         question_id = data.get("question_id")
-        answer = data.get("answer", "").strip()
-        course_id = data.get("course_id")
-
+        answer      = (data.get("answer") or "").strip()
+        course_id   = data.get("course_id")
         if not question_id or not answer:
             return
-
         try:
             res = supabase.table("live_questions").update({
-                "answer": answer,
-                "answered": True,
+                "answer": answer, "answered": True,
             }).eq("id", question_id).execute()
             record = res.data[0] if res.data else {}
         except Exception:
             return
-
-        emit("question_answered", {**record, "answer": answer, "question_id": question_id}, room=f"course_{course_id}")
-        emit("question_answered", {**record, "answer": answer, "question_id": question_id}, room=f"lecturer_{course_id}")
+        emit("question_answered",
+             {**record, "answer": answer, "question_id": question_id},
+             room=f"course_{course_id}")
+        emit("question_answered",
+             {**record, "answer": answer, "question_id": question_id},
+             room=f"lecturer_{course_id}")
