@@ -124,8 +124,6 @@ export default function CourseManager() {
   const [levelFilter,  setLevelFilter]  = useState('all')
   const [modalState,   setModalState]   = useState({ type: null, course: null })
   const [actionLoading,setActionLoading]= useState(false)
-  const [enrolId,      setEnrolId]      = useState('')
-  const [enrolMsg,     setEnrolMsg]     = useState({ text: '', isError: false })
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [justCreated,  setJustCreated]  = useState(null)
   const [assignForm,   setAssignForm]   = useState({ programme: '', level: '', semester: '', academic_year: '' })
@@ -211,27 +209,6 @@ export default function CourseManager() {
     } finally { setActionLoading(false) }
   }
 
-  const handleEnrol = async () => {
-    const idVal = enrolId.trim().toUpperCase()
-    if (!idVal) return
-    setActionLoading(true)
-    setEnrolMsg({ text: '', isError: false })
-    try {
-      const res = await courseService.enrolStudent(modalState.course.id, idVal)
-      setEnrolMsg({ text: res.data.message, isError: false })
-      setEnrolId('')
-      fetchCourses()
-    } catch (err) {
-      setEnrolMsg({ text: err.response?.data?.error || 'Enrolment failed', isError: true })
-    } finally { setActionLoading(false) }
-  }
-
-  const openEnrol = (course) => {
-    setEnrolId('')
-    setEnrolMsg({ text: '', isError: false })
-    setModalState({ type: 'enrol', course })
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -283,16 +260,16 @@ export default function CourseManager() {
                 <span>{course.materials?.[0]?.count ?? 0} materials</span>
               </div>
 
-              <div className="flex gap-2 pt-2 border-t border-gray-100 flex-wrap">
-                <Button size="sm" variant="outline" onClick={() => openEnrol(course)}>
-                  Enrol Student
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setModalState({ type: 'edit', course })}>
-                  Edit
-                </Button>
-                <Button size="sm" variant="danger" onClick={() => setDeleteTarget(course)}>
-                  Delete
-                </Button>
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100 gap-2">
+                <span className="text-xs text-gray-400 italic">Students auto-enrol by programme &amp; level</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setModalState({ type: 'edit', course })}>
+                    Edit
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => setDeleteTarget(course)}>
+                    Delete
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
@@ -307,43 +284,6 @@ export default function CourseManager() {
       {/* Edit */}
       <Modal isOpen={modalState.type === 'edit'} onClose={() => setModalState({ type: null })} title="Edit Course">
         <CourseForm initial={modalState.course} onSubmit={handleEdit} loading={actionLoading} />
-      </Modal>
-
-      {/* Enrol by Student ID */}
-      <Modal isOpen={modalState.type === 'enrol'} onClose={() => setModalState({ type: null })} title="Enrol Student">
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-500">
-            Enter the student's ID number to enrol them in{' '}
-            <strong>{modalState.course?.course_name}</strong>.
-          </p>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Student ID Number</label>
-            <input
-              type="text"
-              value={enrolId}
-              onChange={(e) => { setEnrolId(e.target.value.toUpperCase()); setEnrolMsg({ text: '', isError: false }) }}
-              onKeyDown={(e) => e.key === 'Enter' && handleEnrol()}
-              placeholder="e.g. STU-2001"
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Enter the student's ID number exactly as it was given to them.
-            </p>
-          </div>
-
-          {enrolMsg.text && (
-            <p className={`text-sm rounded-lg px-3 py-2 ${
-              enrolMsg.isError ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'
-            }`}>
-              {enrolMsg.text}
-            </p>
-          )}
-
-          <Button variant="teal" onClick={handleEnrol} loading={actionLoading} className="w-full">
-            Enrol Student
-          </Button>
-        </div>
       </Modal>
 
       {/* Assignment prompt (after course creation) */}
