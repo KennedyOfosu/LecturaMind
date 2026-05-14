@@ -98,6 +98,9 @@ def simplify_message():
             "timestamp":  datetime.now(timezone.utc).isoformat(),
         }), 200
     except Exception as e:
+        import traceback
+        print(f"[simplify] ERROR: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({"error": f"Simplification failed: {str(e)}", "code": 500}), 500
 
 

@@ -1,7 +1,6 @@
 /**
  * StudentDashboard.jsx — Home page content for student.
- * Sidebar is provided by StudentLayout. This is just the main area:
- * greeting + inline AI chat with course selector.
+ * Sidebar is provided by StudentLayout. This renders the main chat area.
  */
 
 import { useState, useEffect, useRef } from 'react'
@@ -19,10 +18,10 @@ function getGreeting() {
 }
 
 export default function StudentDashboard() {
-  const { user }           = useAuth()
-  const { socket }         = useSocket()
+  const { user }            = useAuth()
+  const { socket }          = useSocket()
   const { refreshSessions } = useSessions()
-  const hasEmittedLogin    = useRef(false)
+  const hasEmittedLogin     = useRef(false)
 
   const [courses, setCourses] = useState([])
   const firstName = user?.full_name?.split(' ')[0] || 'Student'
@@ -33,7 +32,7 @@ export default function StudentDashboard() {
       .catch(() => {})
   }, [])
 
-  // Announce presence to live monitor
+  // Announce presence to live monitor once socket + courses are ready
   useEffect(() => {
     if (socket && user && courses.length > 0 && !hasEmittedLogin.current) {
       socket.emit('student_login', {
@@ -49,23 +48,22 @@ export default function StudentDashboard() {
   }, [socket, user, courses])
 
   const greeting = (
-    <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10 text-center min-h-0">
+    <div className="flex flex-col items-center justify-center gap-2 pt-10 pb-4 text-center shrink-0">
       <h1 className="text-3xl font-semibold text-gray-900">
         {getGreeting()}, {firstName}
       </h1>
-      <p className="text-gray-400 text-base">
-        {courses.length
-          ? 'Click ⊕ to pick a course, then ask anything'
-          : 'You have no enrolled courses yet'}
+      <p className="text-gray-400 text-sm">
+        {courses.length ? 'Click ⊕ to pick a course, then ask anything' : 'You have no enrolled courses yet'}
       </p>
     </div>
   )
 
   return (
-    /* Full-height flex column — AIChatInterface handles its own scroll */
+    /* Full-height column — StudentLayout provides the outer scroll container */
     <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
       <AIChatInterface
         courses={courses}
+        mode="new"
         onRefreshSessions={refreshSessions}
         greeting={greeting}
       />

@@ -21,14 +21,15 @@ export default function StudentLayout() {
 
       <StudentSidebar open={sidebarOpen} onToggle={() => setSidebarOpen(false)} />
 
-      <main className="flex-1 overflow-y-auto relative" style={{ backgroundColor: '#F0F0F2' }}>
+      <main className="flex-1 overflow-hidden flex flex-col relative" style={{ backgroundColor: '#F0F0F2' }}>
         {!sidebarOpen && (
           <button onClick={() => setSidebarOpen(true)}
             className="absolute top-4 left-4 text-gray-500 hover:text-gray-800 transition-colors z-10">
             <ToggleIcon />
           </button>
         )}
-        <div className={`p-8 min-h-full ${!sidebarOpen ? 'pl-14' : ''}`}>
+        {/* Outlet wrapper — overflow-y-auto so regular pages scroll, dashboard manages its own */}
+        <div className={`flex-1 overflow-y-auto p-8 ${!sidebarOpen ? 'pl-14' : ''}`}>
           <Outlet />
         </div>
       </main>

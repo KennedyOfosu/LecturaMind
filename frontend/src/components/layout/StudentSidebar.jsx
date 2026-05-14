@@ -49,6 +49,12 @@ const I = {
   ),
 }
 
+function sessionTitle(query) {
+  if (!query) return 'Session'
+  const words = query.trim().split(/\s+/)
+  return words.length <= 6 ? query : words.slice(0, 6).join(' ') + '…'
+}
+
 /* ── Collapsible course session group ── */
 function CourseSessionGroup({ course, sessions, defaultOpen }) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
@@ -56,18 +62,17 @@ function CourseSessionGroup({ course, sessions, defaultOpen }) {
 
   return (
     <div>
-      {/* Course header row */}
+      {/* Course header row — chevron toggles, name navigates */}
       <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-white transition-colors">
         <button onClick={() => setIsOpen((v) => !v)}
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
+          className="shrink-0 p-0.5 text-gray-500 hover:text-gray-800">
           <I.Chevron open={isOpen} />
-          <span className="text-xs font-semibold text-gray-600 truncate uppercase tracking-wide">
-            {course.course_name}
-          </span>
         </button>
         <button onClick={() => navigate(`/student/courses/${course.id}`)}
-          className="text-xs text-gray-400 hover:text-gray-600 shrink-0 px-1" title="Open course">
-          →
+          className="flex-1 min-w-0 text-left">
+          <span className="text-xs font-semibold text-gray-600 truncate uppercase tracking-wide hover:text-gray-900">
+            {course.course_name}
+          </span>
         </button>
       </div>
 
@@ -78,7 +83,7 @@ function CourseSessionGroup({ course, sessions, defaultOpen }) {
             <button key={s.id}
               onClick={() => navigate(`/student/courses/${course.id}?session=${s.id}`)}
               className="w-full text-left px-2 py-1.5 rounded-md text-xs text-gray-500 hover:text-gray-800 hover:bg-white transition-colors truncate">
-              {s.query && s.query.length > 35 ? s.query.slice(0, 35) + '…' : s.query}
+              {sessionTitle(s.query)}
             </button>
           ))}
           {sessions.length > 5 && (

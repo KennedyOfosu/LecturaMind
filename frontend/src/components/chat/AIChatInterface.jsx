@@ -74,8 +74,8 @@ function AIMessage({ msg, courseId, msgId }) {
       setSimplified(res.data.simplified || '')
       setSimpTs(res.data.timestamp || new Date().toISOString())
     } catch (err) {
-      const msg2 = err?.response?.data?.error || 'Could not simplify. Please try again.'
-      setSimplified(msg2)
+      const serverMsg = err?.response?.data?.error
+      setSimplified(`⚠️ ${serverMsg || 'Could not simplify. Please try again.'}`)
       setSimpTs(new Date().toISOString())
     } finally { setIsSimplifying(false) }
   }
@@ -183,6 +183,7 @@ export default function AIChatInterface({
   courses = [],              // for course selector on dashboard
   onRefreshSessions,         // called after each AI reply
   greeting,                  // optional greeting element rendered above messages
+  mode = 'history',          // 'history' loads past messages; 'new' starts fresh
 }) {
   const [selectedCourse,  setSelectedCourse]  = useState(null)
   const [messages,        setMessages]        = useState([])
@@ -194,10 +195,9 @@ export default function AIChatInterface({
   // Resolve the active course ID
   const activeCourseId = fixedCourseId || selectedCourse?.id
 
-  // Load history when course is known
+  // Load history only when mode='history' and course is known
   useEffect(() => {
-    if (!activeCourseId) return
-    setMessages([])
+    if (!activeCourseId || mode !== 'history') { setMessages([]); return }
     api.get(`/api/chatbot/history/${activeCourseId}`)
       .then((res) => {
         const msgs = []
@@ -208,7 +208,7 @@ export default function AIChatInterface({
         setMessages(msgs)
       })
       .catch(() => {})
-  }, [activeCourseId])
+  }, [activeCourseId, mode])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -252,13 +252,13 @@ export default function AIChatInterface({
   const dashboardMode = !fixedCourseId
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col h-full min-h-0">
 
       {/* Greeting area (only in dashboard mode) */}
       {greeting}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-6">
+      {/* Messages — scrolls internally */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 py-6 flex flex-col gap-6">
         {messages.length === 0 && !isTyping && !greeting && (
           <div className="flex-1 flex items-center justify-center text-center">
             <p className="text-gray-400 text-sm">

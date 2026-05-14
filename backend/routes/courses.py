@@ -84,10 +84,13 @@ def get_enrolled_courses():
 def get_course(course_id: str):
     res = supabase.table("courses").select(
         "*, profiles!courses_lecturer_id_fkey(full_name, avatar_url)"
-    ).eq("id", course_id).single().execute()
+    ).eq("id", course_id).execute()
     if not res.data:
         return jsonify({"error": "Course not found", "code": 404}), 404
-    return jsonify(res.data), 200
+    course = res.data[0]
+    # Flatten lecturer name to top-level for easy frontend access
+    course["lecturer_name"] = (course.get("profiles") or {}).get("full_name", "Lecturer")
+    return jsonify(course), 200
 
 
 @courses_bp.put("/<course_id>")
