@@ -48,6 +48,31 @@ def query_claude(system_prompt: str, student_query: str) -> str:
     return response.content[0].text.strip()
 
 
+def simplify_response(original_response: str, course_name: str) -> str:
+    """
+    Rewrite an existing AI response in simpler, more conversational language.
+    Meaning and accuracy are preserved; only tone and complexity change.
+    """
+    prompt = (
+        f"A student is studying {course_name} and received this explanation "
+        "from an AI teaching assistant:\n\n"
+        f"---\n{original_response}\n---\n\n"
+        "Please rewrite this explanation in a much simpler, warmer, and more conversational "
+        "tone — as if a knowledgeable friend or peer is explaining it to you face to face. "
+        "Use everyday language. Break down any complex terms. Use relatable comparisons or "
+        "analogies where helpful. Keep the meaning and accuracy completely intact — only "
+        "simplify the way it is expressed. Do not add new information that was not in the "
+        "original explanation. Format the response cleanly using short paragraphs or a "
+        "simple list if appropriate."
+    )
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=800,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
 def process_student_query(course_id: str, student_id: str, student_query: str) -> str:
     """
     Full pipeline: fetch course text → build prompt → call Claude → save log → return response.

@@ -33,12 +33,13 @@ const SpinnerIcon = () => (
 const TABS = [
   { id: 'materials',     label: 'Materials'      },
   { id: 'announcements', label: 'Announcements'  },
+  { id: 'ai',            label: 'AI Assistant'   },
   { id: 'quiz',          label: 'Quiz'           },
   { id: 'qna',           label: 'Live Q&A'       },
 ]
 
-/* ── AI Chat Slide-in Panel ── */
-function ChatPanel({ courseId, courseName, onClose }) {
+/* ── AI Chat Slide-in Panel (also used inline for AI tab) ── */
+function ChatPanel({ courseId, courseName, onClose, inline = false }) {
   const [messages, setMessages] = useState([])
   const [query,    setQuery]    = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -80,6 +81,48 @@ function ChatPanel({ courseId, courseName, onClose }) {
         content: "I'm having trouble connecting right now. Please try again.",
       }])
     } finally { setIsTyping(false) }
+  }
+
+  if (inline) {
+    return (
+      <div className="flex flex-col rounded-2xl overflow-hidden border" style={{ borderColor: '#D2D4D9', height: '60vh' }}>
+        <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ backgroundColor: '#F0F0F2' }}>
+          {messages.length === 0 && !isTyping && (
+            <div className="flex-1 flex items-center justify-center text-center py-12">
+              <p className="text-gray-400 text-sm">Ask me anything about <strong>{courseName}</strong></p>
+            </div>
+          )}
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              {msg.role === 'ai' && <span className="text-xs font-semibold text-gray-400 mb-1 px-1">LecturaMind AI</span>}
+              <div className={`max-w-[85%] px-4 py-3 rounded-xl text-sm leading-relaxed ${
+                msg.role === 'user' ? 'text-white' : 'text-gray-800'
+              }`} style={msg.role === 'user' ? { backgroundColor: '#111' } : {}}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex gap-1 items-center h-5">
+              {[0,1,2].map((i) => <span key={i} className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+        <div className="px-4 py-3 border-t" style={{ borderColor: '#D2D4D9', backgroundColor: '#fff' }}>
+          <div className="flex items-end gap-2 rounded-xl border p-2" style={{ borderColor: '#D2D4D9' }}>
+            <textarea ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
+              placeholder="Ask a question about this course..." rows={2} disabled={isTyping}
+              className="flex-1 resize-none bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none disabled:opacity-50" />
+            <button onClick={handleSubmit} disabled={!query.trim() || isTyping}
+              className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors disabled:opacity-30 bg-gray-900">
+              {isTyping ? <SpinnerIcon /> : <SendIcon />}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -240,12 +283,20 @@ export default function CourseView() {
       <div>
         {activeTab === 'materials'     && <MaterialsView courseId={courseId} />}
         {activeTab === 'announcements' && <AnnouncementsView courseId={courseId} />}
+        {activeTab === 'ai'            && (
+          <ChatPanel
+            courseId={courseId}
+            courseName={course?.course_name || 'this course'}
+            onClose={() => setActiveTab('materials')}
+            inline
+          />
+        )}
         {activeTab === 'quiz'          && <QuizView courseId={courseId} />}
         {activeTab === 'qna'           && <StudentLiveQnA courseId={courseId} />}
       </div>
 
-      {/* AI Chat slide-in panel */}
-      {isChatOpen && (
+      {/* AI Chat slide-in panel (opened via "Ask AI" button) */}
+      {isChatOpen && activeTab !== 'ai' && (
         <ChatPanel
           courseId={courseId}
           courseName={course?.course_name || 'this course'}

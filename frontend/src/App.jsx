@@ -65,8 +65,9 @@ export default function App() {
 
               {/* ── Student inner pages (Synapse layout) ── */}
               <Route element={<ProtectedRoute role="student"><StudentLayout /></ProtectedRoute>}>
-                <Route path="/student/courses/:courseId" element={<CourseView />} />
-                <Route path="/student/profile"           element={<StudentProfile />} />
+                <Route path="/student/courses/:courseId"  element={<CourseView />} />
+                <Route path="/student/course/:courseId"   element={<CourseView />} />
+                <Route path="/student/profile"            element={<StudentProfile />} />
               </Route>
 
               {/* ── Fallback ── */}

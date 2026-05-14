@@ -11,6 +11,7 @@ import { courseService } from '../../services/courseService'
 import api from '../../services/api'
 import { formatMessageTime } from '../../utils/formatDate'
 import ReactMarkdown from 'react-markdown'
+import { chatService } from '../../services/chatService'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -152,13 +153,101 @@ function AICopyButton({ text }) {
   )
 }
 
-const quickActions = [
-  { label: 'View Materials', Icon: Icons.File,  tab: 'materials'     },
-  { label: 'AI Chatbot',     Icon: Icons.Chat,  tab: 'chatbot'       },
-  { label: 'Announcements',  Icon: Icons.Bell,  tab: 'announcements' },
-  { label: 'Take a Quiz',    Icon: Icons.Quiz,  tab: 'quiz'          },
-  { label: 'Live Q&A',       Icon: Icons.Mic,   tab: 'qna'           },
-]
+const mdComponents = {
+  h1:     ({node, ...p}) => <h1 className="text-xl font-bold mt-4 mb-2" {...p} />,
+  h2:     ({node, ...p}) => <h2 className="text-lg font-bold mt-3 mb-2" {...p} />,
+  h3:     ({node, ...p}) => <h3 className="text-base font-semibold mt-2 mb-1" {...p} />,
+  strong: ({node, ...p}) => <strong className="font-semibold" {...p} />,
+  ul:     ({node, ...p}) => <ul className="list-disc list-inside my-2 space-y-1" {...p} />,
+  ol:     ({node, ...p}) => <ol className="list-decimal list-inside my-2 space-y-1" {...p} />,
+  li:     ({node, ...p}) => <li className="ml-2" {...p} />,
+  p:      ({node, ...p}) => <p className="mb-2 leading-relaxed" {...p} />,
+  code:   ({node, inline, ...p}) => inline
+    ? <code className="px-1 py-0.5 rounded text-sm font-mono bg-gray-100" {...p} />
+    : <pre className="p-3 rounded-lg my-2 text-sm font-mono overflow-x-auto bg-gray-100"><code {...p} /></pre>,
+}
+
+/* ── AI Message component — owns Simplify state per message ── */
+function AIMessage({ msg, courseId }) {
+  const [simplified,          setSimplified]          = useState('')
+  const [simplifiedTimestamp, setSimplifiedTimestamp] = useState('')
+  const [isSimplifying,       setIsSimplifying]       = useState(false)
+
+  const handleSimplify = async () => {
+    setIsSimplifying(true)
+    setSimplified('')
+    try {
+      const res = await chatService.simplifyMessage(msg.content, courseId)
+      setSimplified(res.data.simplified)
+      setSimplifiedTimestamp(res.data.timestamp)
+    } catch {
+      setSimplified('Could not simplify this response. Please try again.')
+      setSimplifiedTimestamp(new Date().toISOString())
+    } finally {
+      setIsSimplifying(false)
+    }
+  }
+
+  return (
+    <>
+      {/* AI label */}
+      <div className="flex items-center gap-1.5 mb-2">
+        <Icons.Logo />
+        <span className="text-xs font-semibold text-gray-500">LecturaMind AI</span>
+      </div>
+
+      {/* Response text — rendered markdown */}
+      <div className="max-w-[85%] text-sm leading-relaxed text-gray-800">
+        <ReactMarkdown components={mdComponents}>{msg.content}</ReactMarkdown>
+      </div>
+
+      {/* Action bar: Copy + Simplify + Timestamp */}
+      <div className="flex items-center gap-3 mt-1">
+        <AICopyButton text={msg.content} />
+        <button
+          onClick={handleSimplify}
+          disabled={isSimplifying}
+          className="flex items-center gap-1 text-xs opacity-50 hover:opacity-100 transition-opacity duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
+          title="Get a simpler explanation"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <span>{isSimplifying ? 'Simplifying…' : 'Simplify'}</span>
+        </button>
+        <span className="text-xs text-gray-400 ml-auto">{formatMessageTime(msg.timestamp)}</span>
+      </div>
+
+      {/* Simplified version */}
+      {(isSimplifying || simplified) && (
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <span className="text-xs font-semibold text-gray-400 mb-2 block">✦ Simplified version</span>
+          {isSimplifying ? (
+            <div className="flex gap-1 items-center h-5">
+              {[0,1,2].map((i) => (
+                <span key={i} className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="text-sm leading-relaxed text-gray-800">
+                <ReactMarkdown components={mdComponents}>{simplified}</ReactMarkdown>
+              </div>
+              <div className="flex items-center gap-3 mt-1">
+                <AICopyButton text={simplified} />
+                <span className="text-xs text-gray-400 ml-auto">{formatMessageTime(simplifiedTimestamp)}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
 
 export default function StudentDashboard() {
   const { user, logout } = useAuth()
@@ -168,6 +257,7 @@ export default function StudentDashboard() {
   const hasEmittedLogin   = useRef(false)
 
   const [courses,        setCourses]        = useState([])
+  const [sessions,       setSessions]       = useState([])
   const [sidebarOpen,    setSidebarOpen]    = useState(true)
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [query,          setQuery]          = useState('')
@@ -176,13 +266,17 @@ export default function StudentDashboard() {
 
   const firstName = user?.full_name?.split(' ')[0] || 'Student'
 
+  const refreshSessions = () => {
+    chatService.getStudentSessions(8)
+      .then((res) => setSessions(res.data.sessions || []))
+      .catch(() => {})
+  }
+
   useEffect(() => {
     courseService.getEnrolled()
-      .then((res) => {
-        setCourses(res.data)
-        // Don't auto-select — let student pick via chip
-      })
+      .then((res) => setCourses(res.data))
       .catch(() => {})
+    refreshSessions()
   }, [])
 
   useEffect(() => {
@@ -204,14 +298,18 @@ export default function StudentDashboard() {
     }
   }, [socket, user, courses])
 
+  const truncate = (str, n) => str && str.length > n ? str.slice(0, n) + '…' : (str || '')
+
   const selectCourse = (c) => {
     setSelectedCourse(c)
     setMessages([])
     setQuery('')
   }
 
-  const goTo = (courseId, tab) =>
-    navigate(`/student/courses/${courseId}`, { state: { tab } })
+  const openSession = (session) => {
+    const course = courses.find((c) => c.id === session.course_id)
+    if (course) selectCourse(course)
+  }
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -233,6 +331,7 @@ export default function StudentDashboard() {
         content: res.data.response,
         timestamp: res.data.timestamp || new Date().toISOString(),
       }])
+      refreshSessions()
     } catch {
       setMessages((prev) => [...prev, {
         role: 'ai',
@@ -270,6 +369,7 @@ export default function StudentDashboard() {
             </button>
           </nav>
 
+          {/* My Courses — clicking navigates to the course page */}
           <div className="px-3 mt-5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">My Courses</p>
             <div className="flex flex-col gap-0.5">
@@ -277,28 +377,50 @@ export default function StudentDashboard() {
                 <p className="text-xs text-gray-400 px-3 py-2">No courses yet</p>
               ) : courses.map((c) => (
                 <button key={c.id}
-                  onClick={() => { selectCourse(c) }}
-                  className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors truncate ${
-                    selectedCourse?.id === c.id ? 'bg-white font-medium text-gray-900' : 'text-gray-600 hover:bg-white'
-                  }`}>
-                  <span className="shrink-0"><Icons.Folder /></span>
-                  <span className="truncate">{c.course_name}</span>
+                  onClick={() => navigate(`/student/courses/${c.id}`)}
+                  className="flex flex-col w-full text-left px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white">
+                  <span className="font-medium text-gray-800 truncate">{c.course_name}</span>
+                  {(c.level || c.programme) && (
+                    <span className="text-xs text-gray-400 truncate">
+                      {[c.level && `Level ${c.level}`, c.programme].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="px-3 mt-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Quick Actions</p>
-            <div className="flex flex-col gap-0.5">
-              {quickActions.map(({ label, Icon, tab }) => (
-                <button key={tab}
-                  onClick={() => { const c = selectedCourse || courses[0]; if (c) goTo(c.id, tab) }}
-                  className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-white transition-colors">
-                  <Icon /> {label}
+          {/* Recent Sessions — replaces Quick Actions */}
+          <div className="px-3 mt-5 flex flex-col min-h-0">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Recent Sessions</p>
+            <div className="flex flex-col gap-0.5 overflow-y-auto">
+              {!sessions.length ? (
+                <p className="text-xs text-gray-400 px-3 py-2 leading-relaxed">
+                  No chat sessions yet. Ask your AI assistant a question to get started.
+                </p>
+              ) : sessions.map((s) => (
+                <button key={s.id}
+                  onClick={() => openSession(s)}
+                  className="flex flex-col w-full text-left px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white group">
+                  <span className="text-xs text-gray-400 truncate mb-0.5">
+                    {s.courses?.course_name || 'Course'}
+                  </span>
+                  <span className="text-gray-700 truncate text-xs font-medium group-hover:text-gray-900">
+                    {truncate(s.query, 40)}
+                  </span>
+                  <span className="text-xs text-gray-400 mt-0.5">
+                    {formatMessageTime(s.timestamp)}
+                  </span>
                 </button>
               ))}
             </div>
+            {sessions.length > 0 && (
+              <button
+                onClick={() => navigate('/student/profile')}
+                className="text-xs text-gray-400 hover:text-gray-600 px-3 mt-2 text-left underline-offset-2 hover:underline">
+                View all sessions
+              </button>
+            )}
           </div>
 
           <div className="flex-1" />
@@ -382,61 +504,20 @@ export default function StudentDashboard() {
 
               {messages.map((msg, i) => (
                 <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-
-                  {/* ── AI label ── */}
-                  {msg.role === 'ai' && (
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Icons.Logo />
-                      <span className="text-xs font-semibold text-gray-500">LecturaMind AI</span>
-                    </div>
-                  )}
-
-                  {/* ── Student: flat card ── */}
                   {msg.role === 'user' ? (
-                    <div
-                      className="max-w-[78%] px-4 py-3 rounded-xl text-sm leading-relaxed text-white"
-                      style={{ backgroundColor: '#111' }}
-                    >
-                      {msg.content}
-                    </div>
-                  ) : (
-                    /* ── AI: plain formatted text, no card ── */
-                    <div
-                      className="max-w-[85%] text-sm leading-relaxed text-gray-800"
-                    >
-                      <ReactMarkdown
-                        components={{
-                          h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-4 mb-2" {...props} />,
-                          h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-3 mb-2" {...props} />,
-                          h3: ({node, ...props}) => <h3 className="text-base font-semibold mt-2 mb-1" {...props} />,
-                          strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
-                          ul: ({node, ...props}) => <ul className="list-disc list-inside my-2 space-y-1" {...props} />,
-                          ol: ({node, ...props}) => <ol className="list-decimal list-inside my-2 space-y-1" {...props} />,
-                          li: ({node, ...props}) => <li className="ml-2" {...props} />,
-                          p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                          code: ({node, inline, ...props}) =>
-                            inline
-                              ? <code className="px-1 py-0.5 rounded text-sm font-mono bg-gray-100" {...props} />
-                              : <pre className="p-3 rounded-lg my-2 text-sm font-mono overflow-x-auto bg-gray-100"><code {...props} /></pre>,
-                        }}
-                      >
+                    <>
+                      {/* ── Student: flat card ── */}
+                      <div className="max-w-[78%] px-4 py-3 rounded-xl text-sm leading-relaxed text-white"
+                        style={{ backgroundColor: '#111' }}>
                         {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-
-                  {/* ── Timestamp + copy ── */}
-                  {msg.role === 'user' ? (
-                    <span className="text-xs text-gray-400 mt-1 px-1">
-                      {formatMessageTime(msg.timestamp)}
-                    </span>
-                  ) : (
-                    <div className="flex items-center gap-3 mt-1">
-                      <AICopyButton text={msg.content} />
-                      <span className="text-xs text-gray-400">
+                      </div>
+                      <span className="text-xs text-gray-400 mt-1 px-1">
                         {formatMessageTime(msg.timestamp)}
                       </span>
-                    </div>
+                    </>
+                  ) : (
+                    /* ── AI message with Simplify button ── */
+                    <AIMessage msg={msg} courseId={selectedCourse?.id} />
                   )}
                 </div>
               ))}

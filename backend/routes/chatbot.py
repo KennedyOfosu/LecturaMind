@@ -60,6 +60,48 @@ def get_logs(course_id: str):
     return jsonify(res.data), 200
 
 
+@chatbot_bp.get("/sessions")
+@require_auth
+def get_student_sessions():
+    """Return the student's recent chat messages (one per query) ordered by most recent."""
+    limit = request.args.get("limit", 8)
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 8
+
+    result = supabase.table("chat_messages").select(
+        "id, course_id, query, timestamp, courses(course_name)"
+    ).eq("student_id", g.user_id).order("timestamp", desc=True).limit(limit).execute()
+
+    return jsonify({"sessions": result.data or []}), 200
+
+
+@chatbot_bp.post("/simplify")
+@require_auth
+def simplify_message():
+    """Rewrite an existing AI response in simpler, more conversational language."""
+    data = request.get_json(silent=True) or {}
+    original_response = (data.get("response") or "").strip()
+    course_id = (data.get("course_id") or "").strip()
+
+    if not original_response:
+        return jsonify({"error": "No response text provided.", "code": 400}), 400
+
+    course_res = supabase.table("courses").select("course_name").eq("id", course_id).execute()
+    course_name = course_res.data[0].get("course_name", "this course") if course_res.data else "this course"
+
+    try:
+        from services.ai_service import simplify_response
+        simplified = simplify_response(original_response, course_name)
+        return jsonify({
+            "simplified": simplified,
+            "timestamp":  datetime.now(timezone.utc).isoformat(),
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Simplification failed: {str(e)}", "code": 500}), 500
+
+
 @chatbot_bp.patch("/flag/<message_id>")
 @require_auth
 @require_role("lecturer")
