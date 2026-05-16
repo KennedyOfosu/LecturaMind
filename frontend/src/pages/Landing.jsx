@@ -28,24 +28,19 @@ export default function Landing() {
       }}
     >
 
-      {/* ── LOGO  "M. LecturaMind" ───────────────────────────────
-          Reduced from Figma 30.74px → 20px equivalent at 1920px
-          so it reads small and clean at actual viewport sizes.
-      ──────────────────────────────────────────────────────────── */}
-      <div
+      {/* ── LOGO  LecturaMind Logo.svg ───────────────────────────── */}
+      <img
+        src="/LecturaMind%20Logo.svg"
+        alt="LecturaMind"
         style={{
           position: 'absolute',
           left: vw(80),
-          top: vh(44),
-          display: 'flex',
-          alignItems: 'center',
-          gap: vw(3),
-          lineHeight: 1,
+          top: vh(36),
+          height: vh(48),
+          width: 'auto',
+          display: 'block',
         }}
-      >
-        <span style={{ ...TG800, fontSize: vw(20), color: '#202125' }}>M.</span>
-        <span style={{ ...TG800, fontSize: vw(20), color: '#2e54fe' }}>LecturaMind</span>
-      </div>
+      />
 
       {/* ── NAV  Login · Register ────────────────────────────────
           Reduced from 21px → 15px to match the smaller logo size.
