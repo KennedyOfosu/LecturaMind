@@ -1,8 +1,9 @@
 /**
- * Register.jsx — 3-step registration redesigned to match Figma.
- * Left : Signup_Page.jpg bg + Group 160.png character + Tusker Grotesk headline
- * Right: white panel with tab progress + form steps
- * All existing form logic (validation, API call) is preserved.
+ * Register.jsx — Figma-faithful split layout.
+ * Full page: Signup_Background_Page.jpg background
+ * Left 55% : Colored_Logo_Mark.svg + Group 160.png character + Tusker Grotesk headline
+ * Right 45%: FLOATING white card (not full-height panel) — background visible around it
+ * All 3-step form logic preserved.
  */
 
 import { useState } from 'react'
@@ -13,44 +14,23 @@ import { PROGRAMMES, LEVELS } from '../utils/constants'
 
 const BLUE = '#2e54fe'
 
-/* ── shared input style ─────────────────────────────────────── */
-const inputBase = {
-  width: '100%',
-  padding: '13px 16px',
-  borderRadius: '10px',
-  border: '1.5px solid #e5e7eb',
-  backgroundColor: '#fff',
-  fontSize: '14px',
-  color: '#1a1a1a',
-  outline: 'none',
-  fontFamily: 'Inter, sans-serif',
-}
-const inputErr = { ...inputBase, borderColor: '#fca5a5', backgroundColor: '#fff5f5' }
-
-/* ── Step tab bar ───────────────────────────────────────────── */
+/* ── Step tab bar inside card header ───────────────────────── */
 function StepTabs({ step }) {
   const tabs = ['Basic Info', 'Academic Profile', 'Review']
   return (
-    <div style={{ display: 'flex', borderBottom: '1.5px solid #f0f0f0' }}>
+    <div style={{ display: 'flex', borderBottom: '1px solid #efefef' }}>
       {tabs.map((label, i) => {
-        const num   = i + 1
+        const num    = i + 1
         const active = step === num
-        const done   = step > num
         return (
-          <div
-            key={label}
-            style={{
-              flex: 1,
-              padding: '14px 0',
-              textAlign: 'center',
-              fontSize: '13px',
-              fontWeight: active ? 600 : 400,
-              color: active ? BLUE : done ? '#6b7280' : '#9ca3af',
-              fontFamily: 'Inter, sans-serif',
-              borderTop: `3px solid ${active ? BLUE : 'transparent'}`,
-              cursor: 'default',
-            }}
-          >
+          <div key={label} style={{
+            flex: 1, padding: '13px 0', textAlign: 'center',
+            fontSize: 13, fontWeight: active ? 600 : 400,
+            color: active ? BLUE : '#b0b8c8',
+            fontFamily: 'Inter, sans-serif',
+            borderTop: `3px solid ${active ? BLUE : 'transparent'}`,
+            cursor: 'default',
+          }}>
             {label}
           </div>
         )
@@ -64,64 +44,20 @@ function Field({ error, children }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {children}
-      {error && <span style={{ color: '#ef4444', fontSize: 11 }}>{error}</span>}
+      {error && <span style={{ color: '#ef4444', fontSize: 11, fontFamily: 'Inter, sans-serif' }}>{error}</span>}
     </div>
   )
 }
 
-/* ── Blue action button ─────────────────────────────────────── */
-function BlueBtn({ children, disabled, onClick, type = 'submit' }) {
-  return (
-    <button
-      type={type}
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        width: '100%',
-        padding: '14px',
-        backgroundColor: disabled ? '#93aeff' : BLUE,
-        color: '#fff',
-        border: 'none',
-        borderRadius: '10px',
-        fontSize: '15px',
-        fontWeight: 600,
-        fontFamily: 'Inter, sans-serif',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        marginTop: '6px',
-      }}
-    >
-      {children}
-    </button>
-  )
+const inputBase = {
+  width: '100%', padding: '13px 16px', borderRadius: 10,
+  border: '1.5px solid #e8eaf0', backgroundColor: '#fff',
+  fontSize: 14, color: '#1a1a1a', outline: 'none',
+  fontFamily: 'Inter, sans-serif', boxSizing: 'border-box',
 }
+const inputErr = { ...inputBase, borderColor: '#fca5a5', backgroundColor: '#fff5f5' }
 
-/* ── Outline back button ────────────────────────────────────── */
-function BackBtn({ onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        flex: 1,
-        padding: '13px',
-        backgroundColor: '#fff',
-        color: '#374151',
-        border: '1.5px solid #e5e7eb',
-        borderRadius: '10px',
-        fontSize: '14px',
-        fontWeight: 500,
-        fontFamily: 'Inter, sans-serif',
-        cursor: 'pointer',
-      }}
-    >
-      ← Back
-    </button>
-  )
-}
-
-/* ══════════════════════════════════════════════════════════════
-   MAIN COMPONENT
-══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════ */
 export default function Register() {
   const { register } = useAuth()
   const navigate     = useNavigate()
@@ -147,27 +83,27 @@ export default function Register() {
   }
 
   const validateStep1 = () => {
-    const errs = {}
-    if (!form.fullName.trim())           errs.fullName        = 'Full name is required.'
-    if (!form.email.trim())              errs.email           = 'Email is required.'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email    = 'Enter a valid email.'
-    if (!form.password)                  errs.password        = 'Password is required.'
-    else if (form.password.length < 6)   errs.password        = 'At least 6 characters.'
-    if (!form.confirmPassword)           errs.confirmPassword = 'Please confirm your password.'
-    else if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match.'
-    setErrors(errs); return !Object.keys(errs).length
+    const e = {}
+    if (!form.fullName.trim()) e.fullName = 'Full name is required.'
+    if (!form.email.trim()) e.email = 'Email is required.'
+    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email.'
+    if (!form.password) e.password = 'Password is required.'
+    else if (form.password.length < 6) e.password = 'At least 6 characters.'
+    if (!form.confirmPassword) e.confirmPassword = 'Please confirm your password.'
+    else if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match.'
+    setErrors(e); return !Object.keys(e).length
   }
 
   const validateStep2 = () => {
-    const errs = {}
-    if (!form.idNumber.trim()) errs.idNumber = 'ID number is required.'
+    const e = {}
+    if (!form.idNumber.trim()) e.idNumber = 'ID number is required.'
     else if (!form.idNumber.startsWith('STU-') && !form.idNumber.startsWith('LEC-'))
-      errs.idNumber = 'ID must start with STU- or LEC-.'
+      e.idNumber = 'ID must start with STU- or LEC-.'
     if (isStudent) {
-      if (!form.programme) errs.programme = 'Select your programme.'
-      if (!form.level)     errs.level     = 'Select your level.'
+      if (!form.programme) e.programme = 'Select your programme.'
+      if (!form.level)     e.level     = 'Select your level.'
     }
-    setErrors(errs); return !Object.keys(errs).length
+    setErrors(e); return !Object.keys(e).length
   }
 
   const handleStep1 = (e) => { e.preventDefault(); if (validateStep1()) setStep(2) }
@@ -192,6 +128,8 @@ export default function Register() {
     } finally { setIsLoading(false) }
   }
 
+  const inp = (f) => ({ style: errors[f] ? inputErr : inputBase })
+
   const reviewRows = [
     { label: 'Name',      value: form.fullName  },
     { label: 'Email',     value: form.email     },
@@ -201,138 +139,103 @@ export default function Register() {
     isStudent && form.academicYear && { label: 'Academic Year', value: form.academicYear },
   ].filter(Boolean)
 
-  const inp = (f) => ({ style: errors[f] ? inputErr : inputBase })
-
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+    /* ── Full-page background ── */
+    <div style={{
+      width: '100vw', height: '100vh', overflow: 'hidden',
+      backgroundImage: "url('/Signup_Background_Page.jpg')",
+      backgroundSize: 'cover', backgroundPosition: 'center',
+      display: 'flex',
+    }}>
 
-      {/* ══ LEFT — background + character + headline ══════════ */}
-      <div
-        style={{
-          position: 'relative',
-          width: '55%',
-          height: '100%',
-          backgroundImage: "url('/Signup_Page.jpg')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Logo mark — top left */}
+      {/* ══ LEFT — character + logo + headline ══════════════════ */}
+      <div style={{ width: '55%', position: 'relative', height: '100%' }}>
+
+        {/* Logo mark top-left */}
         <img
           src="/Colored_Logo_Mark.svg"
           alt="LecturaMind"
-          style={{
-            position: 'absolute',
-            top: 36,
-            left: 48,
-            height: 44,
-            width: 'auto',
-          }}
+          style={{ position: 'absolute', top: 36, left: 48, height: 40, width: 'auto' }}
         />
 
-        {/* Character — Group 160.png, left-center */}
+        {/* Character — bottom-left, large */}
         <img
           src="/Group%20160.png"
           alt="Lecturer"
           style={{
-            position: 'absolute',
-            bottom: 0,
-            left: '0%',
-            height: '88%',
-            width: 'auto',
-            objectFit: 'contain',
-            objectPosition: 'bottom left',
+            position: 'absolute', bottom: 0, left: 0,
+            height: '88%', width: 'auto',
+            objectFit: 'contain', objectPosition: 'bottom left',
           }}
         />
 
-        {/* Headline + subtitle — bottom-left above character */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 80,
-            left: '38%',
-            right: 0,
-            padding: '0 32px 0 0',
-          }}
-        >
-          <p
-            style={{
-              fontFamily: "'Tusker Grotesk', sans-serif",
-              fontWeight: 800,
-              fontSize: 'clamp(2.2rem, 4.5vw, 4rem)',
-              color: BLUE,
-              lineHeight: 1.05,
-              margin: '0 0 14px 0',
-            }}
-          >
+        {/* Headline + subtitle — lower-right of left panel */}
+        <div style={{
+          position: 'absolute', bottom: 72, left: '38%', right: 0, paddingRight: 24,
+        }}>
+          <p style={{
+            fontFamily: "'Tusker Grotesk', sans-serif", fontWeight: 800,
+            fontSize: 'clamp(2rem, 4vw, 3.6rem)', color: BLUE,
+            lineHeight: 1.05, margin: '0 0 14px',
+          }}>
             Teaching,<br />Reimagined
           </p>
-          <p
-            style={{
-              fontFamily: 'Inter, sans-serif',
-              fontSize: 14,
-              color: '#374151',
-              lineHeight: 1.6,
-              margin: 0,
-              maxWidth: 320,
-            }}
-          >
+          <p style={{
+            fontFamily: 'Inter, sans-serif', fontSize: 14,
+            color: '#374151', lineHeight: 1.6, margin: 0, maxWidth: 300,
+          }}>
             An AI-powered platform designed to support lecturers,
             engage students, and modernize higher education.
           </p>
         </div>
       </div>
 
-      {/* ══ RIGHT — white form panel ══════════════════════════ */}
-      <div
-        style={{
-          width: '45%',
-          height: '100%',
+      {/* ══ RIGHT — floating card centred vertically ════════════ */}
+      <div style={{
+        width: '45%', height: '100%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '32px 40px 32px 16px',   /* breathing room around the card */
+        boxSizing: 'border-box',
+      }}>
+
+        {/* The floating card */}
+        <div style={{
+          width: '100%', maxWidth: 490,
           backgroundColor: '#ffffff',
-          display: 'flex',
-          flexDirection: 'column',
-          overflowY: 'auto',
-        }}
-      >
-        {/* Step tabs — pinned to top of the panel */}
-        <StepTabs step={step} />
+          borderRadius: 20,
+          boxShadow: '0 24px 64px rgba(0,0,0,0.13)',
+          overflow: 'hidden',
+          display: 'flex', flexDirection: 'column',
+          maxHeight: '92vh',              /* never taller than the viewport */
+        }}>
 
-        {/* Form content — scrollable, centered */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '40px 48px',
-          }}
-        >
-          <div style={{ width: '100%', maxWidth: 420 }}>
+          {/* Tab bar — top of card */}
+          <StepTabs step={step} />
 
-            {/* Logo mark */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-              <img
-                src="/Colored_Logo_Mark.svg"
-                alt="LecturaMind"
-                style={{ height: 42, width: 'auto' }}
-              />
+          {/* Scrollable form body */}
+          <div style={{
+            flex: 1, overflowY: 'auto',
+            padding: '32px 40px 28px',
+          }}>
+
+            {/* Logo mark centred */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <img src="/Colored_Logo_Mark.svg" alt="" style={{ height: 38, width: 'auto' }} />
             </div>
 
-            {/* ── STEP 1 — Basic Info ── */}
+            {/* ── STEP 1 ── */}
             {step === 1 && (
               <>
-                <div style={{ textAlign: 'center', marginBottom: 28 }}>
-                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 5px' }}>
                     Create your account
                   </h1>
-                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9ca3af', margin: 0 }}>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9ca3af', margin: 0 }}>
                     Lets start with basic details
                   </p>
                 </div>
 
-                <form onSubmit={handleStep1} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <form onSubmit={handleStep1} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <Field error={errors.fullName}>
                     <input placeholder="Full name" value={form.fullName} onChange={set('fullName')} {...inp('fullName')} />
                   </Field>
@@ -345,32 +248,35 @@ export default function Register() {
                   <Field error={errors.confirmPassword}>
                     <input type="password" placeholder="Confirm password" value={form.confirmPassword} onChange={set('confirmPassword')} {...inp('confirmPassword')} />
                   </Field>
-                  <BlueBtn>Continue</BlueBtn>
+
+                  <button type="submit" style={{
+                    width: '100%', padding: '14px', backgroundColor: BLUE, color: '#fff',
+                    border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600,
+                    fontFamily: 'Inter, sans-serif', cursor: 'pointer', marginTop: 4,
+                  }}>
+                    Continue
+                  </button>
                 </form>
               </>
             )}
 
-            {/* ── STEP 2 — Academic Profile ── */}
+            {/* ── STEP 2 ── */}
             {step === 2 && (
               <>
-                <div style={{ textAlign: 'center', marginBottom: 28 }}>
-                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 5px' }}>
                     Academic Profile
                   </h1>
-                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9ca3af', margin: 0 }}>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9ca3af', margin: 0 }}>
                     Tell us about your studies
                   </p>
                 </div>
 
-                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <Field error={errors.idNumber}>
-                    <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>
-                      Student / Lecturer ID
-                    </label>
+                    <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>Student / Lecturer ID</label>
                     <input placeholder="e.g. STU-2001" value={form.idNumber} onChange={set('idNumber')} autoComplete="off" {...inp('idNumber')} />
-                    <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'Inter, sans-serif' }}>
-                      Use STU- for students or LEC- for lecturers.
-                    </span>
+                    <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'Inter, sans-serif' }}>Use STU- for students or LEC- for lecturers.</span>
                   </Field>
 
                   {isStudent && (
@@ -404,32 +310,38 @@ export default function Register() {
                     </p>
                   )}
 
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-                    <BackBtn onClick={() => setStep(1)} />
-                    <button type="submit" style={{ flex: 2, padding: '13px', backgroundColor: BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
-                      Continue
-                    </button>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                    <button type="button" onClick={() => setStep(1)} style={{
+                      flex: 1, padding: '13px', backgroundColor: '#fff', color: '#374151',
+                      border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, fontWeight: 500,
+                      fontFamily: 'Inter, sans-serif', cursor: 'pointer',
+                    }}>← Back</button>
+                    <button type="submit" style={{
+                      flex: 2, padding: '13px', backgroundColor: BLUE, color: '#fff',
+                      border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                      fontFamily: 'Inter, sans-serif', cursor: 'pointer',
+                    }}>Continue</button>
                   </div>
                 </form>
               </>
             )}
 
-            {/* ── STEP 3 — Review ── */}
+            {/* ── STEP 3 ── */}
             {step === 3 && (
               <>
-                <div style={{ textAlign: 'center', marginBottom: 28 }}>
-                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 5px' }}>
                     Review your details
                   </h1>
-                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9ca3af', margin: 0 }}>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9ca3af', margin: 0 }}>
                     Confirm everything looks right before creating your account.
                   </p>
                 </div>
 
-                <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
+                <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
                   {reviewRows.map(({ label, value }) => (
                     <div key={label} style={{ display: 'flex', gap: 12, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontFamily: 'Inter, sans-serif' }}>
-                      <span style={{ fontSize: 12, color: '#9ca3af', width: 100, flexShrink: 0 }}>{label}</span>
+                      <span style={{ fontSize: 12, color: '#9ca3af', width: 96, flexShrink: 0 }}>{label}</span>
                       <span style={{ fontSize: 13, color: '#111827', wordBreak: 'break-all' }}>{value}</span>
                     </div>
                   ))}
@@ -441,13 +353,18 @@ export default function Register() {
                   </p>
                 )}
 
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <BackBtn onClick={() => setStep(2)} />
-                  <button
-                    onClick={handleSubmit}
-                    disabled={isLoading}
-                    style={{ flex: 2, padding: '13px', backgroundColor: isLoading ? '#93aeff' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                  >
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" onClick={() => setStep(2)} style={{
+                    flex: 1, padding: '13px', backgroundColor: '#fff', color: '#374151',
+                    border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, fontWeight: 500,
+                    fontFamily: 'Inter, sans-serif', cursor: 'pointer',
+                  }}>← Back</button>
+                  <button onClick={handleSubmit} disabled={isLoading} style={{
+                    flex: 2, padding: '13px', backgroundColor: isLoading ? '#93aeff' : BLUE,
+                    color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                    fontFamily: 'Inter, sans-serif', cursor: isLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}>
                     {isLoading && (
                       <svg style={{ animation: 'spin 1s linear infinite', height: 16, width: 16 }} fill="none" viewBox="0 0 24 24">
                         <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -461,7 +378,7 @@ export default function Register() {
             )}
 
             {/* Sign in link */}
-            <p style={{ textAlign: 'center', fontSize: 13, color: '#9ca3af', marginTop: 24, fontFamily: 'Inter, sans-serif' }}>
+            <p style={{ textAlign: 'center', fontSize: 13, color: '#9ca3af', marginTop: 20, fontFamily: 'Inter, sans-serif' }}>
               Already have an account?{' '}
               <Link to="/login" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
             </p>
