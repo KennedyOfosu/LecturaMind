@@ -38,7 +38,7 @@ export default function Landing() {
           left: vw(80),
           top: vh(44),
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
           gap: vw(3),
           lineHeight: 1,
         }}
@@ -74,8 +74,15 @@ export default function Landing() {
           Login
         </Link>
 
-        {/* bullet separator — Tusker Grotesk dot */}
-        <span style={{ ...TG800, fontSize: vw(16), color: '#202125', lineHeight: 1 }}>.</span>
+        {/* filled square separator — explicit div so it centers perfectly */}
+        <span style={{
+          display: 'inline-block',
+          width: '5px',
+          height: '5px',
+          backgroundColor: '#202125',
+          borderRadius: '1px',
+          flexShrink: 0,
+        }} />
 
         <Link
           to="/register"
