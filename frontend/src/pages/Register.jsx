@@ -167,17 +167,17 @@ export default function Register() {
         }}>
           <p style={{
             fontFamily: "'Tusker Grotesk', sans-serif", fontWeight: 800,
-            fontSize: 'clamp(4rem, 7.5vw, 7rem)', color: BLUE,
-            lineHeight: 1.0, margin: '0 0 18px',
+            fontSize: 'clamp(2.2rem, 4vw, 3.6rem)', color: BLUE,
+            lineHeight: 1.05, margin: '0 0 14px',
           }}>
             Teaching,<br />Reimagined
           </p>
           <p style={{
-            fontFamily: 'Inter, sans-serif', fontSize: 17,
-            color: '#374151', lineHeight: 1.6, margin: 0,
+            fontFamily: 'Inter, sans-serif', fontSize: 14,
+            color: '#374151', lineHeight: 1.65, margin: 0,
           }}>
-            AI-powered teaching for modern universities.<br />
-            Built for lecturers and students.
+            An AI-powered platform designed to support lecturers,
+            engage students, and modernize higher education.
           </p>
         </div>
       </div>
