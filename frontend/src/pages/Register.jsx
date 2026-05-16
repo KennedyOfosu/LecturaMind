@@ -176,8 +176,7 @@ export default function Register() {
             fontFamily: 'Inter, sans-serif', fontSize: 15,
             color: '#374151', lineHeight: 1.65, margin: 0,
           }}>
-            An AI-powered platform designed to support lecturers,
-            engage students, and modernize higher education.
+            Everything your classroom needs — powered intelligently.
           </p>
         </div>
       </div>

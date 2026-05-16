@@ -24,9 +24,8 @@ export function Navbar() {
 
   return (
     <nav className="bg-navy text-white shadow-lg h-16 flex items-center px-6 gap-4 sticky top-0 z-40">
-      <Link to="/" className="flex items-center gap-2 mr-6">
-        <img src="/logo.svg" alt="LecturaMind" className="h-8 w-8" />
-        <span className="font-bold text-lg tracking-tight">LecturaMind</span>
+      <Link to="/" className="flex items-center mr-6">
+        <img src="/LecturaMind%20Logo.svg" alt="LecturaMind" style={{ height: '28px', width: 'auto' }} />
       </Link>
 
       <div className="flex-1" />
