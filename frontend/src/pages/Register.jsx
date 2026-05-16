@@ -372,7 +372,7 @@ export default function Register() {
             )}
 
             {/* Sign in link — pinned to bottom */}
-            <p style={{ textAlign: 'center', fontSize: 13, color: '#9ca3af', marginTop: 'auto', paddingTop: 16, fontFamily: 'Inter, sans-serif' }}>
+            <p style={{ textAlign: 'center', fontSize: 13, color: '#9ca3af', marginTop: 20, fontFamily: 'Inter, sans-serif' }}>
               Already have an account?{' '}
               <Link to="/login" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
             </p>
