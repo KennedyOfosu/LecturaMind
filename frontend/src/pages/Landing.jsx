@@ -133,7 +133,7 @@ export default function Landing() {
         style={{
           position: 'absolute',
           left: vw(80),
-          top: vh(240),
+          top: vh(310),
           width: vw(900),
         }}
       >
