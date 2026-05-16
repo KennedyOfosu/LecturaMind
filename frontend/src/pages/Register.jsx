@@ -198,8 +198,7 @@ export default function Register() {
           boxShadow: '0 24px 64px rgba(0,0,0,0.13)',
           overflow: 'hidden',
           display: 'flex', flexDirection: 'column',
-          minHeight: '78vh',
-          maxHeight: '94vh',
+          height: '84vh',
         }}>
 
           {/* Tab bar — top of card */}
