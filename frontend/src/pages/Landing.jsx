@@ -1,8 +1,8 @@
 /**
  * Landing.jsx — Pixel-faithful port of Figma node 2300:93 (1920×1080 canvas).
  *
- * FONT  : Tusker Grotesk 5800 Super — loaded via Fontshare @import in index.css
- *         CSS usage: fontFamily "'Tusker Grotesk', sans-serif", fontWeight 800
+ * FONT  : Tusker Grotesk 5800 Super — @font-face in index.html pointing to
+ *         wisabo.com OTF. CSS: fontFamily "'Tusker Grotesk', sans-serif", fontWeight 800
  *
  * IMAGES: Group 160.png → orange-card area (lecturer)
  *         Group 159.png → purple-card area (student)

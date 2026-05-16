@@ -6,7 +6,19 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \"git rm --cached --ignore-unmatch backend/.env frontend/.env\" --prune-empty --tag-name-filter cat -- --all)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('react-markdown'\\); console.log\\('ok'\\)\")",
+      "Bash(npm list *)",
+      "Bash(git reset *)",
+      "Bash(python seed_students.py)",
+      "Bash(pip install *)",
+      "Bash(del \"c:\\\\Users\\\\Ken-Agbedus Consult\\\\Documents\\\\SIIMT\\\\4.1\\\\Project\\\\LecturaMind\\\\backend\\\\seed_students.py\")",
+      "Bash(python seed_enrolments.py)",
+      "Bash(python run_migration.py)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(python -c ' *)",
+      "mcp__claude_ai_Figma__get_design_context"
     ]
   }
 }

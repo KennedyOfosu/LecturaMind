@@ -5,12 +5,22 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LecturaMind — AI Teaching Assistant</title>
+
+    <!-- Inter — body font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <!-- Tusker Grotesk 5800 Super — loaded via Fontshare BEFORE any other stylesheet -->
-    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
-    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=tusker-grotesk@800&display=swap" />
+
+    <!-- Tusker Grotesk 5800 Super — loaded directly from OTF source -->
+    <style>
+      @font-face {
+        font-family: 'Tusker Grotesk';
+        font-weight: 800;
+        font-style: normal;
+        font-display: swap;
+        src: url('https://wisabo.com/system/uploads/font-files/1261/TuskerGrotesk-5800Super.otf') format('opentype');
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
