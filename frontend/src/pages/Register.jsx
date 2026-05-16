@@ -206,7 +206,7 @@ export default function Register() {
 
           {/* Scrollable form body */}
           <div style={{
-            flex: 1, overflowY: 'auto', padding: '20px 20px 24px',
+            flex: 1, overflowY: 'auto', padding: '48px 20px 24px',
             display: 'flex', flexDirection: 'column',
           }}>
 
