@@ -158,31 +158,20 @@ export default function Register() {
           style={{ position: 'absolute', top: 36, left: 48, height: 40, width: 'auto' }}
         />
 
-        {/* Character — bottom-left, large */}
-        <img
-          src="/Group%20160.png"
-          alt="Lecturer"
-          style={{
-            position: 'absolute', bottom: 0, left: 0,
-            height: '88%', width: 'auto',
-            objectFit: 'contain', objectPosition: 'bottom left',
-          }}
-        />
-
-        {/* Headline + subtitle — lower-right of left panel */}
+        {/* Headline + subtitle — bottom-left of left panel */}
         <div style={{
-          position: 'absolute', bottom: 72, left: '38%', right: 0, paddingRight: 24,
+          position: 'absolute', bottom: 80, left: 48, right: 48,
         }}>
           <p style={{
             fontFamily: "'Tusker Grotesk', sans-serif", fontWeight: 800,
-            fontSize: 'clamp(2rem, 4vw, 3.6rem)', color: BLUE,
-            lineHeight: 1.05, margin: '0 0 14px',
+            fontSize: 'clamp(2.4rem, 4.5vw, 4rem)', color: BLUE,
+            lineHeight: 1.05, margin: '0 0 16px',
           }}>
             Teaching,<br />Reimagined
           </p>
           <p style={{
-            fontFamily: 'Inter, sans-serif', fontSize: 14,
-            color: '#374151', lineHeight: 1.6, margin: 0, maxWidth: 300,
+            fontFamily: 'Inter, sans-serif', fontSize: 15,
+            color: '#374151', lineHeight: 1.65, margin: 0, maxWidth: 360,
           }}>
             An AI-powered platform designed to support lecturers,
             engage students, and modernize higher education.
