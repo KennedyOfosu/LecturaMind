@@ -206,23 +206,17 @@ export default function Register() {
           <StepTabs step={step} />
 
           {/* Scrollable form body */}
-          <div style={{
-            flex: 1, overflowY: 'auto',
-            padding: '32px 24px 28px',
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-          }}>
-          {/* Centred inner wrapper — controls input/button width */}
-          <div style={{ width: '100%', maxWidth: 340 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '28px 20px 24px' }}>
 
-            {/* Logo mark centred */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-              <img src="/Colored_Logo_Mark.svg" alt="" style={{ height: 38, width: 'auto' }} />
+            {/* Logo mark */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+              <img src="/Colored_Logo_Mark.svg" alt="" style={{ height: 36, width: 'auto' }} />
             </div>
 
             {/* ── STEP 1 ── */}
             {step === 1 && (
               <>
-                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <div style={{ textAlign: 'center', marginBottom: 20 }}>
                   <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 5px' }}>
                     Create your account
                   </h1>
@@ -231,7 +225,10 @@ export default function Register() {
                   </p>
                 </div>
 
-                <form onSubmit={handleStep1} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <form onSubmit={handleStep1} style={{
+                  display: 'flex', flexDirection: 'column', gap: 12,
+                  maxWidth: 320, margin: '0 auto',
+                }}>
                   <Field error={errors.fullName}>
                     <input placeholder="Full name" value={form.fullName} onChange={set('fullName')} {...inp('fullName')} />
                   </Field>
@@ -244,14 +241,11 @@ export default function Register() {
                   <Field error={errors.confirmPassword}>
                     <input type="password" placeholder="Confirm password" value={form.confirmPassword} onChange={set('confirmPassword')} {...inp('confirmPassword')} />
                   </Field>
-
                   <button type="submit" style={{
-                    width: '100%', padding: '14px', backgroundColor: BLUE, color: '#fff',
+                    width: '100%', padding: '13px', backgroundColor: BLUE, color: '#fff',
                     border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600,
                     fontFamily: 'Inter, sans-serif', cursor: 'pointer', marginTop: 4,
-                  }}>
-                    Continue
-                  </button>
+                  }}>Continue</button>
                 </form>
               </>
             )}
@@ -268,7 +262,7 @@ export default function Register() {
                   </p>
                 </div>
 
-                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 320, margin: '0 auto' }}>
                   <Field error={errors.idNumber}>
                     <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>Student / Lecturer ID</label>
                     <input placeholder="e.g. STU-2001" value={form.idNumber} onChange={set('idNumber')} autoComplete="off" {...inp('idNumber')} />
@@ -334,7 +328,7 @@ export default function Register() {
                   </p>
                 </div>
 
-                <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
+                <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 18, maxWidth: 320, margin: '0 auto 18px' }}>
                   {reviewRows.map(({ label, value }) => (
                     <div key={label} style={{ display: 'flex', gap: 12, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontFamily: 'Inter, sans-serif' }}>
                       <span style={{ fontSize: 12, color: '#9ca3af', width: 96, flexShrink: 0 }}>{label}</span>
@@ -349,7 +343,7 @@ export default function Register() {
                   </p>
                 )}
 
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, maxWidth: 320, margin: '0 auto' }}>
                   <button type="button" onClick={() => setStep(2)} style={{
                     flex: 1, padding: '13px', backgroundColor: '#fff', color: '#374151',
                     border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, fontWeight: 500,
@@ -379,7 +373,6 @@ export default function Register() {
               <Link to="/login" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
             </p>
 
-          </div>{/* end inner wrapper */}
           </div>{/* end form body */}
         </div>{/* end card */}
       </div>{/* end right column */}
