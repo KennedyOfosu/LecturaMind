@@ -1,8 +1,8 @@
 /**
- * Register.jsx — 3-step registration form.
- * Step 1: Basic info (name, email, password, confirm)
- * Step 2: Academic profile (ID, programme, level, academic year)
- * Step 3: Review & Create Account
+ * Register.jsx — 3-step registration redesigned to match Figma.
+ * Left : Signup_Page.jpg bg + Group 160.png character + Tusker Grotesk headline
+ * Right: white panel with tab progress + form steps
+ * All existing form logic (validation, API call) is preserved.
  */
 
 import { useState } from 'react'
@@ -11,66 +11,132 @@ import { useAuth } from '../hooks/useAuth'
 import { dashboardPath } from '../utils/roleGuard'
 import { PROGRAMMES, LEVELS } from '../utils/constants'
 
-const LogoMark = () => (
-  <div className="flex justify-center mb-10">
-    <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
-      <path d="M2 30L20 4L38 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M10 30L20 14L30 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  </div>
-)
+const BLUE = '#2e54fe'
 
-/* Step progress indicator */
-function StepIndicator({ step }) {
-  const steps = [
-    { num: 1, label: 'Basic Info' },
-    { num: 2, label: 'Academic Profile' },
-    { num: 3, label: 'Review' },
-  ]
+/* ── shared input style ─────────────────────────────────────── */
+const inputBase = {
+  width: '100%',
+  padding: '13px 16px',
+  borderRadius: '10px',
+  border: '1.5px solid #e5e7eb',
+  backgroundColor: '#fff',
+  fontSize: '14px',
+  color: '#1a1a1a',
+  outline: 'none',
+  fontFamily: 'Inter, sans-serif',
+}
+const inputErr = { ...inputBase, borderColor: '#fca5a5', backgroundColor: '#fff5f5' }
+
+/* ── Step tab bar ───────────────────────────────────────────── */
+function StepTabs({ step }) {
+  const tabs = ['Basic Info', 'Academic Profile', 'Review']
   return (
-    <div className="flex items-center justify-between mb-8 w-full">
-      {steps.map((s, i) => (
-        <div key={s.num} className="flex items-center flex-1">
-          <div className="flex flex-col items-center">
-            <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
-              step >= s.num ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-400'
-            }`}>
-              {step > s.num ? '✓' : s.num}
-            </div>
-            <span className={`text-[10px] mt-1 ${step >= s.num ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>
-              {s.label}
-            </span>
+    <div style={{ display: 'flex', borderBottom: '1.5px solid #f0f0f0' }}>
+      {tabs.map((label, i) => {
+        const num   = i + 1
+        const active = step === num
+        const done   = step > num
+        return (
+          <div
+            key={label}
+            style={{
+              flex: 1,
+              padding: '14px 0',
+              textAlign: 'center',
+              fontSize: '13px',
+              fontWeight: active ? 600 : 400,
+              color: active ? BLUE : done ? '#6b7280' : '#9ca3af',
+              fontFamily: 'Inter, sans-serif',
+              borderTop: `3px solid ${active ? BLUE : 'transparent'}`,
+              cursor: 'default',
+            }}
+          >
+            {label}
           </div>
-          {i < steps.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-2 -mt-4 ${step > s.num ? 'bg-gray-900' : 'bg-gray-200'}`} />
-          )}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
 
+/* ── Field wrapper ──────────────────────────────────────────── */
+function Field({ error, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {children}
+      {error && <span style={{ color: '#ef4444', fontSize: 11 }}>{error}</span>}
+    </div>
+  )
+}
+
+/* ── Blue action button ─────────────────────────────────────── */
+function BlueBtn({ children, disabled, onClick, type = 'submit' }) {
+  return (
+    <button
+      type={type}
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        width: '100%',
+        padding: '14px',
+        backgroundColor: disabled ? '#93aeff' : BLUE,
+        color: '#fff',
+        border: 'none',
+        borderRadius: '10px',
+        fontSize: '15px',
+        fontWeight: 600,
+        fontFamily: 'Inter, sans-serif',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        marginTop: '6px',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+/* ── Outline back button ────────────────────────────────────── */
+function BackBtn({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        padding: '13px',
+        backgroundColor: '#fff',
+        color: '#374151',
+        border: '1.5px solid #e5e7eb',
+        borderRadius: '10px',
+        fontSize: '14px',
+        fontWeight: 500,
+        fontFamily: 'Inter, sans-serif',
+        cursor: 'pointer',
+      }}
+    >
+      ← Back
+    </button>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+══════════════════════════════════════════════════════════════ */
 export default function Register() {
   const { register } = useAuth()
   const navigate     = useNavigate()
 
-  const [step,       setStep]      = useState(1)
-  const [isLoading,  setIsLoading] = useState(false)
-  const [errors,     setErrors]    = useState({})
-  const [apiError,   setApiError]  = useState('')
+  const [step,      setStep]      = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [errors,    setErrors]    = useState({})
+  const [apiError,  setApiError]  = useState('')
 
   const [form, setForm] = useState({
-    fullName:        '',
-    email:           '',
-    password:        '',
-    confirmPassword: '',
-    idNumber:        '',
-    programme:       '',
-    level:           '',
-    academicYear:    '',
+    fullName: '', email: '', password: '', confirmPassword: '',
+    idNumber: '', programme: '', level: '', academicYear: '',
   })
 
-  const isStudent = form.idNumber.startsWith('STU-')
+  const isStudent  = form.idNumber.startsWith('STU-')
   const isLecturer = form.idNumber.startsWith('LEC-')
 
   const set = (field) => (e) => {
@@ -80,55 +146,39 @@ export default function Register() {
     setApiError('')
   }
 
-  /* ── Step 1 validation ── */
   const validateStep1 = () => {
     const errs = {}
-    if (!form.fullName.trim()) errs.fullName = 'Full name is required.'
-    if (!form.email.trim()) errs.email = 'Email is required.'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Enter a valid email.'
-    if (!form.password) errs.password = 'Password is required.'
-    else if (form.password.length < 6) errs.password = 'Password must be at least 6 characters.'
-    if (!form.confirmPassword) errs.confirmPassword = 'Please confirm your password.'
+    if (!form.fullName.trim())           errs.fullName        = 'Full name is required.'
+    if (!form.email.trim())              errs.email           = 'Email is required.'
+    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email    = 'Enter a valid email.'
+    if (!form.password)                  errs.password        = 'Password is required.'
+    else if (form.password.length < 6)   errs.password        = 'At least 6 characters.'
+    if (!form.confirmPassword)           errs.confirmPassword = 'Please confirm your password.'
     else if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match.'
-    setErrors(errs)
-    return !Object.keys(errs).length
+    setErrors(errs); return !Object.keys(errs).length
   }
 
-  /* ── Step 2 validation ── */
   const validateStep2 = () => {
     const errs = {}
     if (!form.idNumber.trim()) errs.idNumber = 'ID number is required.'
-    else if (!form.idNumber.startsWith('STU-') && !form.idNumber.startsWith('LEC-')) {
+    else if (!form.idNumber.startsWith('STU-') && !form.idNumber.startsWith('LEC-'))
       errs.idNumber = 'ID must start with STU- or LEC-.'
-    }
     if (isStudent) {
-      if (!form.programme) errs.programme = 'Please select your programme.'
-      if (!form.level)     errs.level     = 'Please select your level.'
+      if (!form.programme) errs.programme = 'Select your programme.'
+      if (!form.level)     errs.level     = 'Select your level.'
     }
-    setErrors(errs)
-    return !Object.keys(errs).length
+    setErrors(errs); return !Object.keys(errs).length
   }
 
-  const handleStep1 = (e) => {
-    e.preventDefault()
-    if (validateStep1()) setStep(2)
-  }
-
-  const handleStep2 = (e) => {
-    e.preventDefault()
-    if (validateStep2()) setStep(3)
-  }
+  const handleStep1 = (e) => { e.preventDefault(); if (validateStep1()) setStep(2) }
+  const handleStep2 = (e) => { e.preventDefault(); if (validateStep2()) setStep(3) }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setApiError('')
-    setIsLoading(true)
+    e.preventDefault(); setApiError(''); setIsLoading(true)
     try {
       const payload = {
-        full_name: form.fullName,
-        email:     form.email,
-        password:  form.password,
-        id_number: form.idNumber,
+        full_name: form.fullName, email: form.email,
+        password:  form.password, id_number: form.idNumber,
       }
       if (isStudent) {
         payload.programme     = form.programme
@@ -139,186 +189,285 @@ export default function Register() {
       navigate(dashboardPath(user.role))
     } catch (err) {
       setApiError(err.response?.data?.error || 'Registration failed. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
+    } finally { setIsLoading(false) }
   }
 
-  const inputCls = (f) =>
-    `w-full px-4 py-3 rounded-xl border text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400 ${
-      errors[f] ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
-    }`
-
-  /* Map labels for review */
   const reviewRows = [
-    { label: 'Name',       value: form.fullName },
-    { label: 'Email',      value: form.email },
-    { label: 'ID Number',  value: form.idNumber },
+    { label: 'Name',      value: form.fullName  },
+    { label: 'Email',     value: form.email     },
+    { label: 'ID Number', value: form.idNumber  },
     isStudent && { label: 'Programme', value: form.programme },
     isStudent && { label: 'Level',     value: form.level ? `Level ${form.level}` : '' },
     isStudent && form.academicYear && { label: 'Academic Year', value: form.academicYear },
   ].filter(Boolean)
 
+  const inp = (f) => ({ style: errors[f] ? inputErr : inputBase })
+
   return (
-    <div className="min-h-screen w-full bg-cover bg-center flex items-stretch p-8"
-      style={{ backgroundImage: "url('/library-bg.png')" }}>
+    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
 
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col justify-center px-12 py-14 overflow-y-auto">
+      {/* ══ LEFT — background + character + headline ══════════ */}
+      <div
+        style={{
+          position: 'relative',
+          width: '55%',
+          height: '100%',
+          backgroundImage: "url('/Signup_Page.jpg')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Logo mark — top left */}
+        <img
+          src="/Colored_Logo_Mark.svg"
+          alt="LecturaMind"
+          style={{
+            position: 'absolute',
+            top: 36,
+            left: 48,
+            height: 44,
+            width: 'auto',
+          }}
+        />
 
-        <LogoMark />
+        {/* Character — Group 160.png, left-center */}
+        <img
+          src="/Group%20160.png"
+          alt="Lecturer"
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: '0%',
+            height: '88%',
+            width: 'auto',
+            objectFit: 'contain',
+            objectPosition: 'bottom left',
+          }}
+        />
 
-        <StepIndicator step={step} />
-
-        {/* ── STEP 1 ── */}
-        <div className={step === 1 ? 'flex flex-col' : 'hidden'}>
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-semibold text-gray-900 mb-1.5">Create your account</h1>
-            <p className="text-sm text-gray-400">Let's start with your basic details</p>
-          </div>
-
-          <form onSubmit={handleStep1} className="flex flex-col gap-3">
-            <div>
-              <input type="text" placeholder="Full name" value={form.fullName}
-                onChange={set('fullName')} className={inputCls('fullName')} />
-              {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
-            </div>
-            <div>
-              <input type="email" placeholder="Email address" value={form.email}
-                onChange={set('email')} className={inputCls('email')} />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-            </div>
-            <div>
-              <input type="password" placeholder="Password" value={form.password}
-                onChange={set('password')} className={inputCls('password')} />
-              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-            </div>
-            <div>
-              <input type="password" placeholder="Confirm password" value={form.confirmPassword}
-                onChange={set('confirmPassword')} className={inputCls('confirmPassword')} />
-              {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
-            </div>
-
-            <button type="submit"
-              className="w-full py-3 mt-3 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors">
-              Continue →
-            </button>
-          </form>
+        {/* Headline + subtitle — bottom-left above character */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 80,
+            left: '38%',
+            right: 0,
+            padding: '0 32px 0 0',
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "'Tusker Grotesk', sans-serif",
+              fontWeight: 800,
+              fontSize: 'clamp(2.2rem, 4.5vw, 4rem)',
+              color: BLUE,
+              lineHeight: 1.05,
+              margin: '0 0 14px 0',
+            }}
+          >
+            Teaching,<br />Reimagined
+          </p>
+          <p
+            style={{
+              fontFamily: 'Inter, sans-serif',
+              fontSize: 14,
+              color: '#374151',
+              lineHeight: 1.6,
+              margin: 0,
+              maxWidth: 320,
+            }}
+          >
+            An AI-powered platform designed to support lecturers,
+            engage students, and modernize higher education.
+          </p>
         </div>
+      </div>
 
-        {/* ── STEP 2 ── */}
-        <div className={step === 2 ? 'flex flex-col' : 'hidden'}>
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-semibold text-gray-900 mb-1.5">Academic Profile</h1>
-            <p className="text-sm text-gray-400">Tell us about your studies</p>
-          </div>
+      {/* ══ RIGHT — white form panel ══════════════════════════ */}
+      <div
+        style={{
+          width: '45%',
+          height: '100%',
+          backgroundColor: '#ffffff',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+        }}
+      >
+        {/* Step tabs — pinned to top of the panel */}
+        <StepTabs step={step} />
 
-          <form onSubmit={handleStep2} className="flex flex-col gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Student / Lecturer ID</label>
-              <input type="text" placeholder="e.g. STU-2001" value={form.idNumber}
-                onChange={set('idNumber')} autoComplete="off" className={inputCls('idNumber')} />
-              <p className="text-xs text-gray-400 mt-1">
-                Your ID was provided by your institution. Use STU- for students or LEC- for lecturers.
-              </p>
-              {errors.idNumber && <p className="text-red-500 text-xs mt-1">{errors.idNumber}</p>}
+        {/* Form content — scrollable, centered */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '40px 48px',
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: 420 }}>
+
+            {/* Logo mark */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+              <img
+                src="/Colored_Logo_Mark.svg"
+                alt="LecturaMind"
+                style={{ height: 42, width: 'auto' }}
+              />
             </div>
 
-            {/* Show programme/level only for students */}
-            {isStudent && (
+            {/* ── STEP 1 — Basic Info ── */}
+            {step === 1 && (
               <>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">What are you studying?</label>
-                  <select value={form.programme} onChange={set('programme')} className={inputCls('programme')}>
-                    <option value="">Select your programme</option>
-                    {PROGRAMMES.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  {errors.programme && <p className="text-red-500 text-xs mt-1">{errors.programme}</p>}
+                <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>
+                    Create your account
+                  </h1>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9ca3af', margin: 0 }}>
+                    Lets start with basic details
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">What level are you currently in?</label>
-                  <select value={form.level} onChange={set('level')} className={inputCls('level')}>
-                    <option value="">Select your level</option>
-                    {LEVELS.map((l) => <option key={l} value={l}>Level {l}</option>)}
-                  </select>
-                  {errors.level && <p className="text-red-500 text-xs mt-1">{errors.level}</p>}
+                <form onSubmit={handleStep1} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <Field error={errors.fullName}>
+                    <input placeholder="Full name" value={form.fullName} onChange={set('fullName')} {...inp('fullName')} />
+                  </Field>
+                  <Field error={errors.email}>
+                    <input type="email" placeholder="Email address" value={form.email} onChange={set('email')} {...inp('email')} />
+                  </Field>
+                  <Field error={errors.password}>
+                    <input type="password" placeholder="Password" value={form.password} onChange={set('password')} {...inp('password')} />
+                  </Field>
+                  <Field error={errors.confirmPassword}>
+                    <input type="password" placeholder="Confirm password" value={form.confirmPassword} onChange={set('confirmPassword')} {...inp('confirmPassword')} />
+                  </Field>
+                  <BlueBtn>Continue</BlueBtn>
+                </form>
+              </>
+            )}
+
+            {/* ── STEP 2 — Academic Profile ── */}
+            {step === 2 && (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>
+                    Academic Profile
+                  </h1>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9ca3af', margin: 0 }}>
+                    Tell us about your studies
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Academic Year (optional)</label>
-                  <input type="text" placeholder="e.g. 2025/2026" value={form.academicYear}
-                    onChange={set('academicYear')} className={inputCls('academicYear')} />
+                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <Field error={errors.idNumber}>
+                    <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>
+                      Student / Lecturer ID
+                    </label>
+                    <input placeholder="e.g. STU-2001" value={form.idNumber} onChange={set('idNumber')} autoComplete="off" {...inp('idNumber')} />
+                    <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'Inter, sans-serif' }}>
+                      Use STU- for students or LEC- for lecturers.
+                    </span>
+                  </Field>
+
+                  {isStudent && (
+                    <>
+                      <Field error={errors.programme}>
+                        <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>Programme</label>
+                        <select value={form.programme} onChange={set('programme')} {...inp('programme')}>
+                          <option value="">Select your programme</option>
+                          {PROGRAMMES.map((p) => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </Field>
+                      <Field error={errors.level}>
+                        <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>Level</label>
+                        <select value={form.level} onChange={set('level')} {...inp('level')}>
+                          <option value="">Select your level</option>
+                          {LEVELS.map((l) => <option key={l} value={l}>Level {l}</option>)}
+                        </select>
+                      </Field>
+                      <Field>
+                        <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>
+                          Academic Year <span style={{ color: '#d1d5db' }}>(optional)</span>
+                        </label>
+                        <input placeholder="e.g. 2025/2026" value={form.academicYear} onChange={set('academicYear')} style={inputBase} />
+                      </Field>
+                    </>
+                  )}
+
+                  {isLecturer && (
+                    <p style={{ fontSize: 13, color: '#6b7280', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 14px', fontFamily: 'Inter, sans-serif' }}>
+                      You can add teaching assignments later from your profile.
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                    <BackBtn onClick={() => setStep(1)} />
+                    <button type="submit" style={{ flex: 2, padding: '13px', backgroundColor: BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
+                      Continue
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {/* ── STEP 3 — Review ── */}
+            {step === 3 && (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                  <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>
+                    Review your details
+                  </h1>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9ca3af', margin: 0 }}>
+                    Confirm everything looks right before creating your account.
+                  </p>
+                </div>
+
+                <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
+                  {reviewRows.map(({ label, value }) => (
+                    <div key={label} style={{ display: 'flex', gap: 12, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontFamily: 'Inter, sans-serif' }}>
+                      <span style={{ fontSize: 12, color: '#9ca3af', width: 100, flexShrink: 0 }}>{label}</span>
+                      <span style={{ fontSize: 13, color: '#111827', wordBreak: 'break-all' }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {apiError && (
+                  <p style={{ color: '#ef4444', fontSize: 13, textAlign: 'center', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontFamily: 'Inter, sans-serif' }}>
+                    {apiError}
+                  </p>
+                )}
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <BackBtn onClick={() => setStep(2)} />
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isLoading}
+                    style={{ flex: 2, padding: '13px', backgroundColor: isLoading ? '#93aeff' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  >
+                    {isLoading && (
+                      <svg style={{ animation: 'spin 1s linear infinite', height: 16, width: 16 }} fill="none" viewBox="0 0 24 24">
+                        <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                    )}
+                    {isLoading ? 'Creating…' : 'Create Account'}
+                  </button>
                 </div>
               </>
             )}
 
-            {isLecturer && (
-              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                You can add teaching assignments later from your profile.
-              </p>
-            )}
-
-            <div className="flex gap-3 mt-3">
-              <button type="button" onClick={() => setStep(1)}
-                className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                ← Back
-              </button>
-              <button type="submit"
-                className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors">
-                Continue →
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* ── STEP 3 ── */}
-        <div className={step === 3 ? 'flex flex-col' : 'hidden'}>
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-semibold text-gray-900 mb-1.5">Review your details</h1>
-            <p className="text-sm text-gray-400 leading-relaxed">
-              Please review your details before creating your account.{' '}
-              {isStudent && <span>You can update your level and programme later from your profile.</span>}
+            {/* Sign in link */}
+            <p style={{ textAlign: 'center', fontSize: 13, color: '#9ca3af', marginTop: 24, fontFamily: 'Inter, sans-serif' }}>
+              Already have an account?{' '}
+              <Link to="/login" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
             </p>
-          </div>
 
-          {/* Summary */}
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
-            <dl className="flex flex-col gap-2 text-sm">
-              {reviewRows.map(({ label, value }) => (
-                <div key={label} className="flex items-baseline gap-3">
-                  <dt className="text-xs font-medium text-gray-400 w-24 shrink-0">{label}:</dt>
-                  <dd className="text-gray-800 break-all">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          {apiError && (
-            <p className="text-red-500 text-xs text-center mb-3 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>
-          )}
-
-          <div className="flex gap-3">
-            <button type="button" onClick={() => setStep(2)}
-              className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-              ← Back
-            </button>
-            <button onClick={handleSubmit} disabled={isLoading}
-              className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-              {isLoading && (
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-              )}
-              {isLoading ? 'Creating…' : 'Create Account'}
-            </button>
           </div>
         </div>
-
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Already have an account?{' '}
-          <Link to="/login" className="text-gray-800 font-semibold hover:underline">Sign in</Link>
-        </p>
       </div>
     </div>
   )
