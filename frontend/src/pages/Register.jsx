@@ -198,7 +198,8 @@ export default function Register() {
           boxShadow: '0 24px 64px rgba(0,0,0,0.13)',
           overflow: 'hidden',
           display: 'flex', flexDirection: 'column',
-          maxHeight: '92vh',              /* never taller than the viewport */
+          minHeight: '78vh',
+          maxHeight: '94vh',
         }}>
 
           {/* Tab bar — top of card */}
@@ -207,8 +208,11 @@ export default function Register() {
           {/* Scrollable form body */}
           <div style={{
             flex: 1, overflowY: 'auto',
-            padding: '32px 40px 28px',
+            padding: '32px 24px 28px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
           }}>
+          {/* Centred inner wrapper — controls input/button width */}
+          <div style={{ width: '100%', maxWidth: 340 }}>
 
             {/* Logo mark centred */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
@@ -375,9 +379,10 @@ export default function Register() {
               <Link to="/login" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
             </p>
 
-          </div>
-        </div>
-      </div>
-    </div>
+          </div>{/* end inner wrapper */}
+          </div>{/* end form body */}
+        </div>{/* end card */}
+      </div>{/* end right column */}
+    </div>{/* end page */}
   )
 }
