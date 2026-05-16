@@ -229,7 +229,7 @@ export default function Register() {
 
                 <form onSubmit={handleStep1} style={{
                   display: 'flex', flexDirection: 'column', gap: 12,
-                  maxWidth: 360, margin: '32px auto 0',
+                  maxWidth: 400, margin: '38px auto 0',
                 }}>
                   <Field error={errors.fullName}>
                     <input placeholder="Full name" value={form.fullName} onChange={set('fullName')} {...inp('fullName')} />
@@ -264,7 +264,7 @@ export default function Register() {
                   </p>
                 </div>
 
-                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 360, margin: '32px auto 0' }}>
+                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 400, margin: '38px auto 0' }}>
                   <Field error={errors.idNumber}>
                     <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>Student / Lecturer ID</label>
                     <input placeholder="e.g. STU-2001" value={form.idNumber} onChange={set('idNumber')} autoComplete="off" {...inp('idNumber')} />
@@ -330,7 +330,7 @@ export default function Register() {
                   </p>
                 </div>
 
-                <div style={{ maxWidth: 360, margin: '32px auto 0' }}>
+                <div style={{ maxWidth: 400, margin: '38px auto 0' }}>
                 <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
                   {reviewRows.map(({ label, value }) => (
                     <div key={label} style={{ display: 'flex', gap: 12, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontFamily: 'Inter, sans-serif' }}>
