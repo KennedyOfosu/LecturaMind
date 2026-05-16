@@ -158,20 +158,23 @@ export default function Register() {
           style={{ position: 'absolute', top: 36, left: 48, height: 40, width: 'auto' }}
         />
 
-        {/* Headline + subtitle — bottom-left of left panel */}
+        {/* Headline + subtitle — mid-right of left panel, beside the character */}
         <div style={{
-          position: 'absolute', bottom: 80, left: 48, right: 48,
+          position: 'absolute',
+          left: '50%',       /* starts halfway across the left panel — beside the character */
+          top: '52%',        /* vertically centred-lower, matching Figma */
+          width: 320,
         }}>
           <p style={{
             fontFamily: "'Tusker Grotesk', sans-serif", fontWeight: 800,
-            fontSize: 'clamp(2.4rem, 4.5vw, 4rem)', color: BLUE,
-            lineHeight: 1.05, margin: '0 0 16px',
+            fontSize: 'clamp(2.2rem, 4vw, 3.6rem)', color: BLUE,
+            lineHeight: 1.05, margin: '0 0 14px',
           }}>
             Teaching,<br />Reimagined
           </p>
           <p style={{
-            fontFamily: 'Inter, sans-serif', fontSize: 15,
-            color: '#374151', lineHeight: 1.65, margin: 0, maxWidth: 360,
+            fontFamily: 'Inter, sans-serif', fontSize: 14,
+            color: '#374151', lineHeight: 1.65, margin: 0,
           }}>
             An AI-powered platform designed to support lecturers,
             engage students, and modernize higher education.
