@@ -1,146 +1,314 @@
 /**
- * Landing.jsx — Hero section replicating the Figma design.
- * Font: Tusker Grotesk (loaded via Fontshare in index.html)
- * Characters: /Group 160.png (lecturer, orange card) and /Group 159.png (student, purple card)
+ * Landing.jsx — Pixel-faithful port of the Figma design (1920×1080 canvas).
+ * All positions expressed as vw/vh so the layout scales proportionally.
+ * Font: Tusker Grotesk 5800 Super (loaded via Fontshare in index.html)
+ * Characters: /Group 160.png (lecturer, orange card) · /Group 159.png (student, purple card)
  */
 
 import { Link } from 'react-router-dom'
 
-/* ── Tusker Grotesk utility style ─────────────────────────────── */
-const tusker = { fontFamily: '"Tusker Grotesk", sans-serif' }
+/* ─── scale helpers (design canvas = 1920 × 1080) ───────────── */
+const vw = (px) => `${(px / 1920) * 100}vw`
+const vh = (px) => `${(px / 1080) * 100}vh`
+
+/* Tusker Grotesk 5800 Super */
+const TG = {
+  fontFamily: '"Tusker Grotesk", sans-serif',
+  fontWeight: 800,
+  fontStyle: 'normal',
+}
 
 export default function Landing() {
   return (
     <div
-      className="h-screen w-screen overflow-hidden flex flex-col select-none"
-      style={{ backgroundColor: '#EFEFEF' }}
+      style={{
+        position: 'relative',
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        backgroundColor: '#f5f5f5',
+      }}
     >
 
-      {/* ── Top bar ─────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-10 pt-8 shrink-0 relative z-20">
-
-        {/* Brand: M. LecturaMind in Tusker Grotesk */}
-        <div className="flex items-center gap-0.5" style={tusker}>
-          <span
-            className="text-gray-900 leading-none"
-            style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.01em' }}
-          >
-            M.
-          </span>
-          <span
-            className="text-gray-900 leading-none ml-1.5"
-            style={{ fontSize: '1.35rem', fontWeight: 700, letterSpacing: '-0.01em' }}
-          >
-            LecturaMind
-          </span>
-        </div>
-
-        {/* Login • Register */}
-        <div className="flex items-center gap-3 text-sm font-medium text-gray-800">
-          <Link to="/login" className="hover:text-gray-500 transition-colors">Login</Link>
-          <span className="text-gray-400 text-xs">■</span>
-          <Link to="/register" className="hover:text-gray-500 transition-colors">Register</Link>
-        </div>
+      {/* ══════════════════════════════════════════════════
+          LOGO  —  "M. LecturaMind"  top-left
+          M. in dark #202125 · LecturaMind in blue #2e54fe
+      ══════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          left: vw(80),
+          top: vh(39),
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: vw(4),
+          lineHeight: 1,
+        }}
+      >
+        {/* "M." — dark */}
+        <span
+          style={{
+            ...TG,
+            fontSize: vw(30.74),
+            color: '#202125',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          M.
+        </span>
+        {/* "LecturaMind" — blue */}
+        <span
+          style={{
+            ...TG,
+            fontSize: vw(30.74),
+            color: '#2e54fe',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          LecturaMind
+        </span>
       </div>
 
-      {/* ── Main hero body ───────────────────────────────────────── */}
-      <div className="flex-1 flex items-stretch overflow-hidden relative">
+      {/* ══════════════════════════════════════════════════
+          NAV  —  Login · Register  top-right
+      ══════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          left: vw(1673.63),
+          top: vh(48.25),
+          display: 'flex',
+          alignItems: 'center',
+          gap: vw(10),
+        }}
+      >
+        <Link
+          to="/login"
+          style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: vw(21),
+            fontWeight: 400,
+            color: '#000000',
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseOver={e => e.currentTarget.style.opacity = '0.6'}
+          onMouseOut={e => e.currentTarget.style.opacity = '1'}
+        >
+          Login
+        </Link>
 
-        {/* ── Left: headline + subtitle + CTAs ── */}
-        <div className="flex flex-col justify-end pb-16 pl-10 pr-6 z-10 relative"
-             style={{ width: '55%' }}>
+        {/* separator dot — Tusker Grotesk */}
+        <span
+          style={{
+            ...TG,
+            fontSize: vw(23),
+            color: '#202125',
+            lineHeight: 1,
+          }}
+        >
+          .
+        </span>
 
-          {/* Giant headline */}
-          <h1
-            className="leading-none text-left mb-6"
-            style={{
-              ...tusker,
-              fontWeight: 900,
-              color: '#3250FF',
-              fontSize: 'clamp(4.5rem, 10.5vw, 9.5rem)',
-              letterSpacing: '-0.02em',
-              lineHeight: 0.9,
-            }}
-          >
-            Powering<br />
-            Smarter<br />
-            Universities
-          </h1>
-
-          {/* Subtitle + buttons row */}
-          <div className="flex items-end gap-10 flex-wrap">
-            {/* Subtitle */}
-            <p className="text-gray-500 text-sm leading-relaxed max-w-xs">
-              An AI-powered platform designed to support lecturers,<br />
-              engage students, and modernize higher education.
-            </p>
-
-            {/* CTAs */}
-            <div className="flex items-center gap-3 shrink-0">
-              <Link
-                to="/register"
-                className="px-8 py-3.5 rounded-full text-sm font-semibold text-white transition-all hover:opacity-90"
-                style={{ backgroundColor: '#3250FF' }}
-              >
-                Get Started
-              </Link>
-              <Link
-                to="/login"
-                className="px-7 py-3.5 rounded-full text-sm font-semibold text-gray-800 bg-white border border-gray-200 transition-all hover:border-gray-400"
-              >
-                Login
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Right: two overlapping image cards ── */}
-        <div className="flex-1 relative overflow-visible" style={{ width: '45%' }}>
-
-          {/* Top card — Orange — Lecturer with tablet (Group 160.png) */}
-          <div
-            className="absolute overflow-hidden"
-            style={{
-              top: '4%',
-              left: '8%',
-              width: '62%',
-              aspectRatio: '1 / 1.1',
-              backgroundColor: '#FF9A00',
-              borderRadius: '24px',
-              /* subtle circular highlight matching Figma */
-              background: 'radial-gradient(ellipse 90% 80% at 55% 30%, #FFB800 0%, #FF9500 55%, #FF8A00 100%)',
-            }}
-          >
-            <img
-              src="/Group 160.png"
-              alt="Lecturer"
-              className="w-full h-full object-contain object-bottom"
-              style={{ transform: 'scale(1.05)', transformOrigin: 'bottom center' }}
-            />
-          </div>
-
-          {/* Bottom card — Purple — Student with laptop (Group 159.png) */}
-          <div
-            className="absolute overflow-hidden"
-            style={{
-              top: '48%',
-              left: '32%',
-              right: '-8%',          /* intentionally bleeds off the right edge */
-              aspectRatio: '1 / 0.9',
-              borderRadius: '24px',
-              background: 'radial-gradient(ellipse 80% 75% at 35% 30%, #E580FF 0%, #CC55EE 50%, #BB44DC 100%)',
-            }}
-          >
-            <img
-              src="/Group 159.png"
-              alt="Student"
-              className="w-full h-full object-contain object-bottom"
-              style={{ transform: 'scale(1.05)', transformOrigin: 'bottom center' }}
-            />
-          </div>
-
-        </div>
+        <Link
+          to="/register"
+          style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: vw(21),
+            fontWeight: 400,
+            color: '#000000',
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseOver={e => e.currentTarget.style.opacity = '0.6'}
+          onMouseOut={e => e.currentTarget.style.opacity = '1'}
+        >
+          Register
+        </Link>
       </div>
+
+      {/* ══════════════════════════════════════════════════
+          ORANGE CARD  —  top, left 1005px
+          Border-radius: TL/TR/BL = 27.954px · BR = 246.5px
+      ══════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          left: vw(1005),
+          top: vh(112),
+          width: vw(536),
+          height: vh(509),
+          backgroundColor: '#ffa000',
+          borderRadius: `${vw(27.954)} ${vw(27.954)} ${vw(246.5)} ${vw(27.954)}`,
+          overflow: 'hidden',
+        }}
+      >
+        <img
+          src="/Group 160.png"
+          alt="Lecturer"
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '105%',
+            height: '105%',
+            objectFit: 'contain',
+            objectPosition: 'bottom center',
+          }}
+        />
+      </div>
+
+      {/* ══════════════════════════════════════════════════
+          PURPLE CARD  —  bottom, left 1319px
+          Border-radius: TL = 239.512px · TR/BR/BL = 27.161px
+      ══════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          left: vw(1319),
+          top: vh(522),
+          width: vw(521),
+          height: vh(505),
+          backgroundColor: '#dd7dff',
+          borderRadius: `${vw(239.512)} ${vw(27.161)} ${vw(27.161)} ${vw(27.161)}`,
+          overflow: 'hidden',
+        }}
+      >
+        <img
+          src="/Group 159.png"
+          alt="Student"
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '105%',
+            height: '105%',
+            objectFit: 'contain',
+            objectPosition: 'bottom center',
+          }}
+        />
+      </div>
+
+      {/* ══════════════════════════════════════════════════
+          HEADLINE  —  "Powering Smarter Universities"
+          left 80px · top 305.63px · 164.556px · #2e54fe
+      ══════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          left: vw(80),
+          top: vh(305.63),
+          width: vw(1240),
+        }}
+      >
+        <p
+          style={{
+            ...TG,
+            fontSize: vw(164.556),
+            color: '#2e54fe',
+            lineHeight: 0.849,
+            margin: 0,
+            padding: 0,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          {'Powering Smarter\nUniversities'}
+        </p>
+      </div>
+
+      {/* ══════════════════════════════════════════════════
+          SUBTITLE  —  small body text  left 80px top 939px
+      ══════════════════════════════════════════════════ */}
+      <p
+        style={{
+          position: 'absolute',
+          left: vw(80),
+          top: vh(939),
+          width: vw(591.848),
+          fontFamily: 'Inter, sans-serif',
+          fontSize: vw(21.522),
+          fontWeight: 400,
+          color: '#202125',
+          lineHeight: 1.45,
+          margin: 0,
+        }}
+      >
+        An AI-powered platform designed to support lecturers, engage students, and modernize higher education.
+      </p>
+
+      {/* ══════════════════════════════════════════════════
+          CTA — "Get Started"  left 740px · blue pill
+      ══════════════════════════════════════════════════ */}
+      <Link
+        to="/register"
+        style={{
+          position: 'absolute',
+          left: vw(740),
+          top: vh(936.16),
+          width: vw(340),
+          height: vh(60.673),
+          backgroundColor: '#2e54fe',
+          borderRadius: vw(32.697),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textDecoration: 'none',
+          transition: 'opacity 0.15s',
+        }}
+        onMouseOver={e => e.currentTarget.style.opacity = '0.88'}
+        onMouseOut={e => e.currentTarget.style.opacity = '1'}
+      >
+        <span
+          style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: vw(23.343),
+            fontWeight: 700,
+            color: '#ffffff',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Get Started
+        </span>
+      </Link>
+
+      {/* ══════════════════════════════════════════════════
+          CTA — "Login"  left 1092px · gray pill
+      ══════════════════════════════════════════════════ */}
+      <Link
+        to="/login"
+        style={{
+          position: 'absolute',
+          left: vw(1092),
+          top: vh(935.81),
+          width: vw(174),
+          height: vh(61.683),
+          backgroundColor: '#ededed',
+          borderRadius: vw(33.319),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textDecoration: 'none',
+          transition: 'opacity 0.15s',
+        }}
+        onMouseOver={e => e.currentTarget.style.opacity = '0.75'}
+        onMouseOut={e => e.currentTarget.style.opacity = '1'}
+      >
+        <span
+          style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: vw(23.787),
+            fontWeight: 700,
+            color: '#000000',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Login
+        </span>
+      </Link>
+
     </div>
   )
 }
