@@ -192,7 +192,7 @@ export default function Register() {
 
         {/* The floating card */}
         <div style={{
-          width: '100%', maxWidth: 490,
+          width: '100%', maxWidth: 420,
           backgroundColor: '#ffffff',
           borderRadius: 20,
           boxShadow: '0 24px 64px rgba(0,0,0,0.13)',
@@ -206,7 +206,7 @@ export default function Register() {
           <StepTabs step={step} />
 
           {/* Scrollable form body */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '28px 20px 24px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '28px 40px 24px' }}>
 
             {/* Logo mark */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
@@ -227,7 +227,6 @@ export default function Register() {
 
                 <form onSubmit={handleStep1} style={{
                   display: 'flex', flexDirection: 'column', gap: 12,
-                  maxWidth: 320, margin: '0 auto',
                 }}>
                   <Field error={errors.fullName}>
                     <input placeholder="Full name" value={form.fullName} onChange={set('fullName')} {...inp('fullName')} />
@@ -262,7 +261,7 @@ export default function Register() {
                   </p>
                 </div>
 
-                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 320, margin: '0 auto' }}>
+                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <Field error={errors.idNumber}>
                     <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>Student / Lecturer ID</label>
                     <input placeholder="e.g. STU-2001" value={form.idNumber} onChange={set('idNumber')} autoComplete="off" {...inp('idNumber')} />
@@ -328,7 +327,7 @@ export default function Register() {
                   </p>
                 </div>
 
-                <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 18, maxWidth: 320, margin: '0 auto 18px' }}>
+                <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
                   {reviewRows.map(({ label, value }) => (
                     <div key={label} style={{ display: 'flex', gap: 12, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontFamily: 'Inter, sans-serif' }}>
                       <span style={{ fontSize: 12, color: '#9ca3af', width: 96, flexShrink: 0 }}>{label}</span>
@@ -343,7 +342,7 @@ export default function Register() {
                   </p>
                 )}
 
-                <div style={{ display: 'flex', gap: 10, maxWidth: 320, margin: '0 auto' }}>
+                <div style={{ display: 'flex', gap: 10 }}>
                   <button type="button" onClick={() => setStep(2)} style={{
                     flex: 1, padding: '13px', backgroundColor: '#fff', color: '#374151',
                     border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, fontWeight: 500,
