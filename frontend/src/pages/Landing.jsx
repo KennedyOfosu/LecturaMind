@@ -111,7 +111,7 @@ export default function Landing() {
           The PNG already contains the background & rounded corners.
       ──────────────────────────────────────────────────── */}
       <img
-        src="/Group 160.png"
+        src="/Group%20160.png"
         alt="Lecturer"
         style={{
           position: 'absolute',
@@ -130,7 +130,7 @@ export default function Landing() {
           The PNG already contains the background & rounded corners.
       ──────────────────────────────────────────────────── */}
       <img
-        src="/Group 159.png"
+        src="/Group%20159.png"
         alt="Student"
         style={{
           position: 'absolute',
