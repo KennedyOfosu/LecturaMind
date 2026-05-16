@@ -167,13 +167,13 @@ export default function Register() {
         }}>
           <p style={{
             fontFamily: "'Tusker Grotesk', sans-serif", fontWeight: 800,
-            fontSize: 'clamp(2.2rem, 4vw, 3.6rem)', color: BLUE,
+            fontSize: 'clamp(3rem, 5.5vw, 5rem)', color: BLUE,
             lineHeight: 1.05, margin: '0 0 14px',
           }}>
             Teaching,<br />Reimagined
           </p>
           <p style={{
-            fontFamily: 'Inter, sans-serif', fontSize: 14,
+            fontFamily: 'Inter, sans-serif', fontSize: 17,
             color: '#374151', lineHeight: 1.65, margin: 0,
           }}>
             An AI-powered platform designed to support lecturers,
