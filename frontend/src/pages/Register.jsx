@@ -204,10 +204,10 @@ export default function Register() {
           {/* Tab bar — top of card */}
           <StepTabs step={step} />
 
-          {/* Scrollable form body — flex column so content centres vertically */}
+          {/* Scrollable form body */}
           <div style={{
-            flex: 1, overflowY: 'auto', padding: '24px 36px',
-            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            flex: 1, overflowY: 'auto', padding: '20px 36px 24px',
+            display: 'flex', flexDirection: 'column',
           }}>
 
             {/* Logo mark */}
@@ -229,7 +229,7 @@ export default function Register() {
 
                 <form onSubmit={handleStep1} style={{
                   display: 'flex', flexDirection: 'column', gap: 12,
-                  maxWidth: 300, margin: '0 auto',
+                  maxWidth: 300, margin: 'auto auto 0',
                 }}>
                   <Field error={errors.fullName}>
                     <input placeholder="Full name" value={form.fullName} onChange={set('fullName')} {...inp('fullName')} />
@@ -264,7 +264,7 @@ export default function Register() {
                   </p>
                 </div>
 
-                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 300, margin: '0 auto' }}>
+                <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 300, margin: 'auto auto 0' }}>
                   <Field error={errors.idNumber}>
                     <label style={{ fontSize: 12, fontWeight: 500, color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>Student / Lecturer ID</label>
                     <input placeholder="e.g. STU-2001" value={form.idNumber} onChange={set('idNumber')} autoComplete="off" {...inp('idNumber')} />
@@ -330,7 +330,7 @@ export default function Register() {
                   </p>
                 </div>
 
-                <div style={{ maxWidth: 300, margin: '0 auto' }}>
+                <div style={{ maxWidth: 300, margin: 'auto auto 0' }}>
                 <div style={{ backgroundColor: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
                   {reviewRows.map(({ label, value }) => (
                     <div key={label} style={{ display: 'flex', gap: 12, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontFamily: 'Inter, sans-serif' }}>
@@ -371,8 +371,8 @@ export default function Register() {
               </>
             )}
 
-            {/* Sign in link */}
-            <p style={{ textAlign: 'center', fontSize: 13, color: '#9ca3af', marginTop: 20, fontFamily: 'Inter, sans-serif' }}>
+            {/* Sign in link — pinned to bottom */}
+            <p style={{ textAlign: 'center', fontSize: 13, color: '#9ca3af', marginTop: 'auto', paddingTop: 16, fontFamily: 'Inter, sans-serif' }}>
               Already have an account?{' '}
               <Link to="/login" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
             </p>
