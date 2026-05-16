@@ -372,9 +372,9 @@ export default function Register() {
               <Link to="/login" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
             </p>
 
-          </div>{/* end form body */}
-        </div>{/* end card */}
-      </div>{/* end right column */}
-    </div>{/* end page */}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
