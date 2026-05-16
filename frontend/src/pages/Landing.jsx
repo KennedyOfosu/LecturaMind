@@ -36,7 +36,7 @@ export default function Landing() {
           position: 'absolute',
           left: vw(80),
           top: vh(36),
-          height: vh(48),
+          height: vh(28),
           width: 'auto',
           display: 'block',
         }}
