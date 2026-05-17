@@ -320,21 +320,26 @@ function AssessmentPerf({ typeAverages }) {
     <p className="text-xs text-gray-400 py-8 text-center">No marks recorded yet</p>
   )
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col justify-between h-full">
       {typeAverages.map(({ type, avg: v, weight }) => (
         <div key={type} className="flex items-center gap-3">
-          <span className="text-xs font-semibold text-gray-500 shrink-0" style={{ width: 54 }}>
+          <span
+            className="text-xs font-semibold text-gray-500 shrink-0 px-2 py-0.5 rounded border border-gray-200 bg-gray-50"
+            style={{ minWidth: 52, textAlign: 'center' }}
+          >
             {ASSESS_SHORT[type] || type}
           </span>
-          <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
             <div className="h-full rounded-full bg-red-500 transition-all"
-              style={{ width:`${v}%` }}/>
+              style={{ width: v > 0 ? `${v}%` : '2%' }}/>
           </div>
-          <span className="text-xs font-bold tabular-nums text-gray-800 w-8 text-right shrink-0">
+          <span className="text-sm font-bold tabular-nums text-gray-800 w-9 text-right shrink-0">
             {v}
           </span>
-          {/* delta placeholder — no previous cohort data */}
-          <span className="text-[10px] text-gray-300 w-10 text-right shrink-0 font-mono">—</span>
+          {/* delta placeholder — to be replaced when historical cohort data is available */}
+          <span className="text-[11px] w-12 text-right shrink-0 font-medium text-gray-300">
+            — —
+          </span>
         </div>
       ))}
     </div>
@@ -1053,17 +1058,19 @@ export default function CourseManager() {
                   </div>
 
                   {/* Performance by assessment */}
-                  <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 p-5">
-                    <div className="mb-4 flex items-start justify-between">
+                  <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 p-5 flex flex-col">
+                    <div className="mb-4 flex items-start justify-between shrink-0">
                       <div>
                         <p className="text-sm font-bold text-gray-900">Performance by assessment</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Class average per piece</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Class average per piece · ▲▼ vs previous cohort</p>
                       </div>
                       <span className="text-[11px] font-mono text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded whitespace-nowrap">
                         weights total 100
                       </span>
                     </div>
-                    <AssessmentPerf typeAverages={typeAverages} />
+                    <div className="flex-1 flex flex-col">
+                      <AssessmentPerf typeAverages={typeAverages} />
+                    </div>
                   </div>
                 </div>
 
