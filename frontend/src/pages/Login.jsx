@@ -3,6 +3,15 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { dashboardPath } from '../utils/roleGuard'
 
+const BLUE = '#2e54fe'
+
+const inputBase = {
+  width: '100%', padding: '13px 16px', borderRadius: 10,
+  border: '1.5px solid #e8eaf0', backgroundColor: '#fff',
+  fontSize: 14, color: '#1a1a1a', outline: 'none',
+  fontFamily: 'Inter, sans-serif', boxSizing: 'border-box',
+}
+
 export default function Login() {
   const { login }   = useAuth()
   const navigate    = useNavigate()
@@ -30,68 +39,122 @@ export default function Login() {
   }
 
   return (
-    /* Full-screen campus background */
-    <div
-      className="min-h-screen w-full bg-cover bg-center flex items-stretch p-8"
-      style={{ backgroundImage: "url('/campus-bg.png')" }}
-    >
-      {/* Floating white card — left side, gap on all edges */}
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col justify-center px-12 py-14">
+    <div style={{
+      width: '100vw', height: '100vh', overflow: 'hidden',
+      backgroundImage: "url('/Login_Background_Page.jpg')",
+      backgroundSize: 'cover', backgroundPosition: 'center',
+      display: 'flex',
+    }}>
 
-        {/* Logo */}
-        <div className="flex justify-center mb-12">
-          <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
-            <path d="M2 30L20 4L38 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M10 30L20 14L30 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+      {/* LecturaMind Logo — top left */}
+      <img
+        src="/LecturaMind%20Logo.svg"
+        alt="LecturaMind"
+        style={{ position: 'absolute', top: 36, left: 48, height: 36, width: 'auto' }}
+      />
+
+      {/* LEFT — floating card */}
+      <div style={{
+        width: '45%', height: '100%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '32px 16px 32px 40px',
+        boxSizing: 'border-box',
+      }}>
+        <div style={{
+          width: '100%', maxWidth: 500,
+          backgroundColor: '#ffffff',
+          borderRadius: 20,
+          boxShadow: '0 24px 64px rgba(0,0,0,0.13)',
+          overflow: 'hidden',
+          display: 'flex', flexDirection: 'column',
+          height: '84vh',
+        }}>
+
+          {/* Card body */}
+          <div style={{
+            flex: 1, overflowY: 'auto', padding: '48px 20px 24px',
+            display: 'flex', flexDirection: 'column',
+          }}>
+
+            {/* Colored logo mark */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+              <img src="/Colored_Logo_Mark.svg" alt="" style={{ height: 36, width: 'auto' }} />
+            </div>
+
+            {/* Title + subtitle */}
+            <div style={{ textAlign: 'center' }}>
+              <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 5px' }}>
+                Welcome Back
+              </h1>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9ca3af', margin: 0 }}>
+                Sign in to your LecturaMind account
+              </p>
+            </div>
+
+            {/* Form — pushed down via auto top margin */}
+            <form onSubmit={handleSubmit} style={{
+              display: 'flex', flexDirection: 'column', gap: 12,
+              width: 360, maxWidth: '100%', margin: 'auto auto 0',
+            }}>
+              <input
+                type="text"
+                placeholder="Enter ID"
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value.toUpperCase())}
+                autoComplete="off"
+                style={inputBase}
+              />
+              <input
+                type="password"
+                placeholder="Enter Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={inputBase}
+              />
+
+              {error && (
+                <p style={{ color: '#ef4444', fontSize: 12, textAlign: 'center', margin: 0, fontFamily: 'Inter, sans-serif' }}>
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{
+                  width: '100%', padding: '13px',
+                  backgroundColor: isLoading ? '#93aeff' : BLUE,
+                  color: '#fff', border: 'none', borderRadius: 10,
+                  fontSize: 15, fontWeight: 600,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  marginTop: 4,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                {isLoading && (
+                  <svg style={{ animation: 'spin 1s linear infinite', height: 16, width: 16 }} fill="none" viewBox="0 0 24 24">
+                    <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                )}
+                {isLoading ? 'Signing in…' : 'Sign In'}
+              </button>
+            </form>
+
+            {/* Sign up link — pinned to bottom */}
+            <p style={{ textAlign: 'center', fontSize: 13, color: '#9ca3af', marginTop: 'auto', paddingTop: 16, fontFamily: 'Inter, sans-serif' }}>
+              Don't have an account?{' '}
+              <Link to="/register" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>Sign Up</Link>
+            </p>
+
+          </div>
         </div>
-
-        {/* Heading */}
-        <div className="text-center mb-10">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1.5">Welcome Back</h1>
-          <p className="text-sm text-gray-400">Sign in to your LecturaMind account</p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
-            type="text"
-            placeholder="Enter ID"
-            value={idNumber}
-            onChange={(e) => setIdNumber(e.target.value.toUpperCase())}
-            autoComplete="off"
-            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400"
-          />
-          <input
-            type="password"
-            placeholder="Enter Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400"
-          />
-          {error && <p className="text-red-500 text-xs text-center">{error}</p>}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3.5 mt-2 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            {isLoading && (
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            )}
-            Sign In
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-400 mt-8">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-gray-900 font-semibold hover:underline">
-            Sign Up
-          </Link>
-        </p>
       </div>
+
+      {/* RIGHT — background visible */}
+      <div style={{ width: '55%' }} />
+
     </div>
   )
 }
