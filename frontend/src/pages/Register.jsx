@@ -152,11 +152,9 @@ export default function Register() {
       <div style={{ width: '55%', position: 'relative', height: '100%' }}>
 
         {/* LecturaMind Logo top-left */}
-        <img
-          src="/LecturaMind%20Logo.svg"
-          alt="LecturaMind"
-          style={{ position: 'absolute', top: 36, left: 48, height: 36, width: 'auto' }}
-        />
+        <Link to="/" style={{ position: 'absolute', top: 36, left: 48 }}>
+          <img src="/LecturaMind%20Logo.svg" alt="LecturaMind" style={{ height: 36, width: 'auto', display: 'block' }} />
+        </Link>
 
         {/* Headline + subtitle — shifted right and down */}
         <div style={{
