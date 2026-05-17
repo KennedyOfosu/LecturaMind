@@ -1068,7 +1068,7 @@ export default function CourseManager() {
                         weights total 100
                       </span>
                     </div>
-                    <div className="flex-1 flex flex-col">
+                    <div className="flex-1 flex flex-col pt-8">
                       <AssessmentPerf typeAverages={typeAverages} />
                     </div>
                   </div>
