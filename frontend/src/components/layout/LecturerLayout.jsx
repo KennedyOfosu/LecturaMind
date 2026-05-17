@@ -157,7 +157,7 @@ export default function LecturerLayout() {
               {!courses.length
                 ? <p className="text-xs text-gray-400 px-3 py-1">No courses yet</p>
                 : courses.map((c) => (
-                  <button key={c.id} onClick={() => navigate('/lecturer/courses')}
+                  <button key={c.id} onClick={() => navigate(`/lecturer/courses?course=${c.id}`)}
                     className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-white transition-colors truncate">
                     <span className="shrink-0"><I.Folder /></span>
                     <span className="truncate">{c.course_name}</span>
@@ -165,6 +165,17 @@ export default function LecturerLayout() {
                 ))
               }
             </div>
+            {/* New Course button — same dashed style as the second sidebar had */}
+            <button
+              onClick={() => navigate('/lecturer/courses?new=1')}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-white transition-colors"
+              style={{ border: '1.5px dashed #D2D4D9' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              New Course
+            </button>
           </div>
 
           {/* Management */}

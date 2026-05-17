@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
 import { Button } from '../../components/ui/Button'
@@ -356,6 +357,7 @@ function CourseForm({ initial = {}, onSubmit, loading }) {
 /* ─────────────── main page ──────────────────────────────────── */
 export default function CourseManager() {
   const toast = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   /* course list */
   const [courses,      setCourses]      = useState([])
@@ -419,6 +421,20 @@ export default function CourseManager() {
   }, [])
 
   useEffect(() => { loadAnalytics(selectedId) }, [selectedId, loadAnalytics])
+
+  /* select course from URL ?course=<id> */
+  useEffect(() => {
+    const courseParam = searchParams.get('course')
+    if (courseParam) { setSelectedId(courseParam); setSearchParams({}, { replace: true }) }
+  }, [searchParams])
+
+  /* open create modal from URL ?new=1 */
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setModal({ type: 'create' })
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams])
 
   /* ── derived analytics ── */
   const selectedCourse = courses.find(c => c.id === selectedId) || null
@@ -521,62 +537,9 @@ export default function CourseManager() {
   /*  RENDER                                                        */
   /* ══════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex gap-0 -mx-8 -mt-8" style={{ minHeight:'calc(100vh - 64px)' }}>
+    <div className="flex -mx-8 -mt-8" style={{ minHeight:'calc(100vh - 64px)' }}>
 
-      {/* ─── LEFT: course list panel ─────────────────────────── */}
-      <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col pt-5 pb-4">
-        <div className="px-4 mb-3">
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Course Manager</p>
-          <button
-            onClick={() => setModal({ type:'create' })}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-gray-300 text-xs font-medium text-gray-500 hover:border-gray-500 hover:text-gray-800 transition-colors"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-            New Course
-          </button>
-        </div>
-
-        <div className="px-3 mb-2">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-1">
-            Courses
-          </p>
-        </div>
-
-        {loadingList ? (
-          <div className="flex justify-center py-8"><Spinner size="sm"/></div>
-        ) : !courses.length ? (
-          <p className="text-xs text-gray-400 text-center py-6 px-4">No courses yet</p>
-        ) : (
-          <div className="flex-1 overflow-y-auto px-2">
-            {courses.map(c => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedId(c.id)}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors mb-0.5 ${
-                  selectedId === c.id
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <span
-                  className="shrink-0 w-2 h-2 rounded-full"
-                  style={{ background: LEVEL_COLORS[c.level] ?? '#9ca3af' }}
-                />
-                <span className="flex flex-col min-w-0">
-                  <span className={`font-mono text-[10px] font-semibold ${selectedId===c.id?'text-white/70':'text-gray-400'}`}>
-                    {c.course_code}
-                  </span>
-                  <span className={`text-xs font-medium truncate ${selectedId===c.id?'text-white':'text-gray-700'}`}>
-                    {c.course_name}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </aside>
-
-      {/* ─── RIGHT: analytics area ───────────────────────────── */}
+      {/* ─── Analytics area — full width ─────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col overflow-auto bg-gray-50/60">
 
         {!selectedCourse ? (
