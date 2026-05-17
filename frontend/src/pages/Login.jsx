@@ -67,7 +67,7 @@ export default function Login() {
           boxShadow: '0 24px 64px rgba(0,0,0,0.13)',
           overflow: 'hidden',
           display: 'flex', flexDirection: 'column',
-          height: '72vh',
+          height: '62vh',
         }}>
 
           {/* Card body */}
