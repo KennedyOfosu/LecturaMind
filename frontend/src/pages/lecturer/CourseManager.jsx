@@ -320,7 +320,7 @@ function AssessmentPerf({ typeAverages }) {
     <p className="text-xs text-gray-400 py-8 text-center">No marks recorded yet</p>
   )
   return (
-    <div className="flex flex-col justify-between h-full">
+    <div className="flex flex-col gap-4">
       {typeAverages.map(({ type, avg: v, weight }) => (
         <div key={type} className="flex items-center gap-3">
           <span
