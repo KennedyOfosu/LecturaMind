@@ -156,7 +156,7 @@ export default function Login() {
       <div style={{
         width: '55%', height: '100%',
         display: 'flex', flexDirection: 'column', justifyContent: 'flex-start',
-        padding: '12% 60px 0 20px',
+        padding: '5% 60px 0 0',
         boxSizing: 'border-box',
       }}>
         <p style={{
