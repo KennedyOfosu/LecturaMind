@@ -377,8 +377,201 @@ function RiskPill({ level }) {
   )
 }
 
+/* ─────────────── mark entry modal ──────────────────────────── */
+function MarkEntryModal({ student, courseId, existingMarks, onClose, onSaved }) {
+  const [entries, setEntries] = useState(() => {
+    const init = {}
+    ASSESS_TYPES.forEach(t => { init[t] = [] })
+    existingMarks.forEach(m => {
+      if (init[m.assessment_type]) {
+        init[m.assessment_type].push({
+          _key: m.id,
+          id: m.id,
+          title: m.title || '',
+          score: String(m.score),
+          maxScore: String(m.max_score),
+          _deleted: false,
+          _dirty: false,
+        })
+      }
+    })
+    return init
+  })
+  const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState('')
+
+  const addEntry = (type) =>
+    setEntries(prev => ({
+      ...prev,
+      [type]: [...prev[type], {
+        _key: `new_${Date.now()}_${Math.random()}`,
+        id: null, title: '', score: '', maxScore: '100',
+        _deleted: false, _dirty: true,
+      }],
+    }))
+
+  const updateEntry = (type, key, field, value) =>
+    setEntries(prev => ({
+      ...prev,
+      [type]: prev[type].map(e => e._key===key ? {...e,[field]:value,_dirty:true} : e),
+    }))
+
+  const removeEntry = (type, key) =>
+    setEntries(prev => ({
+      ...prev,
+      [type]: prev[type]
+        .map(e => e._key===key ? (e.id ? {...e,_deleted:true} : null) : e)
+        .filter(Boolean),
+    }))
+
+  const handleSave = async () => {
+    setSaving(true); setError('')
+    try {
+      const ops = []
+      Object.entries(entries).forEach(([type, list]) => {
+        list.forEach(e => {
+          if (e._deleted && e.id) {
+            ops.push(api.delete(`/api/marks/${e.id}`))
+          } else if (!e._deleted && e._dirty && e.score !== '') {
+            const score    = parseFloat(e.score)
+            const maxScore = parseFloat(e.maxScore) || 100
+            if (isNaN(score)) return
+            if (e.id) {
+              ops.push(api.put(`/api/marks/${e.id}`, {
+                title: e.title || type, assessment_type: type, score, max_score: maxScore,
+              }))
+            } else {
+              ops.push(api.post('/api/marks', {
+                student_id: student.id, course_id: courseId,
+                title: e.title || type, assessment_type: type, score, max_score: maxScore,
+              }))
+            }
+          }
+        })
+      })
+      await Promise.all(ops)
+      onSaved()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save marks')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor:'rgba(0,0,0,0.45)' }} onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[88vh] flex flex-col"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Enter Marks</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {student.full_name} · <span className="font-mono">{student.user_id_number || '—'}</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1">
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Column labels */}
+        <div className="px-5 pt-3 pb-1 flex items-center gap-2 text-[10px] font-semibold text-gray-300 uppercase tracking-wide shrink-0">
+          <span className="flex-1">Assessment / Title</span>
+          <span className="w-20 text-center">Score</span>
+          <span className="w-4 text-center"/>
+          <span className="w-20 text-center">Out of</span>
+          <span className="w-6"/>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-2 flex flex-col gap-5">
+          {ASSESS_TYPES.map(type => {
+            const list = entries[type].filter(e => !e._deleted)
+            return (
+              <div key={type}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-xs font-bold px-2 py-0.5 rounded border"
+                      style={{
+                        background:(LEVEL_COLORS[400]||'#8b5cf6')+'10',
+                        borderColor:(LEVEL_COLORS[400]||'#8b5cf6')+'30',
+                        color:'#374151',
+                      }}
+                    >{type}</span>
+                    <span className="text-[10px] font-mono text-gray-300">W {ASSESS_WEIGHTS[type]}</span>
+                  </div>
+                  <button onClick={() => addEntry(type)}
+                    className="flex items-center gap-1 text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors">
+                    <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Add entry
+                  </button>
+                </div>
+
+                {list.length === 0
+                  ? <p className="text-[11px] text-gray-300 italic pl-1">No marks yet — click Add entry</p>
+                  : (
+                    <div className="flex flex-col gap-2">
+                      {list.map((e, idx) => (
+                        <div key={e._key} className="flex items-center gap-2">
+                          <input type="text"
+                            placeholder={`${type} ${idx + 1}`}
+                            value={e.title}
+                            onChange={v => updateEntry(type, e._key, 'title', v.target.value)}
+                            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+                          />
+                          <input type="number" placeholder="Score" value={e.score} min={0}
+                            onChange={v => updateEntry(type, e._key, 'score', v.target.value)}
+                            className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+                          />
+                          <span className="text-gray-300 text-sm shrink-0">/</span>
+                          <input type="number" placeholder="100" value={e.maxScore} min={1}
+                            onChange={v => updateEntry(type, e._key, 'maxScore', v.target.value)}
+                            className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+                          />
+                          <button onClick={() => removeEntry(type, e._key)}
+                            className="text-gray-300 hover:text-red-400 transition-colors p-0.5 shrink-0">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/>
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+          {error && <p className="text-red-500 text-xs mb-3 text-center">{error}</p>}
+          <button onClick={handleSave} disabled={saving}
+            className="w-full py-2.5 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving && (
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle style={{opacity:.25}} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path style={{opacity:.75}} fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+            )}
+            {saving ? 'Saving…' : 'Save All Marks'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─────────────── gradebook table ────────────────────────────── */
-function Gradebook({ students, marksMap, activeTypes, onSelectStudent }) {
+function Gradebook({ students, marksMap, activeTypes, onSelectStudent, onEnterMarks }) {
   const [sort, setSort] = useState({ key:'weighted', dir:'desc' })
 
   const rows = useMemo(() => {
@@ -464,6 +657,9 @@ function Gradebook({ students, marksMap, activeTypes, onSelectStudent }) {
             <Th label="Weighted" sub="/ 100" k="weighted" right/>
             <Th label="Grade" k="grade"/>
             <Th label="Status" k="risk"/>
+            <th className="px-3 py-2.5 text-right">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Marks</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -507,6 +703,17 @@ function Gradebook({ students, marksMap, activeTypes, onSelectStudent }) {
               <td className="px-3 py-2.5">
                 <RiskPill level={r.risk} />
               </td>
+              <td className="px-3 py-2.5 text-right" onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={() => onEnterMarks?.(r.student)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-500 border border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap"
+                >
+                  <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                  Marks
+                </button>
+              </td>
             </tr>
           ))}
 
@@ -529,7 +736,7 @@ function Gradebook({ students, marksMap, activeTypes, onSelectStudent }) {
             <td className="px-3 py-2.5">
               <span className="text-xs font-semibold text-gray-500">{grade(classWeighted)}</span>
             </td>
-            <td/>
+            <td/><td/>
           </tr>
         </tbody>
       </table>
@@ -618,6 +825,7 @@ export default function CourseManager() {
   const [searchParams, setSearchParams] = useSearchParams()
   const gradebookRef  = useRef(null)
   const [selectedStudent, setSelectedStudent] = useState(null)
+  const [markEntry,       setMarkEntry]       = useState(null) // { student }
   const [chartMode, setChartMode] = useState('bars')  // 'bars' | 'curve'
   const [now, setNow] = useState(new Date())
   useEffect(() => {
@@ -1104,6 +1312,7 @@ export default function CourseManager() {
                     marksMap={marksMap}
                     activeTypes={activeTypes}
                     onSelectStudent={setSelectedStudent}
+                    onEnterMarks={s => setMarkEntry({ student: s })}
                   />
 
                   {!students.length && (
@@ -1119,6 +1328,17 @@ export default function CourseManager() {
           </>
         )}
       </div>
+
+      {/* ══ MARK ENTRY MODAL ══ */}
+      {markEntry && (
+        <MarkEntryModal
+          student={markEntry.student}
+          courseId={selectedId}
+          existingMarks={marksMap[markEntry.student.id] || []}
+          onClose={() => setMarkEntry(null)}
+          onSaved={() => { setMarkEntry(null); loadAnalytics(selectedId) }}
+        />
+      )}
 
       {/* ══ STUDENT DETAIL PANEL ══ */}
       {selectedStudent && (
