@@ -1037,16 +1037,6 @@ export default function CourseManager() {
               {/* actions */}
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => gradebookRef.current?.scrollIntoView({ behavior:'smooth' })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-                >
-                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <path d="M3 9h18M9 21V9"/>
-                  </svg>
-                  Gradebook
-                </button>
-                <button
                   onClick={() => exportGradebookCSV(selectedCourse, students, marksMap, activeTypes, user)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors"
                 >
@@ -1056,16 +1046,6 @@ export default function CourseManager() {
                     <line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
                   Export report
-                </button>
-                <button
-                  onClick={() => setModal({ type:'edit', course:selectedCourse })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-                >
-                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                  Edit
                 </button>
                 <button
                   onClick={() => setDeleteTarget(selectedCourse)}
