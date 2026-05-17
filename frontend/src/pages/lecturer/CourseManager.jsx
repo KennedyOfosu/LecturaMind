@@ -694,11 +694,8 @@ export default function CourseManager() {
 
   const allMarks = useMemo(() => Object.values(marksMap).flat(), [marksMap])
 
-  /* assessment types present in data — defined first so weighted avgs can use it */
-  const activeTypes = useMemo(() => {
-    const present = new Set(allMarks.map(m => m.assessment_type))
-    return ASSESS_TYPES.filter(t => present.has(t))
-  }, [allMarks])
+  /* always show all assessment types — show 0 when no marks exist */
+  const activeTypes = ASSESS_TYPES
 
   /* weighted average per student */
   const studentWeightedAvgs = useMemo(() =>
