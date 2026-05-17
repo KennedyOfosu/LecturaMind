@@ -67,7 +67,7 @@ export default function Login() {
           boxShadow: '0 24px 64px rgba(0,0,0,0.13)',
           overflow: 'hidden',
           display: 'flex', flexDirection: 'column',
-          height: '84vh',
+          height: '72vh',
         }}>
 
           {/* Card body */}
@@ -152,8 +152,27 @@ export default function Login() {
         </div>
       </div>
 
-      {/* RIGHT — background visible */}
-      <div style={{ width: '55%' }} />
+      {/* RIGHT — headline + subtext */}
+      <div style={{
+        width: '55%', height: '100%',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        padding: '0 60px',
+        boxSizing: 'border-box',
+      }}>
+        <p style={{
+          fontFamily: "'Tusker Grotesk', sans-serif", fontWeight: 800,
+          fontSize: 'clamp(3rem, 6vw, 5.5rem)',
+          color: '#2e54fe', lineHeight: 1.05, margin: '0 0 20px',
+        }}>
+          Smarter<br />Classrooms<br />Start Here
+        </p>
+        <p style={{
+          fontFamily: 'Inter, sans-serif', fontSize: 18,
+          color: '#202125', lineHeight: 1.6, margin: 0, maxWidth: 420,
+        }}>
+          Built to help lecturers teach better and students learn smarter.
+        </p>
+      </div>
 
     </div>
   )
