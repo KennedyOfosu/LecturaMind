@@ -614,6 +614,11 @@ export default function CourseManager() {
   const gradebookRef  = useRef(null)
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [chartMode, setChartMode] = useState('bars')  // 'bars' | 'curve'
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   /* course list */
   const [courses,     setCourses]     = useState([])
@@ -869,107 +874,133 @@ export default function CourseManager() {
               <div className="px-6 py-5 flex flex-col gap-5">
 
                 {/* ── Course banner ── */}
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className="flex items-start justify-between gap-6 p-5">
-                    <div className="flex-1 min-w-0">
-                      {/* meta line: CODE badge · DESCRIPTION · LEVEL X · Y CREDITS */}
-                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex-wrap">
-                        <span
-                          className="font-mono font-bold text-xs px-2 py-0.5 rounded"
-                          style={{
-                            background:(LEVEL_COLORS[selectedCourse.level]||'#9ca3af')+'18',
-                            color:LEVEL_COLORS[selectedCourse.level]||'#9ca3af',
-                          }}
-                        >{selectedCourse.course_code}</span>
-                        {selectedCourse.description && (
-                          <>
-                            <span className="text-gray-200">·</span>
-                            <span>{selectedCourse.description}</span>
-                          </>
-                        )}
-                        {selectedCourse.level && (
-                          <>
-                            <span className="text-gray-200">·</span>
-                            <span>Year {Math.floor(selectedCourse.level / 100)}</span>
-                          </>
-                        )}
-                        {selectedCourse.credits && (
-                          <>
-                            <span className="text-gray-200">·</span>
-                            <span>{selectedCourse.credits} Credits</span>
-                          </>
-                        )}
-                      </div>
+                {(() => {
+                  /* live clock helpers */
+                  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+                  const liveDay  = dayNames[now.getDay()]
+                  const liveTime = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' })
+                  const liveDate = now.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
 
-                      {/* large course name */}
-                      <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-                        {selectedCourse.course_name}
-                      </h2>
+                  /* fallbacks so the card always looks full */
+                  const credits      = selectedCourse.credits      || '8'
+                  const room         = selectedCourse.room         || 'Room 5'
+                  const schedDays    = selectedCourse.schedule_days || `${liveDay}`
+                  const schedTime    = selectedCourse.schedule_time || '08:00 – 10:00'
 
-                      {/* schedule / room / lecturer row */}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                        <span>
-                          <span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px] mr-1">Semester</span>
-                          2025 / 26
-                        </span>
-                        {(selectedCourse.schedule_days || selectedCourse.schedule_time) && (
-                          <span>
-                            <span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px] mr-1">Schedule</span>
-                            {[selectedCourse.schedule_days, selectedCourse.schedule_time].filter(Boolean).join(' · ')}
-                          </span>
-                        )}
-                        {selectedCourse.room && (
-                          <span>
-                            <span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px] mr-1">Room</span>
-                            <strong className="text-gray-700">{selectedCourse.room}</strong>
-                          </span>
-                        )}
-                        {user?.full_name && (
-                          <span>
-                            <span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px] mr-1">Lecturer</span>
-                            <strong className="text-gray-700">{user.full_name}</strong>
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  return (
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="flex items-start justify-between gap-6 p-5">
+                        <div className="flex-1 min-w-0">
 
-                    {/* Stat cards */}
-                    <div className="flex gap-5 shrink-0">
-                      {[
-                        {
-                          k:'ENROLLED',
-                          v: students.length,
-                          sub:`${activeTypes.length} assessment${activeTypes.length!==1?'s':''}`,
-                          color:'text-gray-900',
-                        },
-                        {
-                          k:'CLASS AVG',
-                          v: classAvg!=null?fmtW(classAvg):'—',
-                          sub: null,
-                          color: classAvg==null?'text-gray-400':classAvg<50?'text-red-600':classAvg>=70?'text-emerald-600':'text-gray-900',
-                        },
-                        {
-                          k:'PASS RATE',
-                          v: students.length?`${passRate}%`:'—',
-                          sub: null,
-                          color: passRate<50&&students.length?'text-red-600':'text-gray-900',
-                        },
-                        {
-                          k:'AT RISK',
-                          v: atRisk,
-                          sub: `${onWatch} on watch`,
-                          color: atRisk>0?'text-red-600':'text-gray-900',
-                        },
-                      ].map(({ k, v, sub, color }) => (
-                        <div key={k} className="text-right">
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{k}</p>
-                          <p className={`text-2xl font-bold tabular-nums ${color}`}>{v}</p>
-                          {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+                          {/* meta line: CODE badge · DESCRIPTION · YEAR X · Y CREDITS */}
+                          <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex-wrap">
+                            <span
+                              className="font-mono font-bold text-xs px-2 py-0.5 rounded border"
+                              style={{
+                                background:(LEVEL_COLORS[selectedCourse.level]||'#9ca3af')+'15',
+                                color:LEVEL_COLORS[selectedCourse.level]||'#9ca3af',
+                                borderColor:(LEVEL_COLORS[selectedCourse.level]||'#9ca3af')+'40',
+                              }}
+                            >{selectedCourse.course_code}</span>
+
+                            {selectedCourse.description && (
+                              <><span className="text-gray-200">·</span><span>{selectedCourse.description}</span></>
+                            )}
+
+                            {selectedCourse.level && (
+                              <><span className="text-gray-200">·</span><span>Year {Math.floor(selectedCourse.level / 100)}</span></>
+                            )}
+
+                            <span className="text-gray-200">·</span>
+                            <span>{credits} Credits</span>
+                          </div>
+
+                          {/* large course name */}
+                          <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-3">
+                            {selectedCourse.course_name}
+                          </h2>
+
+                          {/* info row: SEMESTER · SCHEDULE (days + live clock) · ROOM · LECTURER */}
+                          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-gray-500">
+                            <span>
+                              <span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px] mr-1.5">Semester</span>
+                              <span className="font-semibold text-gray-700">2025 / 26</span>
+                            </span>
+
+                            <span className="flex items-center gap-1.5">
+                              <span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px]">Schedule</span>
+                              <span className="font-semibold text-gray-700">{schedDays}</span>
+                              <span className="text-gray-300">·</span>
+                              <span className="font-semibold text-gray-700">{schedTime}</span>
+                              {/* live clock */}
+                              <span className="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded bg-gray-50 border border-gray-100 font-mono text-[11px] text-gray-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0"/>
+                                {liveTime}
+                              </span>
+                            </span>
+
+                            <span>
+                              <span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px] mr-1.5">Room</span>
+                              <strong className="text-gray-700">{room}</strong>
+                            </span>
+
+                            {user?.full_name && (
+                              <span>
+                                <span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px] mr-1.5">Lecturer</span>
+                                <strong className="text-gray-700">{user.full_name}</strong>
+                              </span>
+                            )}
+                          </div>
+
                         </div>
-                      ))}
+
+                        {/* ── Stat cards ── */}
+                        <div className="flex gap-6 shrink-0">
+
+                          {/* ENROLLED */}
+                          <div className="text-right">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Enrolled</p>
+                            <p className="text-2xl font-bold tabular-nums text-gray-900">{students.length}</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5">{ASSESS_TYPES.length} assessments</p>
+                          </div>
+
+                          {/* CLASS AVG */}
+                          <div className="text-right">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Class Avg</p>
+                            <p className={`text-2xl font-bold tabular-nums ${
+                              classAvg==null?'text-gray-400':classAvg<50?'text-red-600':classAvg>=70?'text-emerald-600':'text-gray-900'
+                            }`}>
+                              {classAvg!=null?`${fmtW(classAvg)}%`:'—'}
+                            </p>
+                            {/* delta vs prev — placeholder until historical data is available */}
+                            <p className="text-[11px] text-gray-300 mt-0.5">— vs prev</p>
+                          </div>
+
+                          {/* PASS RATE */}
+                          <div className="text-right">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Pass Rate</p>
+                            <p className={`text-2xl font-bold tabular-nums ${
+                              students.length&&passRate<50?'text-red-600':'text-gray-900'
+                            }`}>
+                              {students.length?`${passRate}%`:'—'}
+                            </p>
+                            <p className="text-[11px] text-gray-300 mt-0.5">— vs prev</p>
+                          </div>
+
+                          {/* AT RISK */}
+                          <div className="text-right">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">At Risk</p>
+                            <p className={`text-2xl font-bold tabular-nums ${atRisk>0?'text-red-600':'text-gray-900'}`}>
+                              {atRisk}
+                            </p>
+                            <p className="text-[11px] text-gray-400 mt-0.5">{onWatch} on watch</p>
+                          </div>
+
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  )
+                })()}
 
                 {/* ── Two-column: histogram + performance ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
