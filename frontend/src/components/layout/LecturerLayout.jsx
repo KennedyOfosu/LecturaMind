@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation, Outlet } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams, Outlet } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { courseService } from '../../services/courseService'
 
@@ -91,7 +91,6 @@ const I = {
 }
 
 const navItems = [
-  { label: 'Create Course',    Icon: I.Plus,   path: '/lecturer/courses'       },
   { label: 'Upload Materials', Icon: I.Upload, path: '/lecturer/materials'     },
   { label: 'Announcements',    Icon: I.Bell,   path: '/lecturer/announcements' },
   { label: 'Generate Quiz',    Icon: I.Star,   path: '/lecturer/quizzes'       },
@@ -104,6 +103,7 @@ export default function LecturerLayout() {
   const { user, logout } = useAuth()
   const navigate          = useNavigate()
   const location          = useLocation()
+  const [urlParams]       = useSearchParams()
   const [courses,     setCourses]     = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -111,7 +111,8 @@ export default function LecturerLayout() {
     courseService.getMyCourses().then((r) => setCourses(r.data)).catch(() => {})
   }, [])
 
-  const isActive = (path) => location.pathname === path
+  const isActive       = (path) => location.pathname === path
+  const activeCourseId = location.pathname === '/lecturer/courses' ? urlParams.get('course') : null
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#F0F0F2' }}>
@@ -158,7 +159,11 @@ export default function LecturerLayout() {
                 ? <p className="text-xs text-gray-400 px-3 py-1">No courses yet</p>
                 : courses.map((c) => (
                   <button key={c.id} onClick={() => navigate(`/lecturer/courses?course=${c.id}`)}
-                    className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-white transition-colors truncate">
+                    className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors truncate ${
+                      activeCourseId === c.id
+                        ? 'bg-white text-gray-900 font-medium'
+                        : 'text-gray-600 hover:bg-white'
+                    }`}>
                     <span className="shrink-0"><I.Folder /></span>
                     <span className="truncate">{c.course_name}</span>
                   </button>

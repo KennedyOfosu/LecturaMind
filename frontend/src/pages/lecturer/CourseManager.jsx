@@ -422,11 +422,16 @@ export default function CourseManager() {
 
   useEffect(() => { loadAnalytics(selectedId) }, [selectedId, loadAnalytics])
 
-  /* select course from URL ?course=<id> */
+  /* select course from URL ?course=<id> — keep param in URL for sidebar highlighting */
   useEffect(() => {
     const courseParam = searchParams.get('course')
-    if (courseParam) { setSelectedId(courseParam); setSearchParams({}, { replace: true }) }
+    if (courseParam) setSelectedId(courseParam)
   }, [searchParams])
+
+  /* sync URL when selectedId changes so sidebar stays in sync */
+  useEffect(() => {
+    if (selectedId) setSearchParams({ course: selectedId }, { replace: true })
+  }, [selectedId])
 
   /* open create modal from URL ?new=1 */
   useEffect(() => {
