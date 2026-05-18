@@ -183,7 +183,7 @@ function AnnouncementsCalendarCard({ announcements, onManage }) {
 
       {/* ── Announcements list — 2 items visible, scrollable, no scrollbar ── */}
       <div
-        className="px-3 pb-3 flex flex-col gap-2 ann-list"
+        className="px-3 flex flex-col gap-2 ann-list"
         style={{
           maxHeight: 150,
           overflowY: 'auto',
@@ -232,6 +232,7 @@ function AnnouncementsCalendarCard({ announcements, onManage }) {
             </div>
           )
         })}
+        <div style={{ height: 8, flexShrink: 0 }} />
       </div>
     </div>
   )
