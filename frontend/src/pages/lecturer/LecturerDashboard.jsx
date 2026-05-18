@@ -181,10 +181,18 @@ function AnnouncementsCalendarCard({ announcements, onManage }) {
         </button>
       </div>
 
-      {/* ── Announcements list ── */}
-      <div className="flex-1 overflow-y-auto divide-y" style={{ borderColor:'#F0F0F2', maxHeight: 260 }}>
+      {/* ── Announcements list — 2 items visible, scrollable, no scrollbar ── */}
+      <div
+        className="px-3 pb-3 flex flex-col gap-2 ann-list"
+        style={{
+          maxHeight: 156,
+          overflowY: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
         {!announcements.length ? (
-          <div className="flex items-center justify-center py-8 text-xs text-gray-400">
+          <div className="flex items-center justify-center py-6 text-xs text-gray-400">
             No announcements yet
           </div>
         ) : announcements.map(a => {
@@ -193,10 +201,13 @@ function AnnouncementsCalendarCard({ announcements, onManage }) {
           const day = d.getDate()
           const dow = SHORT_DAYS[d.getDay()]
           return (
-            <div key={a.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-              {/* date pill */}
-              <div className="flex flex-col items-center justify-center shrink-0 w-10 pt-0.5">
-                <span className="text-lg font-bold text-gray-800 leading-none">{day}</span>
+            <div key={a.id}
+              className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-default"
+              style={{ border: '1px solid #E5E7EB', backgroundColor: '#fff' }}
+            >
+              {/* date block */}
+              <div className="flex flex-col items-center justify-center shrink-0 w-9">
+                <span className="text-base font-bold text-gray-800 leading-none">{day}</span>
                 <span className="text-[10px] font-semibold text-gray-400 uppercase">{dow}</span>
               </div>
               {/* content */}
@@ -209,8 +220,10 @@ function AnnouncementsCalendarCard({ announcements, onManage }) {
                   </span>
                   <span className="flex items-center gap-1 text-[11px] text-gray-400">
                     <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-                      <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                      <rect x="3" y="4" width="18" height="18" rx="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
                     </svg>
                     {d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})} at {d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
                   </span>
