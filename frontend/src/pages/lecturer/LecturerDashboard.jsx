@@ -3,7 +3,7 @@
  * Layout: greeting + horizontal stats → summary card grid with clean padding.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useSocket } from '../../hooks/useSocket'
@@ -57,7 +57,171 @@ const timeAgo = (ts) => {
   const m = Math.floor((Date.now() - new Date(ts)) / 60000)
   if (m < 1)  return 'just now'
   if (m < 60) return `${m}m ago`
-  return `${Math.floor(m / 60)}h ago`
+  if (m < 1440) return `${Math.floor(m / 60)}h ago`
+  return `${Math.floor(m / 1440)}d ago`
+}
+
+const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT']
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const SHORT_DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+
+function announcementStatus(postedAt) {
+  const days = (Date.now() - new Date(postedAt)) / 86400000
+  if (days < 2)  return { label:'New',    bg:'#dcfce7', color:'#15803d' }
+  if (days < 7)  return { label:'Recent', bg:'#dbeafe', color:'#1d4ed8' }
+  if (days < 30) return { label:'Posted', bg:'#f3f4f6', color:'#6b7280' }
+  return               { label:'Archived',bg:'#fef9c3', color:'#a16207' }
+}
+
+function AnnouncementsCalendarCard({ announcements, onManage }) {
+  const today = new Date()
+  const [viewYear,  setViewYear]  = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
+
+  /* days in current view that have announcements */
+  const announcedDays = new Set(
+    announcements.map(a => {
+      const d = new Date(a.posted_at)
+      if (d.getFullYear() === viewYear && d.getMonth() === viewMonth)
+        return d.getDate()
+      return null
+    }).filter(Boolean)
+  )
+
+  /* build calendar grid */
+  const firstDay    = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const prevDays    = new Date(viewYear, viewMonth, 0).getDate()
+  const cells = []
+  for (let i = firstDay - 1; i >= 0; i--)
+    cells.push({ day: prevDays - i, cur: false })
+  for (let i = 1; i <= daysInMonth; i++)
+    cells.push({ day: i, cur: true })
+  while (cells.length % 7 !== 0)
+    cells.push({ day: cells.length - daysInMonth - firstDay + 1, cur: false })
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+    else setViewMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+    else setViewMonth(m => m + 1)
+  }
+
+  const isToday = (day, cur) =>
+    cur && day === today.getDate() &&
+    viewMonth === today.getMonth() && viewYear === today.getFullYear()
+
+  return (
+    <div className="rounded-2xl overflow-hidden flex flex-col"
+      style={{ backgroundColor:'#fff', border:'1px solid #D2D4D9' }}>
+
+      {/* ── Calendar ── */}
+      <div className="px-5 pt-4 pb-3">
+        {/* Month header */}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-gray-800">
+            {MONTHS[viewMonth]} <span className="text-gray-400 font-normal">{viewYear}</span>
+          </p>
+          <div className="flex items-center gap-1">
+            <button onClick={prevMonth}
+              className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <span className="text-xs font-medium text-gray-500 px-1.5 py-0.5 rounded-lg border border-gray-200">
+              Month
+            </span>
+            <button onClick={nextMonth}
+              className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Day headers */}
+        <div className="grid grid-cols-7 mb-1">
+          {DAYS.map(d => (
+            <div key={d} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        <div className="grid grid-cols-7 gap-y-0.5">
+          {cells.map((cell, i) => (
+            <div key={i} className="flex flex-col items-center py-0.5">
+              <span className={`text-xs w-6 h-6 flex items-center justify-center rounded-full font-medium transition-colors
+                ${!cell.cur ? 'text-gray-300' : isToday(cell.day, cell.cur)
+                  ? 'bg-gray-900 text-white font-bold'
+                  : 'text-gray-700 hover:bg-gray-100'
+                }`}>
+                {cell.day}
+              </span>
+              {/* dot for announcement days */}
+              <span className={`w-1 h-1 rounded-full mt-0.5 ${
+                cell.cur && announcedDays.has(cell.day) ? 'bg-blue-400' : 'invisible'
+              }`}/>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Divider + Announcements header ── */}
+      <div className="flex items-center justify-between px-5 py-3 border-t border-b"
+        style={{ borderColor:'#F0F0F2' }}>
+        <p className="text-sm font-semibold text-gray-800">Your announcements</p>
+        <button onClick={onManage}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-colors"
+          style={{ backgroundColor:'#111' }}>
+          + Add new
+        </button>
+      </div>
+
+      {/* ── Announcements list ── */}
+      <div className="flex-1 overflow-y-auto divide-y" style={{ borderColor:'#F0F0F2', maxHeight: 260 }}>
+        {!announcements.length ? (
+          <div className="flex items-center justify-center py-8 text-xs text-gray-400">
+            No announcements yet
+          </div>
+        ) : announcements.map(a => {
+          const d   = new Date(a.posted_at)
+          const st  = announcementStatus(a.posted_at)
+          const day = d.getDate()
+          const dow = SHORT_DAYS[d.getDay()]
+          return (
+            <div key={a.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+              {/* date pill */}
+              <div className="flex flex-col items-center justify-center shrink-0 w-10 pt-0.5">
+                <span className="text-lg font-bold text-gray-800 leading-none">{day}</span>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase">{dow}</span>
+              </div>
+              {/* content */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate leading-tight">{a.title}</p>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: st.bg, color: st.color }}>
+                    {st.label}
+                  </span>
+                  <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                    <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    {d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})} at {d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export default function LecturerDashboard() {
@@ -258,21 +422,11 @@ export default function LecturerDashboard() {
             </div>
           </Card>
 
-          {/* Announcements */}
-          <Card title="Announcements" Icon={Ic.Bell} linkText="Manage" onLink={() => navigate('/lecturer/announcements')}>
-            {!announcements.length ? (
-              <div className="flex items-center justify-center py-6 text-xs text-gray-400">No announcements yet</div>
-            ) : (
-              <div>
-                {announcements.map((a) => (
-                  <div key={a.id} className="px-5 py-3.5 border-t" style={{ borderColor: '#F0F0F2' }}>
-                    <p className="text-sm font-medium text-gray-800 truncate">{a.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{timeAgo(a.posted_at)}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+          {/* Announcements — calendar + event list */}
+          <AnnouncementsCalendarCard
+            announcements={announcements}
+            onManage={() => navigate('/lecturer/announcements')}
+          />
 
 
         </div>
