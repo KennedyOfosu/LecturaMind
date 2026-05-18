@@ -185,7 +185,7 @@ function AnnouncementsCalendarCard({ announcements, onManage }) {
       <div
         className="px-3 pb-3 flex flex-col gap-2 ann-list"
         style={{
-          maxHeight: 220,
+          maxHeight: 150,
           overflowY: 'auto',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
