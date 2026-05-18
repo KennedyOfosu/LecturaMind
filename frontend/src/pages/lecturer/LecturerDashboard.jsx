@@ -34,7 +34,7 @@ const Ic = {
 /* Reusable summary card */
 function Card({ title, Icon, linkText, onLink, children }) {
   return (
-    <div className="rounded-2xl flex flex-col overflow-hidden h-full"
+    <div className="rounded-2xl flex flex-col overflow-hidden"
       style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
       <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: '#F0F0F2' }}>
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
@@ -339,7 +339,7 @@ export default function LecturerDashboard() {
       </div>
 
       {/* ── Summary grid: 2 cols left (students) + 1 col right (stacked cards) ── */}
-      <div className="grid grid-cols-3 gap-4 items-stretch">
+      <div className="grid grid-cols-3 gap-4 items-start">
 
         {/* ── Enrolled Students — tall, spans 2 cols, fills height ── */}
         <div className="col-span-2 rounded-2xl overflow-hidden flex flex-col"
