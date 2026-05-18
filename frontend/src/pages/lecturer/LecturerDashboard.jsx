@@ -171,8 +171,7 @@ function AnnouncementsCalendarCard({ announcements, onManage }) {
       </div>
 
       {/* ── Divider + Announcements header ── */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-b"
-        style={{ borderColor:'#F0F0F2' }}>
+      <div className="flex items-center justify-between px-5 py-3">
         <p className="text-sm font-semibold text-gray-800">Your announcements</p>
         <button onClick={onManage}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-colors"
