@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { animate, stagger, remove as animeRemove } from 'animejs'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { courseService } from '../../services/courseService'
@@ -219,84 +220,159 @@ function StudentDetailPanel({ student, marks, activeTypes, course, user, onClose
   )
 }
 
-/* ─────────────── SVG histogram ─────────────────────────────── */
+/* ─────────────── animated histogram ────────────────────────── */
+const BIN_COLORS = [
+  '#e11d48','#e11d48','#e11d48','#e11d48','#e11d48', // F  0-49
+  '#f97316',                                          // D  50-59
+  '#f59e0b',                                          // C  60-69
+  '#3b82f6','#3b82f6',                                // B  70-89
+  '#10b981',                                          // A  90-99
+]
+
 function GradeHistogram({ studentAverages, mode = 'bars' }) {
   const bins = Array(10).fill(0)
   studentAverages.forEach(v => { if (v != null) bins[binIndex(v)]++ })
-  const maxBin = Math.max(...bins, 1)
-  const W = 480, H = 180, padL = 28, padB = 32, padT = 20, padR = 8
-  const chartW = W - padL - padR
-  const chartH = H - padT - padB
-  const barW   = Math.floor(chartW / 10) - 4
+  const maxBin    = Math.max(...bins, 1)
+  const barRefs   = useRef([])
+  const countRefs = useRef([])
+  const curveRef  = useRef(null)
+  const animKey   = studentAverages.join(',') + mode
 
-  const yTicks = [0, Math.ceil(maxBin / 2), maxBin]
+  /* animate bars on data change */
+  useEffect(() => {
+    const bars = barRefs.current.filter(Boolean)
+    if (!bars.length) return
 
-  /* midpoints for curve overlay */
-  const midpoints = bins.map((cnt, i) => ({
-    x: padL + i * (chartW / 10) + barW / 2 + 2,
-    y: padT + chartH - (cnt / maxBin) * chartH,
+    animeRemove(bars)
+    animate(bars, {
+      scaleY: (el, i) => bins[i] > 0 ? bins[i] / maxBin : 0.015,
+      opacity: (el, i) => bins[i] > 0 ? (mode === 'curve' ? 0.2 : 1) : 0.08,
+      duration: 700,
+      delay: stagger(55, { start: 80 }),
+      ease: 'outCubic',
+    })
+
+    /* count-up labels */
+    const counts = countRefs.current.filter(Boolean)
+    counts.forEach((el, i) => {
+      const target = bins[i]
+      const obj = { val: 0 }
+      animate(obj, {
+        val: target,
+        duration: 700,
+        delay: 80 + i * 55,
+        ease: 'outCubic',
+        onUpdate() { el.textContent = Math.round(obj.val) },
+      })
+    })
+  }, [animKey])
+
+  /* animate curve path */
+  useEffect(() => {
+    if (mode !== 'curve' || !curveRef.current) return
+    const length = curveRef.current.getTotalLength?.() || 300
+    animate(curveRef.current, {
+      strokeDashoffset: [length, 0],
+      opacity: [0, 1],
+      duration: 900,
+      ease: 'inOutCubic',
+    })
+  }, [animKey])
+
+  /* SVG curve path */
+  const svgW = 480, svgH = 160
+  const slotW = svgW / 10
+  const midpoints = bins.map((_, i) => ({
+    x: i * slotW + slotW / 2,
+    y: bins[i] > 0 ? svgH - (bins[i] / maxBin) * svgH * 0.85 : svgH,
   }))
-
   const curvePath = midpoints.reduce((acc, p, i) => {
     if (i === 0) return `M ${p.x} ${p.y}`
     const prev = midpoints[i - 1]
-    const cpx = (prev.x + p.x) / 2
+    const cpx  = (prev.x + p.x) / 2
     return `${acc} C ${cpx} ${prev.y}, ${cpx} ${p.y}, ${p.x} ${p.y}`
   }, '')
+  const curveLen = 500
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="overflow-visible">
-      {/* gridlines + y-labels */}
-      {yTicks.map(v => {
-        const y = padT + chartH - (v / maxBin) * chartH
-        return (
-          <g key={v}>
-            <line x1={padL} y1={y} x2={W-padR} y2={y} stroke="#f3f4f6" strokeWidth={1}/>
-            <text x={padL-4} y={y+4} textAnchor="end" fontSize={9} fill="#9ca3af">{v}</text>
-          </g>
-        )
-      })}
+    <div className="w-full">
+      {/* bar chart */}
+      <div className="flex items-end gap-1.5 h-44 px-1">
+        {bins.map((cnt, i) => (
+          <div key={i} className="flex flex-col items-center flex-1 h-full justify-end">
+            {/* count label */}
+            <span
+              ref={el => countRefs.current[i] = el}
+              className="text-xs font-bold mb-1 tabular-nums transition-opacity"
+              style={{
+                color: cnt > 0 ? BIN_COLORS[i] : 'transparent',
+                minHeight: 16,
+                opacity: mode === 'curve' ? 0.4 : 1,
+              }}
+            >
+              {cnt > 0 ? cnt : ''}
+            </span>
+            {/* bar */}
+            <div className="relative w-full flex justify-center" style={{ height: '85%' }}>
+              <div
+                ref={el => barRefs.current[i] = el}
+                className="w-full rounded-t-md"
+                style={{
+                  height: '100%',
+                  background: cnt > 0
+                    ? `linear-gradient(to top, ${BIN_COLORS[i]}cc, ${BIN_COLORS[i]})`
+                    : '#f3f4f6',
+                  transformOrigin: 'bottom',
+                  transform: 'scaleY(0)',
+                  opacity: 0,
+                  boxShadow: cnt > 0 ? `0 -2px 8px ${BIN_COLORS[i]}40` : 'none',
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
 
-      {/* bars */}
-      {bins.map((cnt, i) => {
-        const bh     = (cnt / maxBin) * chartH
-        const x      = padL + i * (chartW / 10) + 2
-        const y      = padT + chartH - bh
-        const labelY = padT + chartH + 14
-        return (
-          <g key={i}>
-            <rect x={x} y={cnt===0?padT+chartH-1:y} width={barW}
-              height={Math.max(bh,1)} fill="#e11d48" rx={3}
-              opacity={cnt===0?0.12:(mode==='curve'?0.25:1)}/>
-            {cnt > 0 && mode === 'bars' && (
-              <text x={x+barW/2} y={y-4} textAnchor="middle" fontSize={11}
-                fontWeight="600" fill="#374151">{cnt}</text>
-            )}
-            <text x={x+barW/2} y={labelY} textAnchor="middle" fontSize={9} fill="#9ca3af">
-              {HIST_BUCKETS[i]}
-            </text>
-          </g>
-        )
-      })}
+      {/* x-axis labels */}
+      <div className="flex gap-1.5 px-1 mt-1.5">
+        {HIST_BUCKETS.map((label, i) => (
+          <div key={i} className="flex-1 text-center">
+            <span className="text-[10px] text-gray-400">{label}</span>
+          </div>
+        ))}
+      </div>
 
       {/* curve overlay */}
       {mode === 'curve' && (
-        <>
-          <path d={curvePath} fill="none" stroke="#e11d48" strokeWidth={2.5} strokeLinejoin="round"/>
-          {midpoints.map((p, i) => bins[i] > 0 && (
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r={4} fill="#e11d48"/>
-              <text x={p.x} y={p.y-8} textAnchor="middle" fontSize={11} fontWeight="600" fill="#374151">
-                {bins[i]}
-              </text>
-            </g>
-          ))}
-        </>
+        <div className="absolute inset-0 pointer-events-none" style={{ top: 0 }}>
+          <svg viewBox={`0 0 ${svgW} ${svgH + 20}`} className="w-full h-full" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="curveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stopColor="#e11d48"/>
+                <stop offset="50%"  stopColor="#f59e0b"/>
+                <stop offset="100%" stopColor="#10b981"/>
+              </linearGradient>
+            </defs>
+            <path
+              ref={curveRef}
+              d={curvePath}
+              fill="none"
+              stroke="url(#curveGrad)"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={curveLen}
+              strokeDashoffset={curveLen}
+              opacity={0}
+            />
+            {midpoints.map((p, i) => bins[i] > 0 && (
+              <circle key={i} cx={p.x} cy={p.y} r={4}
+                fill={BIN_COLORS[i]} stroke="white" strokeWidth={1.5}/>
+            ))}
+          </svg>
+        </div>
       )}
-
-      {/* x baseline */}
-      <line x1={padL} y1={padT+chartH} x2={W-padR} y2={padT+chartH} stroke="#e5e7eb" strokeWidth={1}/>
-    </svg>
+    </div>
   )
 }
 
@@ -316,12 +392,28 @@ function gradeDist(avgs) {
 
 /* ─────────────── horizontal perf bars ───────────────────────── */
 function AssessmentPerf({ typeAverages }) {
+  const barRefs = useRef([])
+  const animKey = typeAverages.map(t => t.avg).join(',')
+
+  useEffect(() => {
+    const bars = barRefs.current.filter(Boolean)
+    if (!bars.length) return
+    animeRemove(bars)
+    animate(bars, {
+      width: (el) => [0, el.dataset.target],
+      opacity: [0, 1],
+      duration: 800,
+      delay: stagger(80, { start: 100 }),
+      ease: 'outQuart',
+    })
+  }, [animKey])
+
   if (!typeAverages.length) return (
     <p className="text-xs text-gray-400 py-8 text-center">No marks recorded yet</p>
   )
   return (
     <div className="flex flex-col" style={{ gap: 26 }}>
-      {typeAverages.map(({ type, avg: v, weight }) => (
+      {typeAverages.map(({ type, avg: v, weight }, i) => (
         <div key={type} className="flex items-center gap-3">
           <span
             className="text-xs font-semibold text-gray-500 shrink-0 px-2 py-0.5 rounded border border-gray-200 bg-gray-50"
@@ -330,16 +422,25 @@ function AssessmentPerf({ typeAverages }) {
             {ASSESS_SHORT[type] || type}
           </span>
           <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
-            <div className="h-full rounded-full bg-red-500 transition-all"
-              style={{ width: v > 0 ? `${v}%` : '2%' }}/>
+            <div
+              ref={el => barRefs.current[i] = el}
+              data-target={v > 0 ? `${v}%` : '2%'}
+              className="h-full rounded-full"
+              style={{
+                width: 0,
+                opacity: 0,
+                background: v >= 70
+                  ? 'linear-gradient(to right, #f87171, #e11d48)'
+                  : v >= 50
+                  ? 'linear-gradient(to right, #fca5a5, #f87171)'
+                  : 'linear-gradient(to right, #fecaca, #fca5a5)',
+              }}
+            />
           </div>
           <span className="text-sm font-bold tabular-nums text-gray-800 w-9 text-right shrink-0">
             {v}
           </span>
-          {/* delta placeholder — to be replaced when historical cohort data is available */}
-          <span className="text-[11px] w-12 text-right shrink-0 font-medium text-gray-300">
-            — —
-          </span>
+          <span className="text-[11px] w-12 text-right shrink-0 font-medium text-gray-300">— —</span>
         </div>
       ))}
     </div>
@@ -1241,7 +1342,9 @@ export default function CourseManager() {
                         <p className="text-sm text-gray-400">No students enrolled</p>
                       </div>
                     ) : (
-                      <GradeHistogram studentAverages={studentWeightedAvgs} mode={chartMode}/>
+                      <div className="relative">
+                        <GradeHistogram studentAverages={studentWeightedAvgs} mode={chartMode}/>
+                      </div>
                     )}
                   </div>
 
