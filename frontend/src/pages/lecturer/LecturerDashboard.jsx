@@ -296,34 +296,6 @@ export default function LecturerDashboard() {
             )}
           </Card>
 
-          {/* Course Materials */}
-          <Card title="Course Materials" Icon={Ic.File} linkText="Upload" onLink={() => navigate('/lecturer/materials')}>
-            {!materials.length ? (
-              <div className="flex flex-col items-center justify-center py-6 gap-2">
-                <p className="text-xs text-gray-400">No materials uploaded yet</p>
-                <button onClick={() => navigate('/lecturer/materials')}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium"
-                  style={{ backgroundColor: '#F0F0F2', color: '#374151' }}>
-                  <Ic.Upload /> Upload now
-                </button>
-              </div>
-            ) : (
-              <div>
-                {materials.map((m) => (
-                  <div key={m.id} className="px-5 py-3.5 border-t flex items-center gap-3" style={{ borderColor: '#F0F0F2' }}>
-                    <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: '#F0F0F2' }}>
-                      <Ic.File />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-gray-800 truncate">{m.file_name}</p>
-                      <p className="text-xs text-gray-400 uppercase">{m.file_type}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
 
         </div>
       </div>
