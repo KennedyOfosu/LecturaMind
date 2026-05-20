@@ -9,8 +9,8 @@ from middleware.auth_middleware import require_auth
 
 profile_bp = Blueprint("profile", __name__)
 
-LECTURER_FIELDS = ["full_name", "department", "phone", "bio"]
-STUDENT_FIELDS  = ["full_name", "phone", "programme", "level", "academic_year"]
+LECTURER_FIELDS = ["full_name", "department", "phone", "bio", "user_id_number"]
+STUDENT_FIELDS  = ["full_name", "phone", "programme", "level", "academic_year", "user_id_number"]
 
 
 @profile_bp.put("/update")

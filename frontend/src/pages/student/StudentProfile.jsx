@@ -62,11 +62,12 @@ export default function StudentProfile() {
   const [courseCode, setCourseCode] = useState('')
 
   const [form, setForm] = useState({
-    full_name:     '',
-    phone:         '',
-    programme:     '',
-    level:         '',
-    academic_year: '',
+    full_name:      '',
+    phone:          '',
+    programme:      '',
+    level:          '',
+    academic_year:  '',
+    user_id_number: '',
   })
   const [original, setOriginal] = useState(null)
 
@@ -84,11 +85,12 @@ export default function StudentProfile() {
       ])
       const d = pRes.data
       const initial = {
-        full_name:     d.full_name     || '',
-        phone:         d.phone         || '',
-        programme:     d.programme     || '',
-        level:         d.level         || '',
-        academic_year: d.academic_year || '',
+        full_name:      d.full_name      || '',
+        phone:          d.phone          || '',
+        programme:      d.programme      || '',
+        level:          d.level          || '',
+        academic_year:  d.academic_year  || '',
+        user_id_number: d.user_id_number || '',
       }
       setProfile(d)
       setForm(initial)
@@ -111,11 +113,12 @@ export default function StudentProfile() {
     setSaving(true)
     try {
       await api.put('/api/profile/update', {
-        full_name:     form.full_name,
-        phone:         form.phone,
-        programme:     form.programme,
-        level:         form.level ? parseInt(form.level) : undefined,
-        academic_year: form.academic_year || null,
+        full_name:      form.full_name,
+        phone:          form.phone,
+        programme:      form.programme,
+        level:          form.level ? parseInt(form.level) : undefined,
+        academic_year:  form.academic_year || null,
+        user_id_number: form.user_id_number || null,
       })
       toast.success('Profile saved successfully')
       setDirty(false)
@@ -204,8 +207,13 @@ export default function StudentProfile() {
       } title="Personal Information">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Field label="Full Name" value={form.full_name} onChange={(e) => patch('full_name', e.target.value)} />
-          <Field label="Email" value={profile?.email || ''} disabled />
-          <Field label="Student ID" value={profile?.user_id_number || ''} disabled />
+          <div>
+            <p className="text-xs font-medium text-gray-400 mb-1">Email</p>
+            <input value={profile?.email || ''} disabled
+              className="w-full bg-transparent border-b border-gray-100 py-2 text-sm text-gray-400 cursor-not-allowed focus:outline-none" />
+            <p className="text-xs text-gray-300 mt-0.5">Email is managed by your account and cannot be changed here.</p>
+          </div>
+          <Field label="Student ID" value={form.user_id_number} onChange={(e) => patch('user_id_number', e.target.value)} />
           <Field label="Phone Number" value={form.phone} onChange={(e) => patch('phone', e.target.value)} />
         </div>
       </Section>

@@ -53,7 +53,7 @@ export default function LecturerProfile() {
   const [adding,      setAdding]      = useState(false)
   const [removing,    setRemoving]    = useState(null)
 
-  const [form, setForm] = useState({ full_name: '', department: '', phone: '', bio: '' })
+  const [form, setForm] = useState({ full_name: '', department: '', phone: '', bio: '', user_id_number: '' })
   const [original, setOriginal] = useState(null)
 
   const [newA, setNewA] = useState({ course_id: '', programme: '', level: '', semester: '', academic_year: '' })
@@ -69,7 +69,7 @@ export default function LecturerProfile() {
         api.get('/api/assignments/my'),
       ])
       const d = pRes.data
-      const initial = { full_name: d.full_name || '', department: d.department || '', phone: d.phone || '', bio: d.bio || '' }
+      const initial = { full_name: d.full_name || '', department: d.department || '', phone: d.phone || '', bio: d.bio || '', user_id_number: d.user_id_number || '' }
       setProfile(d)
       setForm(initial)
       setOriginal(initial)
@@ -187,8 +187,13 @@ export default function LecturerProfile() {
       } title="Personal Information">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Field label="Full Name"    value={form.full_name}  onChange={(e) => patch('full_name', e.target.value)} />
-          <Field label="Email"        value={profile?.email}  disabled />
-          <Field label="Lecturer ID"  value={profile?.user_id_number} disabled />
+          <div>
+            <p className="text-xs font-medium text-gray-400 mb-1">Email</p>
+            <input value={profile?.email || ''} disabled
+              className="w-full bg-transparent border-b border-gray-100 py-2 text-sm text-gray-400 cursor-not-allowed focus:outline-none" />
+            <p className="text-xs text-gray-300 mt-0.5">Email is managed by your account and cannot be changed here.</p>
+          </div>
+          <Field label="Lecturer ID"  value={form.user_id_number} onChange={(e) => patch('user_id_number', e.target.value)} placeholder="e.g. LEC-2024-001" />
           <Field label="Phone Number" value={form.phone}      onChange={(e) => patch('phone', e.target.value)} placeholder="+233…" />
           <div className="md:col-span-2">
             <Field label="Department"   value={form.department} onChange={(e) => patch('department', e.target.value)} placeholder="e.g. Department of Information Technology" />
