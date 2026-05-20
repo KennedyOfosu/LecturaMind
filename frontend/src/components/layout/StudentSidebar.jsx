@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { courseService } from '../../services/courseService'
+import { useCourses } from '../../context/CoursesContext'
 import { useSessions } from '../../context/SessionsContext'
 
 /* ── Icons ── */
@@ -138,13 +138,12 @@ function CourseSessionGroup({ course, sessions, defaultOpen }) {
 /* ── Sidebar ── */
 export default function StudentSidebar({ open, onToggle }) {
   const { user, logout }              = useAuth()
+  const { courses }                   = useCourses()
   const { sessions, refreshSessions } = useSessions()
   const navigate                      = useNavigate()
   const location                      = useLocation()
-  const [courses, setCourses]         = useState([])
 
   useEffect(() => {
-    courseService.getEnrolled().then((r) => setCourses(r.data)).catch(() => {})
     refreshSessions()
   }, [refreshSessions])
 

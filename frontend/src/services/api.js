@@ -19,15 +19,27 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Handle auth errors globally
+// Handle auth errors globally + auto-retry on network errors / 5xx (backend cold start)
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config
+
     if (error.response?.status === 401) {
       localStorage.removeItem('lm_token')
       localStorage.removeItem('lm_user')
       window.location.href = '/login'
+      return Promise.reject(error)
     }
+
+    // Retry up to 2 times on network errors or 5xx responses
+    const shouldRetry = !error.response || error.response.status >= 500
+    if (shouldRetry && (config.__retryCount || 0) < 2) {
+      config.__retryCount = (config.__retryCount || 0) + 1
+      await new Promise((r) => setTimeout(r, 1000 * config.__retryCount))
+      return api(config)
+    }
+
     return Promise.reject(error)
   }
 )

@@ -17,15 +17,30 @@ function fmtDate(iso) {
 export default function AnnouncementsView({ courseId }) {
   const [announcements, setAnnouncements] = useState([])
   const [loading,       setLoading]       = useState(true)
+  const [fetchError,    setFetchError]    = useState(false)
   const [expanded,      setExpanded]      = useState(null)
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true)
+    setFetchError(false)
     announcementService.getByCourse(courseId)
       .then((res) => setAnnouncements(res.data || []))
+      .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
-  }, [courseId])
+  }
+
+  useEffect(load, [courseId])
 
   if (loading) return <div className="flex justify-center py-16"><Spinner /></div>
+
+  if (fetchError) return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+      <p className="text-sm text-gray-500">Could not load announcements. Check your connection and try again.</p>
+      <button onClick={load} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: '#111' }}>
+        Try again
+      </button>
+    </div>
+  )
 
   if (!announcements.length) return (
     <EmptyState

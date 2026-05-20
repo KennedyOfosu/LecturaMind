@@ -75,18 +75,21 @@ export default function CourseView() {
 
   const [course,      setCourse]      = useState(null)
   const [loading,     setLoading]     = useState(true)
+  const [fetchError,  setFetchError]  = useState(false)
   const [activeTab,   setActiveTab]   = useState(initialTab)
   const [chatOpen,    setChatOpen]    = useState(false)
 
-  /* fetch course */
-  useEffect(() => {
+  const loadCourse = () => {
     if (!courseId) return
     setLoading(true)
+    setFetchError(false)
     api.get(`/api/courses/${courseId}`)
       .then((res) => setCourse(res.data))
-      .catch(() => {})
+      .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
-  }, [courseId])
+  }
+
+  useEffect(loadCourse, [courseId])
 
   /* scroll to session message after AI tab loads */
   useEffect(() => {
@@ -105,6 +108,17 @@ export default function CourseView() {
   }, [sessionId, activeTab])
 
   if (loading) return <PageSpinner />
+
+  if (fetchError) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+      <p className="text-gray-500 text-sm">Could not load course. Check your connection and try again.</p>
+      <button onClick={loadCourse}
+        className="px-5 py-2 rounded-lg text-sm font-semibold text-white"
+        style={{ backgroundColor: '#111' }}>
+        Try again
+      </button>
+    </div>
+  )
 
   const lecturerName = course?.lecturer_name || course?.profiles?.full_name || 'Lecturer'
 

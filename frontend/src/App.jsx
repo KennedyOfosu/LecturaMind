@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider }     from './context/AuthContext'
 import { SocketProvider }   from './context/SocketContext'
 import { SessionsProvider } from './context/SessionsContext'
+import { CoursesProvider }  from './context/CoursesContext'
 import { ToastProvider }    from './components/ui/Toast'
 import { ProtectedRoute }   from './components/layout/ProtectedRoute'
 import LecturerLayout       from './components/layout/LecturerLayout'
@@ -62,9 +63,11 @@ export default function App() {
               {/* ── All student pages wrapped in SessionsProvider + StudentLayout ── */}
               <Route element={
                 <ProtectedRoute role="student">
-                  <SessionsProvider>
-                    <StudentLayout />
-                  </SessionsProvider>
+                  <CoursesProvider>
+                    <SessionsProvider>
+                      <StudentLayout />
+                    </SessionsProvider>
+                  </CoursesProvider>
                 </ProtectedRoute>
               }>
                 <Route path="/student/dashboard"          element={<StudentDashboard />} />

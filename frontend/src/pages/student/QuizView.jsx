@@ -15,19 +15,25 @@ import { formatDate } from '../../utils/formatDate'
 
 export default function QuizView({ courseId }) {
   const toast = useToast()
-  const [quizzes, setQuizzes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [activeQuiz, setActiveQuiz] = useState(null)
+  const [quizzes,     setQuizzes]     = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [fetchError,  setFetchError]  = useState(false)
+  const [activeQuiz,  setActiveQuiz]  = useState(null)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [answers, setAnswers] = useState({})
-  const [result, setResult] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [answers,     setAnswers]     = useState({})
+  const [result,      setResult]      = useState(null)
+  const [submitting,  setSubmitting]  = useState(false)
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true)
+    setFetchError(false)
     quizService.getByCourse(courseId)
       .then((res) => setQuizzes(res.data))
+      .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
-  }, [courseId])
+  }
+
+  useEffect(load, [courseId])
 
   const startQuiz = (quiz) => {
     setActiveQuiz(quiz)
@@ -53,6 +59,15 @@ export default function QuizView({ courseId }) {
   }
 
   if (loading) return <div className="flex justify-center py-12"><Spinner /></div>
+
+  if (fetchError) return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+      <p className="text-sm text-gray-500">Could not load quizzes. Check your connection and try again.</p>
+      <button onClick={load} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: '#111' }}>
+        Try again
+      </button>
+    </div>
+  )
 
   if (!quizzes.length) return (
     <EmptyState icon="📝" title="No quizzes available" description="Your lecturer hasn't activated any quizzes for this course yet." />

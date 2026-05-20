@@ -10,45 +10,36 @@ import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useSocket } from '../../hooks/useSocket'
-import { courseService } from '../../services/courseService'
+import { useCourses } from '../../context/CoursesContext'
 import StudentSidebar from './StudentSidebar'
 import AnnouncementToast from '../realtime/AnnouncementToast'
 
 export default function StudentLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const { user }   = useAuth()
-  const { socket } = useSocket()
+  const { user }    = useAuth()
+  const { socket }  = useSocket()
+  const { courses } = useCourses()
 
-  // Emit student_login every time the socket becomes available (initial connect
-  // or after a disconnect/reconnect). This keeps the student in their course
-  // rooms on every page so new_announcement events are always delivered.
+  // Emit student_login every time the socket or courses list becomes available.
+  // Uses the shared CoursesContext so no extra getEnrolled() call is made here.
   useEffect(() => {
-    if (!socket || !user) return
+    if (!socket || !user || !courses.length) return
 
     const emitLogin = () => {
-      courseService.getEnrolled()
-        .then((res) => {
-          const courseIds = (res.data || []).map((c) => c.id)
-          socket.emit('student_login', {
-            student_id:        user.id,
-            student_name:      user.full_name,
-            student_id_number: user.user_id_number,
-            programme:         user.programme,
-            level:             user.level,
-            course_ids:        courseIds,
-          })
-        })
-        .catch(() => {})
+      socket.emit('student_login', {
+        student_id:        user.id,
+        student_name:      user.full_name,
+        student_id_number: user.user_id_number,
+        programme:         user.programme,
+        level:             user.level,
+        course_ids:        courses.map((c) => c.id),
+      })
     }
 
-    // socket is non-null only when already connected (SocketContext sets it
-    // inside the 'connect' handler), so emit immediately every time it appears.
     emitLogin()
-
-    // Also re-emit on any future reconnects within this socket instance.
     socket.on('connect', emitLogin)
     return () => socket.off('connect', emitLogin)
-  }, [socket, user])
+  }, [socket, user, courses])
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#F0F0F2' }}>

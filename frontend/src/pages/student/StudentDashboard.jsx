@@ -3,9 +3,8 @@
  * Sidebar is provided by StudentLayout. This renders the main chat area.
  */
 
-import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { courseService } from '../../services/courseService'
+import { useCourses } from '../../context/CoursesContext'
 import { useSessions } from '../../context/SessionsContext'
 import AIChatInterface from '../../components/chat/AIChatInterface'
 
@@ -18,16 +17,10 @@ function getGreeting() {
 
 export default function StudentDashboard() {
   const { user }            = useAuth()
+  const { courses }         = useCourses()
   const { refreshSessions } = useSessions()
 
-  const [courses, setCourses] = useState([])
   const firstName = user?.full_name?.split(' ')[0] || 'Student'
-
-  useEffect(() => {
-    courseService.getEnrolled()
-      .then((res) => setCourses(res.data))
-      .catch(() => {})
-  }, [])
 
   // Greeting rendered in the CENTRE of the empty chat area by AIChatInterface
   const greeting = (
