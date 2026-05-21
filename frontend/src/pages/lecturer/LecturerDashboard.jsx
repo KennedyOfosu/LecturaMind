@@ -312,11 +312,11 @@ export default function LecturerDashboard() {
   }, [socket, myCourseIds])
 
   const statCards = [
-    { label: 'Total Courses',    value: stats?.total_courses,    Icon: Ic.Folder, path: '/lecturer/courses'    },
-    { label: 'Total Students',   value: stats?.total_students,   Icon: Ic.Users,  path: '/lecturer/courses'    },
-    { label: 'Queries Today',    value: stats?.queries_today,    Icon: Ic.Chat,   path: '/lecturer/chat-logs'  },
-    { label: 'Active Quizzes',   value: stats?.active_quizzes,   Icon: Ic.Star,   path: '/lecturer/quizzes'    },
-    { label: 'Flagged Messages', value: stats?.flagged_messages, Icon: Ic.Flag,   path: '/lecturer/chat-logs'  },
+    { label: 'Total Courses',    short: 'Courses',  unit: 'courses',  value: stats?.total_courses,    Icon: Ic.Folder, path: '/lecturer/courses',   iconBg: '#eff6ff', iconColor: '#3b82f6' },
+    { label: 'Total Students',   short: 'Students', unit: 'enrolled', value: stats?.total_students,   Icon: Ic.Users,  path: '/lecturer/courses',   iconBg: '#ecfdf5', iconColor: '#10b981' },
+    { label: 'Queries Today',    short: 'AI Chats', unit: 'today',    value: stats?.queries_today,    Icon: Ic.Chat,   path: '/lecturer/chat-logs', iconBg: '#f5f3ff', iconColor: '#8b5cf6' },
+    { label: 'Active Quizzes',   short: 'Quizzes',  unit: 'active',   value: stats?.active_quizzes,   Icon: Ic.Star,   path: '/lecturer/quizzes',   iconBg: '#fffbeb', iconColor: '#f59e0b' },
+    { label: 'Flagged Messages', short: 'Flagged',  unit: 'messages', value: stats?.flagged_messages, Icon: Ic.Flag,   path: '/lecturer/chat-logs', iconBg: '#fef2f2', iconColor: '#ef4444' },
   ]
 
   return (
@@ -333,19 +333,34 @@ export default function LecturerDashboard() {
 
       {/* ── Stats row — 5 cards horizontally ── */}
       <div className="grid grid-cols-5 gap-3">
-        {statCards.map(({ label, value, Icon, path }) => (
+        {statCards.map(({ label, short, unit, value, Icon, path, iconBg, iconColor }) => (
           <button key={label} onClick={() => navigate(path)}
-            className="flex items-center gap-3 px-4 py-4 rounded-2xl text-left transition-all hover:shadow-md active:scale-[0.98]"
-            style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-              style={{ backgroundColor: '#F0F0F2' }}>
-              <Icon />
+            className="flex flex-col justify-between p-5 rounded-2xl text-left transition-all hover:shadow-md active:scale-[0.98]"
+            style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9', minHeight: '140px' }}>
+
+            {/* Top row: circular icon + short label with chevron */}
+            <div className="flex items-start justify-between w-full">
+              <div className="h-11 w-11 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: iconBg }}>
+                <span style={{ color: iconColor }}><Icon /></span>
+              </div>
+              <span className="flex items-center gap-0.5 text-xs font-medium text-gray-400 mt-1">
+                {short}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </span>
             </div>
-            <div>
-              <p className="text-xl font-bold text-gray-900 leading-tight">
-                {loading ? '—' : (value ?? 0)}
+
+            {/* Bottom: stat label + value */}
+            <div className="mt-3">
+              <p className="text-sm font-bold text-gray-900 leading-snug">{label}</p>
+              <p className="text-sm mt-0.5">
+                <span className="font-bold" style={{ color: iconColor }}>
+                  {loading ? '—' : (value ?? 0)}
+                </span>
+                <span className="text-gray-400 font-normal text-xs ml-1">{unit}</span>
               </p>
-              <p className="text-xs text-gray-400 leading-tight">{label}</p>
             </div>
           </button>
         ))}
