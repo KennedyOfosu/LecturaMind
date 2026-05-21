@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { materialService } from '../../services/materialService'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { useToast } from '../../components/ui/Toast'
 
 function fmtDate(iso) {
   if (!iso) return ''
@@ -30,10 +31,22 @@ function FileIcon({ type }) {
   )
 }
 
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+  )
+}
+
 export default function MaterialsView({ courseId }) {
+  const toast = useToast()
   const [materials,   setMaterials]   = useState([])
   const [loading,     setLoading]     = useState(true)
   const [fetchError,  setFetchError]  = useState(false)
+  const [downloading, setDownloading] = useState(null)
 
   const load = () => {
     setLoading(true)
@@ -45,6 +58,25 @@ export default function MaterialsView({ courseId }) {
   }
 
   useEffect(load, [courseId])
+
+  const handleDownload = async (m) => {
+    setDownloading(m.id)
+    try {
+      const res = await materialService.getDownloadUrl(m.id)
+      const link = document.createElement('a')
+      link.href = res.data.url
+      link.download = m.file_name
+      link.target = '_blank'
+      link.rel = 'noopener noreferrer'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error('Could not generate download link. Please try again.')
+    } finally {
+      setDownloading(null)
+    }
+  }
 
   if (loading) return <div className="flex justify-center py-16"><Spinner /></div>
 
@@ -66,13 +98,11 @@ export default function MaterialsView({ courseId }) {
   )
 
   return (
-    <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-      {materials.map((m, i) => (
+    <div className="flex flex-col gap-3">
+      {materials.map((m) => (
         <div
           key={m.id}
-          className={`flex items-center justify-between px-5 py-4 hover:bg-gray-50/70 transition-colors ${
-            i < materials.length - 1 ? 'border-b border-gray-100' : ''
-          }`}
+          className="flex items-center justify-between px-5 py-4 rounded-xl border border-gray-200 bg-white hover:border-gray-300 transition-colors"
         >
           {/* Left: icon + info */}
           <div className="flex items-center gap-4 min-w-0">
@@ -83,10 +113,22 @@ export default function MaterialsView({ courseId }) {
             </div>
           </div>
 
-          {/* Right: type badge */}
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-gray-100 text-gray-500 uppercase tracking-wide shrink-0 ml-4">
-            {(m.file_type || 'file').split('/').pop()}
-          </span>
+          {/* Right: type badge + download button */}
+          <div className="flex items-center gap-3 shrink-0 ml-4">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-gray-100 text-gray-500 uppercase tracking-wide">
+              {(m.file_type || 'file').split('/').pop()}
+            </span>
+            <button
+              onClick={() => handleDownload(m)}
+              disabled={downloading === m.id}
+              title="Download file"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-colors disabled:opacity-40"
+            >
+              {downloading === m.id
+                ? <Spinner size="sm" />
+                : <DownloadIcon />}
+            </button>
+          </div>
         </div>
       ))}
     </div>

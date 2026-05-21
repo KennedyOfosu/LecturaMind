@@ -8,5 +8,6 @@ export const materialService = {
       onUploadProgress,
     }),
   getByCourse: (courseId) => api.get(`/api/materials/course/${courseId}`),
+  getDownloadUrl: (id) => api.get(`/api/materials/${id}/download`),
   delete: (id) => api.delete(`/api/materials/${id}`),
 }

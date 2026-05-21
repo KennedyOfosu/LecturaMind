@@ -116,6 +116,25 @@ def get_course_materials(course_id: str):
     return jsonify(res.data), 200
 
 
+@materials_bp.get("/<material_id>/download")
+@require_auth
+def download_material(material_id: str):
+    """Generate a 60-second signed URL for downloading a material file."""
+    res = supabase.table("materials").select("file_path, file_name").eq("id", material_id).single().execute()
+    if not res.data:
+        return jsonify({"error": "Material not found", "code": 404}), 404
+
+    file_path = res.data["file_path"]
+    try:
+        signed = supabase.storage.from_("course-materials").create_signed_url(file_path, 60)
+        url = signed.get("signedURL") or signed.get("signed_url") or signed.get("data", {}).get("signedURL")
+        if not url:
+            return jsonify({"error": "Could not generate download link", "code": 500}), 500
+        return jsonify({"url": url, "file_name": res.data["file_name"]}), 200
+    except Exception as e:
+        return jsonify({"error": f"Could not generate download link: {str(e)}", "code": 500}), 500
+
+
 @materials_bp.delete("/<material_id>")
 @require_auth
 @require_role("lecturer")
