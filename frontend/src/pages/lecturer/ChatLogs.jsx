@@ -43,9 +43,13 @@ export default function ChatLogs() {
     try {
       const res = await chatService.flagMessage(messageId)
       setLogs((prev) => prev.map((l) => l.id === messageId ? { ...l, flagged: res.data.flagged } : l))
-      toast.success(res.data.flagged ? 'Message flagged' : 'Flag removed')
+      if (res.data.flagged) {
+        toast.success('Response flagged for review.')
+      } else {
+        toast.info('Flag removed from this response.')
+      }
     } catch {
-      toast.error('Failed to update flag')
+      toast.error('Could not flag this response. Please try again.')
     } finally {
       setFlagging(null)
     }

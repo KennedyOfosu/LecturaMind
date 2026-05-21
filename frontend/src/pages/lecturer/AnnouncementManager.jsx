@@ -190,16 +190,22 @@ export default function AnnouncementManager() {
         event_date: form.event_date ? new Date(form.event_date).toISOString() : undefined,
       }
       if (modalState.type === 'create') {
+        if (!courseFilter || courseFilter === 'all' && !courses[0]?.id) {
+          toast.warning('Please select a course before posting an announcement.')
+          setSaving(false); return
+        }
         await announcementService.create({ course_id: courseFilter !== 'all' ? courseFilter : courses[0]?.id, ...payload })
-        toast.success('Announcement posted!')
+        toast.success('Announcement posted. All enrolled students can see it.')
       } else {
         await announcementService.update(modalState.item.id, payload)
-        toast.success('Announcement updated!')
+        toast.success('Announcement updated.')
       }
       setModalState({ type: null, item: null })
       fetchAll()
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to save')
+      toast.error(modalState.type === 'create'
+        ? 'Could not post announcement. Please try again.'
+        : 'Could not update announcement. Please try again.')
     } finally { setSaving(false) }
   }
 
@@ -207,10 +213,10 @@ export default function AnnouncementManager() {
     setDeleting(true)
     try {
       await announcementService.delete(deleteTarget.id)
-      toast.success('Deleted')
+      toast.info('Announcement deleted.')
       setAnnouncements((p) => p.filter((a) => a.id !== deleteTarget.id))
       setDeleteTarget(null)
-    } catch { toast.error('Failed to delete') }
+    } catch { toast.error('Could not delete announcement. Please try again.') }
     finally { setDeleting(false) }
   }
 

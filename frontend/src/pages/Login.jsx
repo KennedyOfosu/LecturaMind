@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/Toast'
 import { dashboardPath } from '../utils/roleGuard'
 
 const BLUE = '#2e54fe'
@@ -15,6 +16,7 @@ const inputBase = {
 export default function Login() {
   const { login }   = useAuth()
   const navigate    = useNavigate()
+  const toast       = useToast()
   const [idNumber,  setIdNumber]  = useState('')
   const [password,  setPassword]  = useState('')
   const [error,     setError]     = useState('')
@@ -31,9 +33,23 @@ export default function Login() {
     setIsLoading(true)
     try {
       const user = await login(idNumber.trim(), password)
+      if (user.role === 'lecturer') toast.success('Welcome back! You are now signed in.')
       navigate(dashboardPath(user.role))
     } catch (err) {
-      setError(err.response?.data?.error || 'Sign in failed. Please check your credentials.')
+      const msg = err.response?.data?.error || ''
+      if (!err.response) {
+        toast.error('Could not connect. Please check your internet connection.')
+        setError('Could not connect. Please check your internet connection.')
+      } else if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account')) {
+        toast.error('No account found with that ID number. Please check and try again.')
+        setError(msg || 'No account found.')
+      } else if (msg.toLowerCase().includes('password') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('invalid')) {
+        toast.error('Incorrect password. Please try again.')
+        setError(msg || 'Incorrect password.')
+      } else {
+        toast.error(msg || 'Sign in failed. Please check your credentials.')
+        setError(msg || 'Sign in failed. Please check your credentials.')
+      }
     } finally {
       setIsLoading(false)
     }

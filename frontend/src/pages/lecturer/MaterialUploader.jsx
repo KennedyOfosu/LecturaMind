@@ -72,18 +72,32 @@ export default function MaterialUploader() {
     setUploading(true)
     setUploadError('')
     setUploadProgress(0)
+    const dismissLoading = toast.loading('Uploading and processing your file, please wait...')
     try {
       await materialService.upload(formData, (e) => {
         if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100))
       })
-      toast.success(`${file.name} uploaded and indexed!`)
+      dismissLoading()
+      toast.success('File uploaded and processed successfully.')
       setUploadProgress(100)
       const res = await materialService.getByCourse(selectedCourse)
       setMaterials(res.data)
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Upload failed. Please try again.'
-      setUploadError(msg)
-      toast.error(msg)
+      dismissLoading()
+      const msg = err.response?.data?.error || err.message || ''
+      const lower = msg.toLowerCase()
+      let toastMsg
+      if (lower.includes('too large') || lower.includes('10mb') || lower.includes('size')) {
+        toastMsg = 'File is too large. Maximum allowed size is 10MB.'
+      } else if (lower.includes('unsupported') || lower.includes('type') || lower.includes('format')) {
+        toastMsg = 'Unsupported file type. Please upload a PDF, DOCX, or PPTX file.'
+      } else if (lower.includes('storage')) {
+        toastMsg = 'Storage upload failed. Please check your connection and try again.'
+      } else {
+        toastMsg = msg || 'Upload failed. Please try again.'
+      }
+      setUploadError(toastMsg)
+      toast.error(toastMsg)
     } finally {
       setUploading(false)
     }
@@ -100,11 +114,11 @@ export default function MaterialUploader() {
     setDeleting(true)
     try {
       await materialService.delete(deleteTarget.id)
-      toast.success('Material deleted')
+      toast.info('Material removed from this course.')
       setMaterials((prev) => prev.filter((m) => m.id !== deleteTarget.id))
       setDeleteTarget(null)
     } catch {
-      toast.error('Failed to delete material')
+      toast.error('Could not delete this material. Please try again.')
     } finally {
       setDeleting(false)
     }

@@ -44,15 +44,24 @@ export default function QuizManager() {
   }, [selectedCourse])
 
   const handleGenerate = async ({ num_questions, difficulty }) => {
+    if (!selectedCourse) { toast.warning('Please select a course before generating a quiz.'); return }
     setGenerating(true)
+    const dismissLoading = toast.loading('Generating quiz from course content, please wait...')
     try {
       await quizService.generate({ course_id: selectedCourse, num_questions, difficulty })
-      toast.success('Quiz generated successfully!')
+      dismissLoading()
+      toast.success('Quiz generated successfully. Review it before activating for students.')
       setShowGenerator(false)
       const res = await quizService.getByCourse(selectedCourse)
       setQuizzes(res.data)
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Quiz generation failed')
+      dismissLoading()
+      const msg = (err.response?.data?.error || '').toLowerCase()
+      if (msg.includes('material') || msg.includes('content') || msg.includes('no text')) {
+        toast.error('Quiz generation failed. Please upload course materials before generating a quiz.')
+      } else {
+        toast.error('Quiz generation failed. Please try again in a moment.')
+      }
     } finally {
       setGenerating(false)
     }
@@ -62,9 +71,9 @@ export default function QuizManager() {
     try {
       const res = await quizService.toggleActivate(quiz.id)
       setQuizzes((prev) => prev.map((q) => q.id === quiz.id ? res.data : q))
-      toast.success(res.data.is_active ? 'Quiz activated' : 'Quiz deactivated')
+      toast.info(res.data.is_active ? 'Quiz is now visible to enrolled students.' : 'Quiz is now hidden from students.')
     } catch {
-      toast.error('Failed to update quiz status')
+      toast.error('Could not activate quiz. Please try again.')
     }
   }
 
@@ -72,11 +81,11 @@ export default function QuizManager() {
     setDeleting(true)
     try {
       await quizService.delete(deleteTarget.id)
-      toast.success('Quiz deleted')
+      toast.info('Quiz deleted.')
       setQuizzes((prev) => prev.filter((q) => q.id !== deleteTarget.id))
       setDeleteTarget(null)
     } catch {
-      toast.error('Failed to delete quiz')
+      toast.error('Could not delete quiz. Please try again.')
     } finally {
       setDeleting(false)
     }

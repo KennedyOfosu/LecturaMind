@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react'
 import { courseService } from '../../services/courseService'
 import { useSocket } from '../../hooks/useSocket'
+import { useToast } from '../../components/ui/Toast'
 import { Card } from '../../components/ui/Card'
 import { ActiveUsersList } from '../../components/realtime/ActiveUsersList'
 import { timeAgo } from '../../utils/formatDate'
@@ -12,10 +13,12 @@ import { GroupedCourseSelect } from '../../components/ui/LevelFilter'
 
 export default function LiveStudentMonitor() {
   const { socket } = useSocket()
+  const toast      = useToast()
   const [courses, setCourses] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
   const [activeUsers, setActiveUsers] = useState([])
   const [activityFeed, setActivityFeed] = useState([])
+  const [socketErrorShown, setSocketErrorShown] = useState(false)
 
   useEffect(() => {
     courseService.getMyCourses().then((res) => {
@@ -23,6 +26,13 @@ export default function LiveStudentMonitor() {
       if (res.data.length) setSelectedCourse(res.data[0].id)
     })
   }, [])
+
+  useEffect(() => {
+    if (!socket && selectedCourse && !socketErrorShown) {
+      toast.error('Could not connect to the live monitor. Please refresh the page.')
+      setSocketErrorShown(true)
+    }
+  }, [socket, selectedCourse, socketErrorShown])
 
   useEffect(() => {
     if (!socket || !selectedCourse) return

@@ -9,6 +9,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/Toast'
 import { dashboardPath } from '../utils/roleGuard'
 import { PROGRAMMES, LEVELS } from '../utils/constants'
 
@@ -61,6 +62,7 @@ const inputErr = { ...inputBase, borderColor: '#fca5a5', backgroundColor: '#fff5
 export default function Register() {
   const { register } = useAuth()
   const navigate     = useNavigate()
+  const toast        = useToast()
 
   const [step,      setStep]      = useState(1)
   const [isLoading, setIsLoading] = useState(false)
@@ -122,9 +124,23 @@ export default function Register() {
         payload.academic_year = form.academicYear || null
       }
       const user = await register(payload)
+      if (user.role === 'lecturer') toast.success('Account created successfully. Welcome to LecturaMind!')
       navigate(dashboardPath(user.role))
     } catch (err) {
-      setApiError(err.response?.data?.error || 'Registration failed. Please try again.')
+      const msg = err.response?.data?.error || ''
+      const lower = msg.toLowerCase()
+      if (lower.includes('already exists') && lower.includes('id')) {
+        toast.error('An account with this ID number already exists.')
+      } else if (lower.includes('already exists') && lower.includes('email')) {
+        toast.error('An account with this email address already exists.')
+      } else if (lower.includes('already exists')) {
+        toast.error('An account with this ID number already exists.')
+      } else if (lower.includes('invalid') && lower.includes('id')) {
+        toast.error('Invalid ID format. Lecturer IDs must start with LEC- followed by 4 digits.')
+      } else {
+        toast.error(msg || 'Registration failed. Please check your details and try again.')
+      }
+      setApiError(msg || 'Registration failed. Please try again.')
     } finally { setIsLoading(false) }
   }
 

@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useSocket } from '../../hooks/useSocket'
+import { useToast } from '../../components/ui/Toast'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
 
@@ -241,6 +242,7 @@ export default function LecturerDashboard() {
   const { user }   = useAuth()
   const { socket } = useSocket()
   const navigate   = useNavigate()
+  const toast      = useToast()
   const firstName  = user?.full_name?.split(' ')[0] || 'Lecturer'
 
   const [stats,         setStats]         = useState(null)
@@ -278,7 +280,8 @@ export default function LecturerDashboard() {
         setMaterials(matRes.data.slice(0, 4))
         setAllStudents(studentArrs.flat().slice(0, 8))
       }
-    }).finally(() => setLoading(false))
+    }).catch(() => toast.error('Could not load dashboard data. Please refresh the page.'))
+      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {

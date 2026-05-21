@@ -63,7 +63,7 @@ export default function LecturerLiveQnA() {
     setAnswerModal(null)
     setAnswerText('')
     setSubmitting(false)
-    toast.success('Answer sent to students')
+    toast.success('Your answer has been sent to the student.')
   }
 
   return (
@@ -83,8 +83,13 @@ export default function LecturerLiveQnA() {
         <Button
           variant={sessionActive ? 'danger' : 'teal'}
           onClick={() => {
-            setSessionActive(!sessionActive)
-            toast.info(sessionActive ? 'Session ended' : 'Session started — students can now ask questions!')
+            const next = !sessionActive
+            setSessionActive(next)
+            if (next) {
+              toast.success('Live Q&A session started. Students have been notified.')
+            } else {
+              toast.info('Live Q&A session has ended.')
+            }
           }}
         >
           {sessionActive ? '⏹ End Session' : '▶ Start Live Q&A Session'}
