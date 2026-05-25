@@ -125,8 +125,7 @@ export default function LecturerLayout() {
           {/* Brand */}
           <div className="flex items-center justify-between px-4 py-4">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/lecturer/dashboard')}>
-              <I.Logo />
-              <span className="text-sm font-semibold text-gray-800 tracking-tight">LecturaMind</span>
+              <img src="/LecturaMind Logo.svg" alt="LecturaMind" className="h-7 w-auto" />
             </div>
             <button onClick={() => setSidebarOpen(false)} className="text-gray-400 hover:text-gray-700 transition-colors">
               <I.Toggle />
