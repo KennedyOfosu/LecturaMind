@@ -2,7 +2,7 @@
  * Sidebar.jsx — Role-based navigation sidebar.
  */
 
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 const lecturerLinks = [
@@ -22,11 +22,20 @@ const studentLinks = [
 
 export function Sidebar() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const links = user?.role === 'lecturer' ? lecturerLinks : studentLinks
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r border-gray-200 flex flex-col py-6 shrink-0">
-      <nav className="flex flex-col gap-1 px-3">
+    <aside className="w-64 min-h-screen bg-white border-r border-gray-200 flex flex-col shrink-0">
+      {/* Brand */}
+      <div
+        className="flex items-center gap-2.5 px-5 py-4 cursor-pointer"
+        onClick={() => navigate('/lecturer/dashboard')}
+      >
+        <img src="/LecturaMind Logo.svg" alt="LecturaMind" className="h-8 w-auto" />
+      </div>
+
+      <nav className="flex flex-col gap-1 px-3 py-3">
         {links.map(({ to, label, icon }) => (
           <NavLink
             key={to}
