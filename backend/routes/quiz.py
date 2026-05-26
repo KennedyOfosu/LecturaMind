@@ -42,6 +42,47 @@ def generate():
     return jsonify(quiz), 201
 
 
+@quiz_bp.post("/manual")
+@require_auth
+@require_role("lecturer")
+def create_manual():
+    """
+    Save a manually authored quiz.
+
+    Body: { course_id, title, questions: [{question, options, correct_answer, explanation}] }
+    Returns: the created quiz record.
+    """
+    data = request.get_json(silent=True) or {}
+    course_id  = data.get("course_id", "").strip()
+    title      = data.get("title", "").strip()
+    questions  = data.get("questions", [])
+
+    if not course_id:
+        return jsonify({"error": "course_id is required", "code": 400}), 400
+    if not title:
+        return jsonify({"error": "Quiz title is required", "code": 400}), 400
+    if not questions:
+        return jsonify({"error": "At least one question is required", "code": 400}), 400
+
+    for i, q in enumerate(questions):
+        if not q.get("question", "").strip():
+            return jsonify({"error": f"Question {i + 1} text is required", "code": 400}), 400
+        options = q.get("options", [])
+        if len(options) != 4 or any(not str(o).strip() for o in options):
+            return jsonify({"error": f"Question {i + 1} must have 4 non-empty options", "code": 400}), 400
+        if not q.get("correct_answer", "").strip():
+            return jsonify({"error": f"Question {i + 1} must have a correct answer selected", "code": 400}), 400
+
+    res = supabase.table("quizzes").insert({
+        "course_id": course_id,
+        "title": title,
+        "questions": questions,
+        "is_active": False,
+    }).execute()
+
+    return jsonify(res.data[0]), 201
+
+
 @quiz_bp.get("/course/<course_id>")
 @require_auth
 def get_course_quizzes(course_id: str):

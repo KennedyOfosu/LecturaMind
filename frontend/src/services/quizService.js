@@ -1,7 +1,8 @@
 import api from './api'
 
 export const quizService = {
-  generate: (data) => api.post('/api/quiz/generate', data),
+  generate:     (data)              => api.post('/api/quiz/generate', data),
+  createManual: (data)              => api.post('/api/quiz/manual', data),
   getByCourse: (courseId) => api.get(`/api/quiz/course/${courseId}`),
   toggleActivate: (quizId) => api.patch(`/api/quiz/${quizId}/activate`),
   delete: (quizId) => api.delete(`/api/quiz/${quizId}`),
