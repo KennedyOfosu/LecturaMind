@@ -192,95 +192,91 @@ export default function QuizManager() {
       {loading ? (
         <div className="flex justify-center py-16"><Spinner size="lg" /></div>
       ) : !quizzes.length ? (
-        /* Empty — two horizontal creation cards */
-        <div className="flex flex-col gap-3 mt-2">
+        /* Empty — two creation cards */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
           <button
             onClick={() => setShowGenerator(true)}
-            className="border-2 border-dashed border-gray-300 rounded-2xl px-6 py-5 flex items-center gap-4 hover:border-violet-400 hover:bg-violet-50 transition-all group"
+            className="border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[220px] group"
           >
-            <span className="text-3xl shrink-0">✨</span>
-            <div className="text-left">
+            <span className="text-3xl">✨</span>
+            <div className="text-center">
               <p className="font-semibold text-gray-700 group-hover:text-violet-700 transition-colors">Generate with AI</p>
-              <p className="text-xs text-gray-400 mt-0.5">Auto-create questions from uploaded course materials</p>
+              <p className="text-xs text-gray-400 mt-1">Auto-create questions from uploaded course materials</p>
             </div>
           </button>
           <button
             onClick={openManual}
-            className="border-2 border-dashed border-gray-300 rounded-2xl px-6 py-5 flex items-center gap-4 hover:border-teal-500 hover:bg-teal-50 transition-all group"
+            className="border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[220px] group"
           >
-            <span className="text-3xl shrink-0">✏️</span>
-            <div className="text-left">
+            <span className="text-3xl">✏️</span>
+            <div className="text-center">
               <p className="font-semibold text-gray-700 group-hover:text-teal-600 transition-colors">Create Manually</p>
-              <p className="text-xs text-gray-400 mt-0.5">Write your own questions and answer choices</p>
+              <p className="text-xs text-gray-400 mt-1">Write your own questions and answer choices</p>
             </div>
           </button>
         </div>
       ) : (
-        /* Horizontal quiz cards */
-        <div className="flex flex-col gap-3">
+        /* Quiz card grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Persistent creation cards */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowGenerator(true)}
-              className="flex-1 border-2 border-dashed border-gray-300 rounded-2xl px-5 py-4 flex items-center gap-3 hover:border-violet-400 hover:bg-violet-50 transition-all group"
-            >
-              <span className="text-2xl shrink-0">✨</span>
-              <p className="text-sm font-semibold text-gray-600 group-hover:text-violet-700 transition-colors text-left">Generate with AI</p>
-            </button>
-            <button
-              onClick={openManual}
-              className="flex-1 border-2 border-dashed border-gray-300 rounded-2xl px-5 py-4 flex items-center gap-3 hover:border-teal-500 hover:bg-teal-50 transition-all group"
-            >
-              <span className="text-2xl shrink-0">✏️</span>
-              <p className="text-sm font-semibold text-gray-600 group-hover:text-teal-600 transition-colors text-left">Create Manually</p>
-            </button>
-          </div>
+          <button
+            onClick={() => setShowGenerator(true)}
+            className="border-2 border-dashed border-gray-300 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[200px] group"
+          >
+            <span className="text-2xl">✨</span>
+            <p className="text-sm font-semibold text-gray-600 group-hover:text-violet-700 transition-colors">Generate with AI</p>
+          </button>
+          <button
+            onClick={openManual}
+            className="border-2 border-dashed border-gray-300 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[200px] group"
+          >
+            <span className="text-2xl">✏️</span>
+            <p className="text-sm font-semibold text-gray-600 group-hover:text-teal-600 transition-colors">Create Manually</p>
+          </button>
 
           {quizzes.map((quiz) => (
-            <div key={quiz.id} className="bg-white rounded-2xl px-5 py-4 shadow-sm flex items-center gap-5">
-              {/* Left: badges + title + meta */}
-              <div className="w-56 shrink-0">
-                <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full tracking-wide ${
-                    quiz.is_active ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {quiz.is_active ? 'ACTIVE' : 'INACTIVE'}
+            <div key={quiz.id} className="bg-white rounded-2xl p-5 shadow-sm flex flex-col" style={{ minHeight: '260px' }}>
+              {/* Badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full tracking-wide ${
+                  quiz.is_active ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {quiz.is_active ? 'ACTIVE' : 'INACTIVE'}
+                </span>
+                {quiz.difficulty && DIFF_STYLE[quiz.difficulty] && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full tracking-wide ${DIFF_STYLE[quiz.difficulty]}`}>
+                    {quiz.difficulty.toUpperCase()}
                   </span>
-                  {quiz.difficulty && DIFF_STYLE[quiz.difficulty] && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full tracking-wide ${DIFF_STYLE[quiz.difficulty]}`}>
-                      {quiz.difficulty.toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-sm font-bold text-gray-900 leading-snug">{quiz.title}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {quiz.questions?.length || 0} questions · {formatDate(quiz.generated_at)}
-                </p>
+                )}
               </div>
 
-              {/* Middle: question preview with right fade */}
-              <div className="relative flex-1 overflow-hidden min-w-0">
-                <div className="flex gap-4 text-xs text-gray-500 leading-relaxed overflow-hidden whitespace-nowrap">
-                  {quiz.questions?.slice(0, 4).map((q, i) => (
-                    <span key={i} className="shrink-0 max-w-[180px] truncate">
-                      <span className="font-medium text-gray-600">{i + 1}.</span> {q.question}
-                    </span>
+              {/* Title + meta */}
+              <h3 className="text-base font-bold text-gray-900 mt-2 leading-snug">{quiz.title}</h3>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {quiz.questions?.length || 0} questions · {formatDate(quiz.generated_at)}
+              </p>
+
+              {/* Question preview with bottom fade */}
+              <div className="relative flex-1 overflow-hidden mt-3">
+                <div className="text-xs text-gray-500 space-y-1.5 leading-relaxed">
+                  {quiz.questions?.slice(0, 6).map((q, i) => (
+                    <p key={i}><span className="font-medium text-gray-600">{i + 1}.</span> {q.question}</p>
                   ))}
                 </div>
-                <div className="absolute top-0 right-0 bottom-0 w-12 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white to-transparent pointer-events-none" />
               </div>
 
-              {/* Right: actions */}
-              <div className="flex items-center gap-1 shrink-0 border-l border-gray-100 pl-4">
+              {/* Actions */}
+              <div className="flex gap-1.5 mt-4 pt-3 border-t border-gray-100">
                 <button
                   onClick={() => setPreviewQuiz(quiz)}
-                  className="text-xs font-medium px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                  className="flex-1 text-xs font-medium py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
                 >
                   Preview
                 </button>
                 <button
                   onClick={() => handleToggleActive(quiz)}
-                  className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                  className={`flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors ${
                     quiz.is_active
                       ? 'text-gray-600 hover:bg-gray-100'
                       : 'bg-violet-100 text-violet-700 hover:bg-violet-200'
@@ -290,7 +286,7 @@ export default function QuizManager() {
                 </button>
                 <button
                   onClick={() => setDeleteTarget(quiz)}
-                  className="text-xs font-medium px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                  className="flex-1 text-xs font-medium py-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
                 >
                   Delete
                 </button>
