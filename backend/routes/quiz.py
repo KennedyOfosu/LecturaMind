@@ -200,24 +200,19 @@ def get_my_attempt(quiz_id: str):
 @require_role("lecturer")
 def start_live_session(quiz_id: str):
     """
-    Start a live quiz session. Generates a fresh PIN and marks quiz as live.
-    Returns the updated quiz record including the PIN.
+    Start a live quiz session. Generates a fresh PIN stored in-memory.
+    No database columns required — the session lives only while the server runs.
     """
-    quiz_res = supabase.table("quizzes").select("id").eq("id", quiz_id).single().execute()
+    quiz_res = supabase.table("quizzes").select("id, title").eq("id", quiz_id).single().execute()
     if not quiz_res.data:
         return jsonify({"error": "Quiz not found", "code": 404}), 404
 
     pin = _generate_pin()
-    res = supabase.table("quizzes").update({
-        "pin": pin,
-        "live_session_active": True,
-    }).eq("id", quiz_id).execute()
 
-    # Reset in-memory leaderboard for this quiz
     from sockets.events import live_sessions
-    live_sessions[quiz_id] = {}
+    live_sessions[quiz_id] = {"pin": pin, "students": {}}
 
-    return jsonify(res.data[0]), 200
+    return jsonify({"id": quiz_id, "pin": pin, "live_session_active": True}), 200
 
 
 @quiz_bp.post("/<quiz_id>/end-live")
@@ -225,31 +220,33 @@ def start_live_session(quiz_id: str):
 @require_role("lecturer")
 def end_live_session(quiz_id: str):
     """End a live quiz session and clear the in-memory leaderboard."""
-    res = supabase.table("quizzes").update({
-        "live_session_active": False,
-    }).eq("id", quiz_id).execute()
-
-    if not res.data:
-        return jsonify({"error": "Quiz not found", "code": 404}), 404
-
     from sockets.events import live_sessions
     live_sessions.pop(quiz_id, None)
-
-    return jsonify(res.data[0]), 200
+    return jsonify({"id": quiz_id, "live_session_active": False}), 200
 
 
 @quiz_bp.get("/pin/<pin>")
 @require_auth
 def get_quiz_by_pin(pin: str):
     """
-    Fetch an active quiz by its PIN. Used by students joining a live session.
-    Returns quiz id, title, and questions so the student can begin immediately.
+    Fetch an active quiz by its PIN from the in-memory session store.
+    No database columns required.
     """
-    res = supabase.table("quizzes").select(
-        "id, title, questions, course_id, live_session_active, pin"
-    ).eq("pin", pin.upper()).eq("live_session_active", True).execute()
+    from sockets.events import live_sessions
+    pin = pin.strip().upper()
 
-    if not res.data:
+    quiz_id = next(
+        (qid for qid, session in live_sessions.items() if session.get("pin") == pin),
+        None,
+    )
+    if not quiz_id:
         return jsonify({"error": "No active session found for this PIN.", "code": 404}), 404
 
-    return jsonify(res.data[0]), 200
+    res = supabase.table("quizzes").select(
+        "id, title, questions, course_id"
+    ).eq("id", quiz_id).single().execute()
+
+    if not res.data:
+        return jsonify({"error": "Quiz not found.", "code": 404}), 404
+
+    return jsonify({**res.data, "live_session_active": True, "pin": pin}), 200

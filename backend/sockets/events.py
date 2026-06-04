@@ -19,7 +19,8 @@ POINTS_PER_CORRECT = 10
 
 def _build_leaderboard(quiz_id: str) -> list:
     """Sort live session entries by score descending and inject rank."""
-    entries = list(live_sessions.get(quiz_id, {}).values())
+    session = live_sessions.get(quiz_id, {})
+    entries = list(session.get("students", {}).values())
     entries.sort(key=lambda e: e.get("score", 0), reverse=True)
     for i, entry in enumerate(entries):
         entry["rank"] = i + 1
@@ -250,10 +251,10 @@ def register_socket_events(socketio):
         join_room(f"quiz_student_{quiz_id}_{student_id}")
 
         if quiz_id not in live_sessions:
-            live_sessions[quiz_id] = {}
+            live_sessions[quiz_id] = {"pin": "", "students": {}}
 
-        if student_id not in live_sessions[quiz_id]:
-            live_sessions[quiz_id][student_id] = {
+        if student_id not in live_sessions[quiz_id]["students"]:
+            live_sessions[quiz_id]["students"][student_id] = {
                 "student_id":      student_id,
                 "student_name":    student_name,
                 "score":           0,
@@ -303,9 +304,9 @@ def register_socket_events(socketio):
 
         # Update in-memory leaderboard
         if quiz_id not in live_sessions:
-            live_sessions[quiz_id] = {}
-        if student_id not in live_sessions[quiz_id]:
-            live_sessions[quiz_id][student_id] = {
+            live_sessions[quiz_id] = {"pin": "", "students": {}}
+        if student_id not in live_sessions[quiz_id]["students"]:
+            live_sessions[quiz_id]["students"][student_id] = {
                 "student_id":      student_id,
                 "student_name":    student_name,
                 "score":           0,
@@ -313,7 +314,7 @@ def register_socket_events(socketio):
                 "answers_total":   0,
             }
 
-        entry = live_sessions[quiz_id][student_id]
+        entry = live_sessions[quiz_id]["students"][student_id]
         entry["answers_total"] = entry.get("answers_total", 0) + 1
         if is_correct:
             entry["answers_correct"] = entry.get("answers_correct", 0) + 1
