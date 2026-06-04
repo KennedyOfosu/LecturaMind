@@ -193,104 +193,113 @@ export default function QuizManager() {
         <div className="flex justify-center py-16"><Spinner size="lg" /></div>
       ) : !quizzes.length ? (
         /* Empty — two creation cards */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
           <button
             onClick={() => setShowGenerator(true)}
-            className="border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[220px] group"
+            className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[140px] group"
           >
-            <span className="text-3xl">✨</span>
+            <span className="text-2xl">✨</span>
             <div className="text-center">
-              <p className="font-semibold text-gray-700 group-hover:text-violet-700 transition-colors">Generate with AI</p>
-              <p className="text-xs text-gray-400 mt-1">Auto-create questions from uploaded course materials</p>
+              <p className="text-sm font-semibold text-gray-700 group-hover:text-violet-700 transition-colors">Generate with AI</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Auto-create from course materials</p>
             </div>
           </button>
           <button
             onClick={openManual}
-            className="border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[220px] group"
+            className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[140px] group"
           >
-            <span className="text-3xl">✏️</span>
+            <span className="text-2xl">✏️</span>
             <div className="text-center">
-              <p className="font-semibold text-gray-700 group-hover:text-teal-600 transition-colors">Create Manually</p>
-              <p className="text-xs text-gray-400 mt-1">Write your own questions and answer choices</p>
+              <p className="text-sm font-semibold text-gray-700 group-hover:text-teal-600 transition-colors">Create Manually</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Write your own questions</p>
             </div>
           </button>
         </div>
       ) : (
         /* Quiz card grid */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Persistent creation cards */}
           <button
             onClick={() => setShowGenerator(true)}
-            className="border-2 border-dashed border-gray-300 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[200px] group"
+            className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[130px] group"
           >
-            <span className="text-2xl">✨</span>
-            <p className="text-sm font-semibold text-gray-600 group-hover:text-violet-700 transition-colors">Generate with AI</p>
+            <span className="text-xl">✨</span>
+            <p className="text-xs font-semibold text-gray-600 group-hover:text-violet-700 transition-colors">Generate with AI</p>
           </button>
           <button
             onClick={openManual}
-            className="border-2 border-dashed border-gray-300 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[200px] group"
+            className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[130px] group"
           >
-            <span className="text-2xl">✏️</span>
-            <p className="text-sm font-semibold text-gray-600 group-hover:text-teal-600 transition-colors">Create Manually</p>
+            <span className="text-xl">✏️</span>
+            <p className="text-xs font-semibold text-gray-600 group-hover:text-teal-600 transition-colors">Create Manually</p>
           </button>
 
           {quizzes.map((quiz) => (
-            <div key={quiz.id} className="bg-white rounded-2xl p-5 shadow-sm flex flex-col" style={{ minHeight: '260px' }}>
-              {/* Badges */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full tracking-wide ${
-                  quiz.is_active ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {quiz.is_active ? 'ACTIVE' : 'INACTIVE'}
-                </span>
-                {quiz.difficulty && DIFF_STYLE[quiz.difficulty] && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full tracking-wide ${DIFF_STYLE[quiz.difficulty]}`}>
-                    {quiz.difficulty.toUpperCase()}
+            <div key={quiz.id} className="bg-white rounded-xl p-3.5 shadow-sm flex flex-col gap-2">
+              {/* Top row: badges + icon actions */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${
+                    quiz.is_active ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {quiz.is_active ? 'ACTIVE' : 'INACTIVE'}
                   </span>
-                )}
+                  {quiz.difficulty && DIFF_STYLE[quiz.difficulty] && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${DIFF_STYLE[quiz.difficulty]}`}>
+                      {quiz.difficulty.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  {/* Preview */}
+                  <button
+                    title="Preview"
+                    onClick={() => setPreviewQuiz(quiz)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                  {/* Activate / Deactivate */}
+                  <button
+                    title={quiz.is_active ? 'Deactivate' : 'Activate'}
+                    onClick={() => handleToggleActive(quiz)}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      quiz.is_active
+                        ? 'text-violet-600 hover:bg-violet-50'
+                        : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
+                    </svg>
+                  </button>
+                  {/* Delete */}
+                  <button
+                    title="Delete"
+                    onClick={() => setDeleteTarget(quiz)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {/* Title + meta */}
-              <h3 className="text-base font-bold text-gray-900 mt-2 leading-snug">{quiz.title}</h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {quiz.questions?.length || 0} questions · {formatDate(quiz.generated_at)}
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 leading-snug line-clamp-1">{quiz.title}</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {quiz.questions?.length || 0} Qs · {formatDate(quiz.generated_at)}
+                </p>
+              </div>
+
+              {/* Concatenated question preview */}
+              <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-2">
+                {quiz.questions?.slice(0, 5).map((q, i) => `${i + 1}. ${q.question}`).join(' · ')}
               </p>
-
-              {/* Question preview with bottom fade */}
-              <div className="relative flex-1 overflow-hidden mt-3">
-                <div className="text-xs text-gray-500 space-y-1.5 leading-relaxed">
-                  {quiz.questions?.slice(0, 6).map((q, i) => (
-                    <p key={i}><span className="font-medium text-gray-600">{i + 1}.</span> {q.question}</p>
-                  ))}
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-1.5 mt-4 pt-3 border-t border-gray-100">
-                <button
-                  onClick={() => setPreviewQuiz(quiz)}
-                  className="flex-1 text-xs font-medium py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
-                >
-                  Preview
-                </button>
-                <button
-                  onClick={() => handleToggleActive(quiz)}
-                  className={`flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors ${
-                    quiz.is_active
-                      ? 'text-gray-600 hover:bg-gray-100'
-                      : 'bg-violet-100 text-violet-700 hover:bg-violet-200'
-                  }`}
-                >
-                  {quiz.is_active ? 'Deactivate' : 'Activate'}
-                </button>
-                <button
-                  onClick={() => setDeleteTarget(quiz)}
-                  className="flex-1 text-xs font-medium py-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
             </div>
           ))}
         </div>
