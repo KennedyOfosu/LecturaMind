@@ -2,7 +2,7 @@
  * QuizManager.jsx — Generate, manage, and preview quizzes (AI or manual).
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { courseService } from '../../services/courseService'
 import { quizService } from '../../services/quizService'
 import { Button } from '../../components/ui/Button'
@@ -10,7 +10,6 @@ import { Modal } from '../../components/ui/Modal'
 import { Spinner } from '../../components/ui/Spinner'
 import { QuizGenerator } from '../../components/quiz/QuizGenerator'
 import { useToast } from '../../components/ui/Toast'
-import { GroupedCourseSelect } from '../../components/ui/LevelFilter'
 import { formatDate } from '../../utils/formatDate'
 
 const emptyQuestion = () => ({
@@ -40,6 +39,15 @@ export default function QuizManager() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [manualForm, setManualForm] = useState({ title: '', questions: [emptyQuestion()] })
+  const [showPanel, setShowPanel] = useState(false)
+  const panelRef = useRef(null)
+
+  useEffect(() => {
+    if (!showPanel) return
+    const handler = (e) => { if (panelRef.current && !panelRef.current.contains(e.target)) setShowPanel(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showPanel])
 
   useEffect(() => {
     courseService.getMyCourses().then((res) => {
@@ -166,6 +174,15 @@ export default function QuizManager() {
     setShowManual(true)
   }
 
+  /* ── Grouped courses for panel ── */
+  const groupedCourses = courses.reduce((acc, c) => {
+    const key = c.level || 'General'
+    ;(acc[key] = acc[key] || []).push(c)
+    return acc
+  }, {})
+
+  const selectedCourseName = courses.find(c => c.id === selectedCourse)?.course_name
+
   /* ── Render ── */
   return (
     <div className="flex flex-col gap-6">
@@ -175,18 +192,77 @@ export default function QuizManager() {
           <h1 className="text-2xl font-bold text-navy">Quiz Manager</h1>
           <p className="text-gray-500 text-sm mt-1">Create and manage quizzes for your students</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={openManual}>✏️ Create Manually</Button>
-          <Button variant="teal" onClick={() => setShowGenerator(true)}>✨ Generate with AI</Button>
+
+        {/* Controls panel trigger */}
+        <div className="relative" ref={panelRef}>
+          <button
+            onClick={() => setShowPanel(p => !p)}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-sm font-medium shadow-sm transition-colors ${
+              showPanel
+                ? 'bg-navy text-white border-navy'
+                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/>
+              <circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="18" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>
+            {selectedCourseName
+              ? <span className="max-w-[160px] truncate">{selectedCourseName}</span>
+              : <span className="text-gray-400">Select course</span>
+            }
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showPanel ? 'rotate-180' : ''}`}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {showPanel && (
+            <div className="absolute right-0 top-12 z-30 bg-white rounded-2xl shadow-xl border border-gray-100 w-72 p-3">
+              {/* Course list */}
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Select Course</p>
+              <div className="max-h-52 overflow-y-auto flex flex-col gap-0.5">
+                {Object.entries(groupedCourses).map(([level, levelCourses]) => (
+                  <div key={level}>
+                    <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest px-2 pt-1.5 pb-0.5">{level}</p>
+                    {levelCourses.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => { setSelectedCourse(c.id); setQuizzes([]) }}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          selectedCourse === c.id
+                            ? 'bg-violet-50 text-violet-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {c.course_name}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+                {!courses.length && (
+                  <p className="text-xs text-gray-400 text-center py-4">No courses found</p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="border-t border-gray-100 mt-3 pt-3 flex flex-col gap-2">
+                <button
+                  onClick={() => { setShowGenerator(true); setShowPanel(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
+                >
+                  <span>✨</span> Generate with AI
+                </button>
+                <button
+                  onClick={() => { openManual(); setShowPanel(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  <span>✏️</span> Create Manually
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Course selector */}
-      <GroupedCourseSelect
-        courses={courses}
-        value={selectedCourse}
-        onChange={(v) => { setSelectedCourse(v); setQuizzes([]) }}
-      />
 
       {/* Content */}
       {loading ? (
