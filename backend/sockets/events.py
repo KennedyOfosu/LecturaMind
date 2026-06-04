@@ -11,6 +11,20 @@ from services.supabase_client import supabase
 # In-memory store: { course_id: { student_id: { name, id_number, sid, ... } } }
 active_users: dict = {}
 
+# Live quiz leaderboard: { quiz_id: { student_id: { student_id, student_name, score, answers_correct, answers_total } } }
+live_sessions: dict = {}
+
+POINTS_PER_CORRECT = 10
+
+
+def _build_leaderboard(quiz_id: str) -> list:
+    """Sort live session entries by score descending and inject rank."""
+    entries = list(live_sessions.get(quiz_id, {}).values())
+    entries.sort(key=lambda e: e.get("score", 0), reverse=True)
+    for i, entry in enumerate(entries):
+        entry["rank"] = i + 1
+    return entries
+
 
 def _now_iso() -> str:
     return datetime.datetime.utcnow().isoformat()
@@ -202,6 +216,124 @@ def register_socket_events(socketio):
         payload = {**record, "student_name": student_name}
         emit("new_live_question", payload, room=f"lecturer_{course_id}")
         emit("new_live_question", payload, room=f"course_{course_id}")
+
+    # ── Live Quiz Events ─────────────────────────────────────────────────────
+
+    @socketio.on("lecturer_watch_quiz")
+    def on_lecturer_watch_quiz(data):
+        """
+        Fired when the lecturer opens the leaderboard for a specific quiz.
+        Joins the lecturer into the quiz live room and replays current leaderboard.
+        """
+        quiz_id = data.get("quiz_id")
+        if not quiz_id:
+            return
+        join_room(f"quiz_live_{quiz_id}")
+        board = _build_leaderboard(quiz_id)
+        emit("leaderboard_update", {"quiz_id": quiz_id, "leaderboard": board})
+
+    @socketio.on("join_live_quiz")
+    def on_join_live_quiz(data):
+        """
+        Student joins a live quiz session.
+        Adds them to the in-memory leaderboard and broadcasts updated rankings.
+
+        Data: { quiz_id, student_id, student_name }
+        """
+        quiz_id      = data.get("quiz_id")
+        student_id   = data.get("student_id")
+        student_name = data.get("student_name", "Student")
+        if not quiz_id or not student_id:
+            return
+
+        # Personal room so we can deliver per-student answer feedback
+        join_room(f"quiz_student_{quiz_id}_{student_id}")
+
+        if quiz_id not in live_sessions:
+            live_sessions[quiz_id] = {}
+
+        if student_id not in live_sessions[quiz_id]:
+            live_sessions[quiz_id][student_id] = {
+                "student_id":      student_id,
+                "student_name":    student_name,
+                "score":           0,
+                "answers_correct": 0,
+                "answers_total":   0,
+            }
+
+        board = _build_leaderboard(quiz_id)
+        emit("leaderboard_update", {"quiz_id": quiz_id, "leaderboard": board},
+             room=f"quiz_live_{quiz_id}")
+        emit("joined_live_quiz", {"quiz_id": quiz_id, "student_id": student_id})
+        print(f"[live_quiz] {student_name} joined quiz {quiz_id}.")
+
+    @socketio.on("submit_live_answer")
+    def on_submit_live_answer(data):
+        """
+        Student submits an answer for a question during a live session.
+        Scores the answer server-side, updates the leaderboard, and notifies both
+        the student (answer_result) and the lecturer room (leaderboard_update).
+
+        Data: { quiz_id, student_id, student_name, question_index, answer }
+        """
+        quiz_id        = data.get("quiz_id")
+        student_id     = data.get("student_id")
+        student_name   = data.get("student_name", "Student")
+        question_index = data.get("question_index")
+        answer         = data.get("answer", "")
+
+        if not quiz_id or not student_id or question_index is None:
+            return
+
+        # Fetch correct answer from DB
+        try:
+            quiz_res = supabase.table("quizzes").select("questions").eq(
+                "id", quiz_id
+            ).single().execute()
+            if not quiz_res.data:
+                return
+            questions = quiz_res.data["questions"]
+            if question_index >= len(questions):
+                return
+            correct   = questions[question_index].get("correct_answer", "")
+            is_correct = (answer.strip() == correct.strip())
+        except Exception as exc:
+            print(f"[live_quiz] Error fetching quiz: {exc}")
+            return
+
+        # Update in-memory leaderboard
+        if quiz_id not in live_sessions:
+            live_sessions[quiz_id] = {}
+        if student_id not in live_sessions[quiz_id]:
+            live_sessions[quiz_id][student_id] = {
+                "student_id":      student_id,
+                "student_name":    student_name,
+                "score":           0,
+                "answers_correct": 0,
+                "answers_total":   0,
+            }
+
+        entry = live_sessions[quiz_id][student_id]
+        entry["answers_total"] = entry.get("answers_total", 0) + 1
+        if is_correct:
+            entry["answers_correct"] = entry.get("answers_correct", 0) + 1
+            entry["score"]           = entry.get("score", 0) + POINTS_PER_CORRECT
+
+        # Send per-student result
+        emit("answer_result", {
+            "question_index": question_index,
+            "is_correct":     is_correct,
+            "correct_answer": correct,
+            "score":          entry["score"],
+        }, room=f"quiz_student_{quiz_id}_{student_id}")
+
+        # Broadcast updated leaderboard to lecturer
+        board = _build_leaderboard(quiz_id)
+        emit("leaderboard_update",
+             {"quiz_id": quiz_id, "leaderboard": board},
+             room=f"quiz_live_{quiz_id}")
+
+    # ── Live Q&A ─────────────────────────────────────────────────────────────
 
     @socketio.on("lecturer_answer")
     def on_lecturer_answer(data):

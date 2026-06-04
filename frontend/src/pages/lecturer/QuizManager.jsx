@@ -1,8 +1,9 @@
 /**
  * QuizManager.jsx — Generate, manage, and preview quizzes (AI or manual).
+ * Includes Kahoot-style live session leaderboard powered by Socket.IO.
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useContext } from 'react'
 import { courseService } from '../../services/courseService'
 import { quizService } from '../../services/quizService'
 import { Button } from '../../components/ui/Button'
@@ -11,6 +12,7 @@ import { Spinner } from '../../components/ui/Spinner'
 import { QuizGenerator } from '../../components/quiz/QuizGenerator'
 import { useToast } from '../../components/ui/Toast'
 import { formatDate } from '../../utils/formatDate'
+import { SocketContext } from '../../context/SocketContext'
 
 const emptyQuestion = () => ({
   question: '',
@@ -25,8 +27,12 @@ const DIFF_STYLE = {
   hard:   'bg-red-100 text-red-700',
 }
 
+const RANK_ICON = ['🥇', '🥈', '🥉']
+
 export default function QuizManager() {
   const toast = useToast()
+  const { socket } = useContext(SocketContext)
+
   const [courses, setCourses] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
   const [quizzes, setQuizzes] = useState([])
@@ -42,6 +48,12 @@ export default function QuizManager() {
   const [showPanel, setShowPanel] = useState(false)
   const panelRef = useRef(null)
 
+  // Live session state
+  const [liveSession, setLiveSession] = useState(null) // { quizId, pin, quizTitle }
+  const [leaderboard, setLeaderboard] = useState([])
+  const [startingLive, setStartingLive] = useState(null) // quizId currently being started
+
+  /* ── Click-outside panel ── */
   useEffect(() => {
     if (!showPanel) return
     const handler = (e) => { if (panelRef.current && !panelRef.current.contains(e.target)) setShowPanel(false) }
@@ -49,6 +61,7 @@ export default function QuizManager() {
     return () => document.removeEventListener('mousedown', handler)
   }, [showPanel])
 
+  /* ── Load courses ── */
   useEffect(() => {
     courseService.getMyCourses().then((res) => {
       setCourses(res.data)
@@ -56,6 +69,7 @@ export default function QuizManager() {
     })
   }, [])
 
+  /* ── Load quizzes when course changes ── */
   useEffect(() => {
     if (!selectedCourse) return
     setLoading(true)
@@ -63,6 +77,16 @@ export default function QuizManager() {
       .then((res) => setQuizzes(res.data))
       .finally(() => setLoading(false))
   }, [selectedCourse])
+
+  /* ── Socket: live leaderboard updates ── */
+  useEffect(() => {
+    if (!socket || !liveSession) return
+    const handler = ({ quiz_id, leaderboard: board }) => {
+      if (quiz_id === liveSession.quizId) setLeaderboard(board)
+    }
+    socket.on('leaderboard_update', handler)
+    return () => socket.off('leaderboard_update', handler)
+  }, [socket, liveSession?.quizId])
 
   /* ── AI generation ── */
   const handleGenerate = async ({ num_questions, difficulty }) => {
@@ -147,6 +171,35 @@ export default function QuizManager() {
     }
   }
 
+  /* ── Live session ── */
+  const handleStartLive = async (quiz) => {
+    setStartingLive(quiz.id)
+    try {
+      const res = await quizService.startLive(quiz.id)
+      const { pin } = res.data
+      setLiveSession({ quizId: quiz.id, pin, quizTitle: quiz.title })
+      setLeaderboard([])
+      socket?.emit('lecturer_watch_quiz', { quiz_id: quiz.id })
+      toast.success(`Live session started! Share PIN: ${pin}`)
+    } catch {
+      toast.error('Could not start live session. Try again.')
+    } finally {
+      setStartingLive(null)
+    }
+  }
+
+  const handleEndLive = async () => {
+    if (!liveSession) return
+    try {
+      await quizService.endLive(liveSession.quizId)
+      setLiveSession(null)
+      setLeaderboard([])
+      toast.info('Live session ended.')
+    } catch {
+      toast.error('Could not end session. Try again.')
+    }
+  }
+
   /* ── Manual form helpers ── */
   const updateQuestion = (qi, field, value) =>
     setManualForm(prev => {
@@ -218,7 +271,6 @@ export default function QuizManager() {
 
           {showPanel && (
             <div className="absolute right-0 top-12 z-30 bg-white rounded-2xl shadow-xl border border-gray-100 w-72 p-3">
-              {/* Course list */}
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Select Course</p>
               <div className="max-h-52 overflow-y-auto flex flex-col gap-0.5">
                 {Object.entries(groupedCourses).map(([level, levelCourses]) => (
@@ -239,12 +291,8 @@ export default function QuizManager() {
                     ))}
                   </div>
                 ))}
-                {!courses.length && (
-                  <p className="text-xs text-gray-400 text-center py-4">No courses found</p>
-                )}
+                {!courses.length && <p className="text-xs text-gray-400 text-center py-4">No courses found</p>}
               </div>
-
-              {/* Actions */}
               <div className="border-t border-gray-100 mt-3 pt-3 flex flex-col gap-2">
                 <button
                   onClick={() => { setShowGenerator(true); setShowPanel(false) }}
@@ -264,122 +312,267 @@ export default function QuizManager() {
         </div>
       </div>
 
-      {/* Content */}
-      {loading ? (
-        <div className="flex justify-center py-16"><Spinner size="lg" /></div>
-      ) : !quizzes.length ? (
-        /* Empty — two creation cards */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-          <button
-            onClick={() => setShowGenerator(true)}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[140px] group"
-          >
-            <span className="text-2xl">✨</span>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-gray-700 group-hover:text-violet-700 transition-colors">Generate with AI</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Auto-create from course materials</p>
-            </div>
-          </button>
-          <button
-            onClick={openManual}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[140px] group"
-          >
-            <span className="text-2xl">✏️</span>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-gray-700 group-hover:text-teal-600 transition-colors">Create Manually</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Write your own questions</p>
-            </div>
-          </button>
-        </div>
-      ) : (
-        /* Quiz card grid */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* Persistent creation cards */}
-          <button
-            onClick={() => setShowGenerator(true)}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[130px] group"
-          >
-            <span className="text-xl">✨</span>
-            <p className="text-xs font-semibold text-gray-600 group-hover:text-violet-700 transition-colors">Generate with AI</p>
-          </button>
-          <button
-            onClick={openManual}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[130px] group"
-          >
-            <span className="text-xl">✏️</span>
-            <p className="text-xs font-semibold text-gray-600 group-hover:text-teal-600 transition-colors">Create Manually</p>
-          </button>
+      {/* Two-column layout: quiz grid (left) + leaderboard (right) */}
+      <div className="flex gap-5 items-start">
 
-          {quizzes.map((quiz) => (
-            <div key={quiz.id} className="bg-white rounded-xl p-3.5 shadow-sm flex flex-col gap-2">
-              {/* Top row: badges + icon actions */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${
-                    quiz.is_active ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {quiz.is_active ? 'ACTIVE' : 'INACTIVE'}
-                  </span>
-                  {quiz.difficulty && DIFF_STYLE[quiz.difficulty] && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${DIFF_STYLE[quiz.difficulty]}`}>
-                      {quiz.difficulty.toUpperCase()}
-                    </span>
-                  )}
+        {/* ── Left: quiz grid ── */}
+        <div className="flex-1 min-w-0">
+          {loading ? (
+            <div className="flex justify-center py-16"><Spinner size="lg" /></div>
+          ) : !quizzes.length ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+              <button
+                onClick={() => setShowGenerator(true)}
+                className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[140px] group"
+              >
+                <span className="text-2xl">✨</span>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-700 group-hover:text-violet-700 transition-colors">Generate with AI</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Auto-create from course materials</p>
                 </div>
-                <div className="flex items-center gap-0.5 shrink-0">
-                  {/* Preview */}
-                  <button
-                    title="Preview"
-                    onClick={() => setPreviewQuiz(quiz)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  </button>
-                  {/* Activate / Deactivate */}
-                  <button
-                    title={quiz.is_active ? 'Deactivate' : 'Activate'}
-                    onClick={() => handleToggleActive(quiz)}
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      quiz.is_active
-                        ? 'text-violet-600 hover:bg-violet-50'
-                        : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'
+              </button>
+              <button
+                onClick={openManual}
+                className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[140px] group"
+              >
+                <span className="text-2xl">✏️</span>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-700 group-hover:text-teal-600 transition-colors">Create Manually</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Write your own questions</p>
+                </div>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Persistent creation cards */}
+              <button
+                onClick={() => setShowGenerator(true)}
+                className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 hover:border-violet-400 hover:bg-violet-50 transition-all min-h-[120px] group"
+              >
+                <span className="text-xl">✨</span>
+                <p className="text-xs font-semibold text-gray-600 group-hover:text-violet-700 transition-colors">Generate with AI</p>
+              </button>
+              <button
+                onClick={openManual}
+                className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 hover:border-teal-500 hover:bg-teal-50 transition-all min-h-[120px] group"
+              >
+                <span className="text-xl">✏️</span>
+                <p className="text-xs font-semibold text-gray-600 group-hover:text-teal-600 transition-colors">Create Manually</p>
+              </button>
+
+              {quizzes.map((quiz) => {
+                const isLive = liveSession?.quizId === quiz.id
+                return (
+                  <div
+                    key={quiz.id}
+                    className={`rounded-xl p-3.5 shadow-sm flex flex-col gap-2 transition-all ${
+                      isLive ? 'bg-navy ring-2 ring-violet-400' : 'bg-white'
                     }`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
-                    </svg>
-                  </button>
-                  {/* Delete */}
-                  <button
-                    title="Delete"
-                    onClick={() => setDeleteTarget(quiz)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
+                    {/* Top row: badges + icon actions */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isLive && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide bg-violet-400 text-white animate-pulse">
+                            LIVE
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${
+                          quiz.is_active
+                            ? isLive ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700'
+                            : isLive ? 'bg-white/10 text-white/60' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {quiz.is_active ? 'ACTIVE' : 'INACTIVE'}
+                        </span>
+                        {quiz.difficulty && DIFF_STYLE[quiz.difficulty] && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${
+                            isLive ? 'bg-white/20 text-white' : DIFF_STYLE[quiz.difficulty]
+                          }`}>
+                            {quiz.difficulty.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
 
-              {/* Title + meta */}
-              <div>
-                <h3 className="text-sm font-bold text-gray-900 leading-snug line-clamp-1">{quiz.title}</h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  {quiz.questions?.length || 0} Qs · {formatDate(quiz.generated_at)}
-                </p>
-              </div>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        {/* Preview */}
+                        <button
+                          title="Preview"
+                          onClick={() => setPreviewQuiz(quiz)}
+                          className={`p-1.5 rounded-lg transition-colors ${isLive ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        </button>
+                        {/* Activate / Deactivate */}
+                        <button
+                          title={quiz.is_active ? 'Deactivate' : 'Activate'}
+                          onClick={() => handleToggleActive(quiz)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isLive
+                              ? 'text-white/60 hover:text-white hover:bg-white/10'
+                              : quiz.is_active
+                                ? 'text-violet-600 hover:bg-violet-50'
+                                : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'
+                          }`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
+                          </svg>
+                        </button>
+                        {/* Delete */}
+                        <button
+                          title="Delete"
+                          onClick={() => setDeleteTarget(quiz)}
+                          className={`p-1.5 rounded-lg transition-colors ${isLive ? 'text-white/40 hover:text-red-300 hover:bg-white/10' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
+                        {/* Start / Stop Live */}
+                        <button
+                          title={isLive ? 'Stop Live Session' : 'Start Live Session'}
+                          disabled={startingLive === quiz.id || (!isLive && !!liveSession)}
+                          onClick={() => isLive ? handleEndLive() : handleStartLive(quiz)}
+                          className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
+                            isLive
+                              ? 'text-red-400 hover:text-red-300 hover:bg-white/10'
+                              : liveSession
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
+                          }`}
+                        >
+                          {isLive ? (
+                            /* Stop square */
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                              <rect x="4" y="4" width="16" height="16" rx="2"/>
+                            </svg>
+                          ) : startingLive === quiz.id ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                            </svg>
+                          ) : (
+                            /* Lightning bolt */
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                              <path d="M13 2L4.09 12.26a1 1 0 0 0 .79 1.61H11l-1 8.14 8.91-10.26a1 1 0 0 0-.79-1.61H13l1-8.14z"/>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
 
-              {/* Concatenated question preview */}
-              <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-2">
-                {quiz.questions?.slice(0, 5).map((q, i) => `${i + 1}. ${q.question}`).join(' · ')}
-              </p>
+                    {/* Title + meta */}
+                    <div>
+                      <h3 className={`text-sm font-bold leading-snug line-clamp-1 ${isLive ? 'text-white' : 'text-gray-900'}`}>
+                        {quiz.title}
+                      </h3>
+                      <p className={`text-[11px] mt-0.5 ${isLive ? 'text-white/60' : 'text-gray-400'}`}>
+                        {quiz.questions?.length || 0} Qs · {formatDate(quiz.generated_at)}
+                      </p>
+                    </div>
+
+                    {/* Concatenated question preview */}
+                    <p className={`text-[11px] leading-relaxed line-clamp-2 ${isLive ? 'text-white/50' : 'text-gray-400'}`}>
+                      {quiz.questions?.slice(0, 5).map((q, i) => `${i + 1}. ${q.question}`).join(' · ')}
+                    </p>
+
+                    {/* PIN display when live */}
+                    {isLive && (
+                      <div className="mt-1 bg-white/10 rounded-lg px-3 py-2 flex items-center justify-between">
+                        <span className="text-[10px] text-white/60 uppercase tracking-widest">PIN</span>
+                        <span className="text-lg font-bold text-white tracking-widest">{liveSession.pin}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          ))}
+          )}
         </div>
-      )}
+
+        {/* ── Right: live leaderboard ── */}
+        <div className="w-72 shrink-0">
+          <div className="bg-white rounded-2xl shadow-sm p-4 sticky top-4">
+            {/* Panel header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#152744" stroke="none">
+                  <path d="M8 21v-4a4 4 0 0 1 8 0v4M3 7l4-4 5 5 5-5 4 4M3 12h18"/>
+                </svg>
+                <h2 className="text-sm font-bold text-navy">Live Leaderboard</h2>
+              </div>
+              {liveSession && (
+                <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  LIVE
+                </span>
+              )}
+            </div>
+
+            {!liveSession ? (
+              /* Idle state */
+              <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#d1d5db" stroke="none">
+                  <path d="M13 2L4.09 12.26a1 1 0 0 0 .79 1.61H11l-1 8.14 8.91-10.26a1 1 0 0 0-.79-1.61H13l1-8.14z"/>
+                </svg>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Click the <span className="font-bold text-amber-500">⚡</span> on any quiz card to start a live session
+                </p>
+                <p className="text-[11px] text-gray-300">Students join with a PIN and scores update here in real-time</p>
+              </div>
+            ) : (
+              <>
+                {/* PIN banner */}
+                <div className="bg-navy rounded-xl p-3 text-center mb-4">
+                  <p className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Students join with PIN</p>
+                  <p className="text-3xl font-bold tracking-[0.2em] text-white">{liveSession.pin}</p>
+                  <p className="text-[10px] text-white/40 mt-1 truncate">{liveSession.quizTitle}</p>
+                </div>
+
+                {/* Leaderboard entries */}
+                <div className="flex flex-col gap-1.5 min-h-[80px]">
+                  {leaderboard.length === 0 ? (
+                    <div className="flex flex-col items-center py-6 gap-2 text-center">
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-violet-500 animate-spin" />
+                      <p className="text-xs text-gray-400">Waiting for students to join…</p>
+                    </div>
+                  ) : (
+                    leaderboard.map((entry, i) => (
+                      <div
+                        key={entry.student_id}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-500 ${
+                          i === 0 ? 'bg-amber-50 border border-amber-200' :
+                          i === 1 ? 'bg-gray-50 border border-gray-100' :
+                          i === 2 ? 'bg-orange-50 border border-orange-100' :
+                          'bg-gray-50/50'
+                        }`}
+                      >
+                        <span className="text-base w-5 text-center shrink-0 leading-none">
+                          {RANK_ICON[i] || <span className="text-xs font-bold text-gray-400">{i + 1}</span>}
+                        </span>
+                        <span className="flex-1 text-xs font-medium text-gray-800 truncate">{entry.student_name}</span>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-bold text-navy">{entry.score} pts</p>
+                          <p className="text-[9px] text-gray-400">{entry.answers_correct}/{entry.answers_total} correct</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* End session */}
+                <button
+                  onClick={handleEndLive}
+                  className="w-full mt-4 py-2 rounded-xl text-xs font-semibold text-red-500 border border-red-200 hover:bg-red-50 transition-colors"
+                >
+                  End Session
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* ── AI Generator Modal ── */}
       <Modal isOpen={showGenerator} onClose={() => setShowGenerator(false)} title="Generate AI Quiz">
@@ -389,7 +582,6 @@ export default function QuizManager() {
       {/* ── Manual Quiz Builder Modal ── */}
       <Modal isOpen={showManual} onClose={() => setShowManual(false)} title="Create Quiz Manually" maxWidth="max-w-2xl">
         <div className="flex flex-col gap-5">
-          {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Quiz Title</label>
             <input
@@ -401,7 +593,6 @@ export default function QuizManager() {
             />
           </div>
 
-          {/* Questions */}
           <div className="flex flex-col gap-4">
             {manualForm.questions.map((q, qi) => (
               <div key={qi} className="border border-gray-200 rounded-xl p-4 flex flex-col gap-3 bg-gray-50/50">

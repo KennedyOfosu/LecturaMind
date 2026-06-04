@@ -2,10 +2,17 @@
 quiz.py — Quiz generation, management, attempt submission, and results routes.
 """
 
+import random
+import string
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
 from services.quiz_service import generate_quiz
 from middleware.auth_middleware import require_auth, require_role
+
+
+def _generate_pin() -> str:
+    """Generate a random 6-character uppercase alphanumeric PIN."""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 quiz_bp = Blueprint("quiz", __name__)
 
@@ -183,4 +190,66 @@ def get_my_attempt(quiz_id: str):
 
     if not res.data:
         return jsonify(None), 200
+    return jsonify(res.data[0]), 200
+
+
+# ── Live Session ─────────────────────────────────────────────────────────────
+
+@quiz_bp.post("/<quiz_id>/start-live")
+@require_auth
+@require_role("lecturer")
+def start_live_session(quiz_id: str):
+    """
+    Start a live quiz session. Generates a fresh PIN and marks quiz as live.
+    Returns the updated quiz record including the PIN.
+    """
+    quiz_res = supabase.table("quizzes").select("id").eq("id", quiz_id).single().execute()
+    if not quiz_res.data:
+        return jsonify({"error": "Quiz not found", "code": 404}), 404
+
+    pin = _generate_pin()
+    res = supabase.table("quizzes").update({
+        "pin": pin,
+        "live_session_active": True,
+    }).eq("id", quiz_id).execute()
+
+    # Reset in-memory leaderboard for this quiz
+    from sockets.events import live_sessions
+    live_sessions[quiz_id] = {}
+
+    return jsonify(res.data[0]), 200
+
+
+@quiz_bp.post("/<quiz_id>/end-live")
+@require_auth
+@require_role("lecturer")
+def end_live_session(quiz_id: str):
+    """End a live quiz session and clear the in-memory leaderboard."""
+    res = supabase.table("quizzes").update({
+        "live_session_active": False,
+    }).eq("id", quiz_id).execute()
+
+    if not res.data:
+        return jsonify({"error": "Quiz not found", "code": 404}), 404
+
+    from sockets.events import live_sessions
+    live_sessions.pop(quiz_id, None)
+
+    return jsonify(res.data[0]), 200
+
+
+@quiz_bp.get("/pin/<pin>")
+@require_auth
+def get_quiz_by_pin(pin: str):
+    """
+    Fetch an active quiz by its PIN. Used by students joining a live session.
+    Returns quiz id, title, and questions so the student can begin immediately.
+    """
+    res = supabase.table("quizzes").select(
+        "id, title, questions, course_id, live_session_active, pin"
+    ).eq("pin", pin.upper()).eq("live_session_active", True).execute()
+
+    if not res.data:
+        return jsonify({"error": "No active session found for this PIN.", "code": 404}), 404
+
     return jsonify(res.data[0]), 200
