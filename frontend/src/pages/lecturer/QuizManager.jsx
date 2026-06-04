@@ -181,8 +181,10 @@ export default function QuizManager() {
       setLeaderboard([])
       socket?.emit('lecturer_watch_quiz', { quiz_id: quiz.id })
       toast.success(`Live session started! Share PIN: ${pin}`)
-    } catch {
-      toast.error('Could not start live session. Try again.')
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Unknown error'
+      console.error('[startLive] error:', err.response?.status, msg)
+      toast.error(`Could not start live session: ${msg}`)
     } finally {
       setStartingLive(null)
     }

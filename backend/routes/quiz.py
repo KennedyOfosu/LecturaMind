@@ -203,7 +203,12 @@ def start_live_session(quiz_id: str):
     Start a live quiz session. Generates a fresh PIN stored in-memory.
     No database columns required — the session lives only while the server runs.
     """
-    quiz_res = supabase.table("quizzes").select("id, title").eq("id", quiz_id).single().execute()
+    try:
+        quiz_res = supabase.table("quizzes").select("id, title").eq("id", quiz_id).execute()
+    except Exception as e:
+        print(f"[start_live] DB error: {e}")
+        return jsonify({"error": f"Database error: {str(e)}", "code": 500}), 500
+
     if not quiz_res.data:
         return jsonify({"error": "Quiz not found", "code": 404}), 404
 
@@ -212,6 +217,7 @@ def start_live_session(quiz_id: str):
     from sockets.events import live_sessions
     live_sessions[quiz_id] = {"pin": pin, "students": {}}
 
+    print(f"[start_live] Session started for quiz {quiz_id} with PIN {pin}")
     return jsonify({"id": quiz_id, "pin": pin, "live_session_active": True}), 200
 
 
