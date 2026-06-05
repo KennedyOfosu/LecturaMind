@@ -7,6 +7,7 @@ import string
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
 from services.quiz_service import generate_quiz
+from services.socket_service import get_socketio
 from middleware.auth_middleware import require_auth, require_role
 
 
@@ -200,11 +201,15 @@ def get_my_attempt(quiz_id: str):
 @require_role("lecturer")
 def start_live_session(quiz_id: str):
     """
-    Start a live quiz session. Generates a fresh PIN stored in-memory.
+    Start a live quiz session. Generates a fresh PIN stored in-memory and
+    pushes a real-time notification (carrying the PIN) to every enrolled
+    student so they can copy it and join without being told manually.
     No database columns required — the session lives only while the server runs.
     """
     try:
-        quiz_res = supabase.table("quizzes").select("id, title").eq("id", quiz_id).execute()
+        quiz_res = supabase.table("quizzes").select(
+            "id, title, course_id, questions"
+        ).eq("id", quiz_id).execute()
     except Exception as e:
         print(f"[start_live] DB error: {e}")
         return jsonify({"error": f"Database error: {str(e)}", "code": 500}), 500
@@ -212,10 +217,47 @@ def start_live_session(quiz_id: str):
     if not quiz_res.data:
         return jsonify({"error": "Quiz not found", "code": 404}), 404
 
+    quiz          = quiz_res.data[0]
+    course_id     = quiz.get("course_id")
+    title         = quiz.get("title") or "Quiz"
+    num_questions = len(quiz.get("questions") or [])
+
     pin = _generate_pin()
 
     from sockets.events import live_sessions
     live_sessions[quiz_id] = {"pin": pin, "students": {}}
+
+    # Notify every enrolled student in real time with the PIN
+    try:
+        course_res = supabase.table("courses").select("course_name").eq(
+            "id", course_id
+        ).execute()
+        course_name = (course_res.data[0].get("course_name") if course_res.data else "") or "your course"
+
+        enrolments = supabase.table("enrolments").select("student_id").eq(
+            "course_id", course_id
+        ).execute()
+
+        sio = get_socketio()
+        if sio:
+            payload = {
+                "quiz_id":       quiz_id,
+                "quiz_title":    title,
+                "course_id":     course_id,
+                "course_name":   course_name,
+                "pin":           pin,
+                "num_questions": num_questions,
+            }
+            # Emit to each student's personal room AND the course room so the
+            # notification arrives regardless of which room joined first.
+            for row in (enrolments.data or []):
+                sio.emit("live_session_started", payload,
+                         room=f"student_{row['student_id']}", namespace="/")
+            sio.emit("live_session_started", payload,
+                     room=f"course_{course_id}", namespace="/")
+            print(f"[start_live] Notified {len(enrolments.data or [])} student(s) — PIN {pin}")
+    except Exception as e:
+        print(f"[start_live] Socket emit failed (non-fatal): {e}")
 
     print(f"[start_live] Session started for quiz {quiz_id} with PIN {pin}")
     return jsonify({"id": quiz_id, "pin": pin, "live_session_active": True}), 200

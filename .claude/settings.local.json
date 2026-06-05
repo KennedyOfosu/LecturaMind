@@ -18,7 +18,17 @@
       "Bash(python run_migration.py)",
       "WebFetch(domain:api.anthropic.com)",
       "Bash(python -c ' *)",
-      "mcp__claude_ai_Figma__get_design_context"
+      "mcp__claude_ai_Figma__get_design_context",
+      "WebFetch(domain:wisabo.com)",
+      "Bash(node -e ' *)",
+      "Bash(npm run *)",
+      "Bash(git -C \"c:/Users/Ken-Agbedus Consult/Documents/SIIMT/4.1/Project/LecturaMind\" ls-files frontend/public/)",
+      "Bash(git -C \"c:/Users/Ken-Agbedus Consult/Documents/SIIMT/4.1/Project/LecturaMind\" ls-files frontend/public/Login_Background_Page.jpg)",
+      "Bash(git revert *)",
+      "Bash(node -e \"require\\('fs'\\).readFileSync\\('frontend/src/pages/lecturer/CourseManager.jsx','utf8'\\)\")",
+      "Bash(node -e \"const a = require\\('animejs'\\); console.log\\(Object.keys\\(a\\).slice\\(0,15\\)\\)\")",
+      "Bash(node -e \"const a = require\\('animejs'\\); console.log\\(Object.keys\\(a\\)\\)\")",
+      "Bash(git checkout *)"
     ]
   }
 }

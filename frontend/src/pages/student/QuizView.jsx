@@ -3,7 +3,8 @@
  * Supports both regular (self-paced) quizzes and live PIN-based sessions.
  */
 
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { quizService } from '../../services/quizService'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -20,6 +21,8 @@ export default function QuizView({ courseId }) {
   const toast = useToast()
   const { socket } = useContext(SocketContext)
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const autoJoinedRef = useRef(false)
 
   // Regular quiz state
   const [quizzes,      setQuizzes]      = useState([])
@@ -64,8 +67,8 @@ export default function QuizView({ courseId }) {
   }, [socket, liveQuiz?.id])
 
   /* ── Join live session via PIN ── */
-  const handleJoinPin = async () => {
-    const pin = pinInput.trim().toUpperCase()
+  const joinWithPin = async (rawPin) => {
+    const pin = (rawPin || '').trim().toUpperCase()
     if (pin.length < 4) { toast.warning('Please enter a valid PIN.'); return }
     setJoiningPin(true)
     try {
@@ -90,6 +93,21 @@ export default function QuizView({ courseId }) {
       setPinInput('')
     }
   }
+
+  const handleJoinPin = () => joinWithPin(pinInput)
+
+  /* ── Auto-join when arriving from a live-session notification (?pin=…) ── */
+  useEffect(() => {
+    const pin = searchParams.get('pin')
+    if (!pin || autoJoinedRef.current) return
+    autoJoinedRef.current = true
+    setPinInput(pin.toUpperCase())
+    joinWithPin(pin)
+    // Strip the pin param so a refresh doesn't re-trigger the join
+    const next = new URLSearchParams(searchParams)
+    next.delete('pin')
+    setSearchParams(next, { replace: true })
+  }, [searchParams])
 
   /* ── Live answer submission ── */
   const handleLiveAnswer = (answer) => {

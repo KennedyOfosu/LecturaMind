@@ -13,6 +13,7 @@ import { useSocket } from '../../hooks/useSocket'
 import { useCourses } from '../../context/CoursesContext'
 import StudentSidebar from './StudentSidebar'
 import AnnouncementToast from '../realtime/AnnouncementToast'
+import LiveSessionToast from '../realtime/LiveSessionToast'
 
 export default function StudentLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -52,8 +53,9 @@ export default function StudentLayout() {
         </div>
       </main>
 
-      {/* Global real-time announcement toast — visible on every student page */}
+      {/* Global real-time toasts — visible on every student page */}
       <AnnouncementToast />
+      <LiveSessionToast />
     </div>
   )
 }
