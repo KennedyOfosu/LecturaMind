@@ -12,6 +12,7 @@ export const quizService = {
   // Live session
   startLive:      (quizId)          => api.post(`/api/quiz/${quizId}/start-live`),
   endLive:        (quizId)          => api.post(`/api/quiz/${quizId}/end-live`),
+  deployMarks:    (quizId)          => api.post(`/api/quiz/${quizId}/deploy-marks`),
   getByPin:       (pin)             => api.get(`/api/quiz/pin/${pin}`),
   getActiveLive:  (courseId)        => api.get(`/api/quiz/course/${courseId}/live`),
 }

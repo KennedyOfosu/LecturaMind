@@ -54,6 +54,8 @@ export default function QuizManager() {
   const [liveSession, setLiveSession] = useState(null) // { quizId, pin, quizTitle }
   const [leaderboard, setLeaderboard] = useState([])
   const [startingLive, setStartingLive] = useState(null) // quizId currently being started
+  const [deployingMarks, setDeployingMarks] = useState(false)
+  const [marksDeployed, setMarksDeployed] = useState(false)
 
   /* ── Click-outside panel ── */
   useEffect(() => {
@@ -190,6 +192,7 @@ export default function QuizManager() {
       const { pin } = res.data
       setLiveSession({ quizId: quiz.id, pin, quizTitle: quiz.title })
       setLeaderboard([])
+      setMarksDeployed(false)
       socket?.emit('lecturer_watch_quiz', { quiz_id: quiz.id })
       toast.success(`Live session started! Share PIN: ${pin}`)
     } catch (err) {
@@ -207,9 +210,25 @@ export default function QuizManager() {
       await quizService.endLive(liveSession.quizId)
       setLiveSession(null)
       setLeaderboard([])
+      setMarksDeployed(false)
       toast.info('Live session ended.')
     } catch {
       toast.error('Could not end session. Try again.')
+    }
+  }
+
+  /* ── Deploy live results into the gradebook (Quiz column) ── */
+  const handleDeployMarks = async () => {
+    if (!liveSession) return
+    setDeployingMarks(true)
+    try {
+      const res = await quizService.deployMarks(liveSession.quizId)
+      setMarksDeployed(true)
+      toast.success(`Recorded ${res.data.deployed} student mark(s) to the gradebook (Quiz).`)
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not deploy records. Try again.')
+    } finally {
+      setDeployingMarks(false)
     }
   }
 
@@ -588,10 +607,30 @@ export default function QuizManager() {
                   )}
                 </div>
 
+                {/* Deploy records — general quizzes only (hot tests are formative) */}
+                {!liveSession.quizTitle?.startsWith('Hot Test') && (
+                  <button
+                    onClick={handleDeployMarks}
+                    disabled={deployingMarks || leaderboard.length === 0}
+                    title="Record each student's score into the gradebook (Quiz column)"
+                    className={`w-full mt-4 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-40 ${
+                      marksDeployed
+                        ? 'text-emerald-600 border border-emerald-200 bg-emerald-50'
+                        : 'text-white bg-teal hover:opacity-90'
+                    }`}
+                  >
+                    {deployingMarks
+                      ? 'Deploying…'
+                      : marksDeployed
+                        ? '✓ Records Deployed — Deploy Again'
+                        : 'Deploy Records to Gradebook'}
+                  </button>
+                )}
+
                 {/* End session */}
                 <button
                   onClick={handleEndLive}
-                  className="w-full mt-4 py-2 rounded-xl text-xs font-semibold text-red-500 border border-red-200 hover:bg-red-50 transition-colors"
+                  className="w-full mt-2 py-2 rounded-xl text-xs font-semibold text-red-500 border border-red-200 hover:bg-red-50 transition-colors"
                 >
                   End Session
                 </button>

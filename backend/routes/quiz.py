@@ -279,6 +279,70 @@ def end_live_session(quiz_id: str):
     return jsonify({"id": quiz_id, "live_session_active": False}), 200
 
 
+@quiz_bp.post("/<quiz_id>/deploy-marks")
+@require_auth
+@require_role("lecturer")
+def deploy_live_marks(quiz_id: str):
+    """
+    Persist the live-session leaderboard into the gradebook (student_marks)
+    under the 'Quiz' assessment column. Each participant's mark is their
+    percentage correct (answers_correct / total_questions * 100).
+
+    Idempotent: re-deploying replaces marks previously deployed for this quiz.
+    """
+    from sockets.events import live_sessions
+
+    session = live_sessions.get(quiz_id)
+    if not session:
+        return jsonify({"error": "No active live session for this quiz.", "code": 404}), 404
+
+    students = session.get("students", {})
+    if not students:
+        return jsonify({"error": "No students have participated yet.", "code": 400}), 400
+
+    quiz_res = supabase.table("quizzes").select(
+        "id, title, course_id, questions"
+    ).eq("id", quiz_id).execute()
+    if not quiz_res.data:
+        return jsonify({"error": "Quiz not found", "code": 404}), 404
+
+    quiz      = quiz_res.data[0]
+    course_id = quiz["course_id"]
+    title     = quiz.get("title") or "Live Quiz"
+    total_q   = len(quiz.get("questions") or []) or 1
+
+    # Remove any previously deployed marks for this exact quiz (idempotent re-deploy)
+    try:
+        supabase.table("student_marks").delete().eq(
+            "course_id", course_id
+        ).eq("assessment_type", "Quiz").eq("title", title).eq("source", "live").execute()
+    except Exception as e:
+        print(f"[deploy_marks] cleanup skipped (non-fatal): {e}")
+
+    rows = []
+    for sid, entry in students.items():
+        correct    = entry.get("answers_correct", 0)
+        percentage = round(correct / total_q * 100)
+        rows.append({
+            "student_id":      sid,
+            "course_id":       course_id,
+            "lecturer_id":     g.user_id,
+            "assessment_type": "Quiz",
+            "title":           title,
+            "score":           percentage,
+            "max_score":       100,
+            "source":          "live",
+        })
+
+    try:
+        supabase.table("student_marks").insert(rows).execute()
+    except Exception as e:
+        return jsonify({"error": f"Could not save marks: {e}", "code": 500}), 500
+
+    print(f"[deploy_marks] Deployed {len(rows)} mark(s) for quiz {quiz_id} -> gradebook")
+    return jsonify({"deployed": len(rows), "title": title, "course_id": course_id}), 200
+
+
 @quiz_bp.get("/pin/<pin>")
 @require_auth
 def get_quiz_by_pin(pin: str):
