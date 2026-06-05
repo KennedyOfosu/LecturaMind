@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef, useContext } from 'react'
 import { courseService } from '../../services/courseService'
 import { quizService } from '../../services/quizService'
+import { materialService } from '../../services/materialService'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Spinner } from '../../components/ui/Spinner'
@@ -36,6 +37,7 @@ export default function QuizManager() {
   const [courses, setCourses] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
   const [quizzes, setQuizzes] = useState([])
+  const [materials, setMaterials] = useState([])
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [savingManual, setSavingManual] = useState(false)
@@ -78,6 +80,14 @@ export default function QuizManager() {
       .finally(() => setLoading(false))
   }, [selectedCourse])
 
+  /* ── Load materials for hot-test slide picker ── */
+  useEffect(() => {
+    if (!selectedCourse) { setMaterials([]); return }
+    materialService.getByCourse(selectedCourse)
+      .then((res) => setMaterials(res.data || []))
+      .catch(() => setMaterials([]))
+  }, [selectedCourse])
+
   /* ── Socket: live leaderboard updates ── */
   useEffect(() => {
     if (!socket || !liveSession) return
@@ -89,12 +99,13 @@ export default function QuizManager() {
   }, [socket, liveSession?.quizId])
 
   /* ── AI generation ── */
-  const handleGenerate = async ({ num_questions, difficulty }) => {
+  const handleGenerate = async ({ num_questions, difficulty, quiz_type, material_id }) => {
     if (!selectedCourse) { toast.warning('Please select a course before generating a quiz.'); return }
     setGenerating(true)
-    const dismiss = toast.loading('Generating quiz from course content, please wait...')
+    const label = quiz_type === 'hot' ? 'hot test' : 'general quiz'
+    const dismiss = toast.loading(`Generating ${label} from course content, please wait...`)
     try {
-      await quizService.generate({ course_id: selectedCourse, num_questions, difficulty })
+      await quizService.generate({ course_id: selectedCourse, num_questions, difficulty, quiz_type, material_id })
       dismiss()
       toast.success('Quiz generated successfully. Review it before activating for students.')
       setShowGenerator(false)
@@ -386,6 +397,20 @@ export default function QuizManager() {
                         }`}>
                           {quiz.is_active ? 'ACTIVE' : 'INACTIVE'}
                         </span>
+                        {quiz.title?.startsWith('Hot Test') && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${
+                            isLive ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-700'
+                          }`}>
+                            🔥 HOT TEST
+                          </span>
+                        )}
+                        {quiz.title?.startsWith('General Quiz') && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${
+                            isLive ? 'bg-white/20 text-white' : 'bg-sky-100 text-sky-700'
+                          }`}>
+                            GENERAL
+                          </span>
+                        )}
                         {quiz.difficulty && DIFF_STYLE[quiz.difficulty] && (
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tracking-wide ${
                             isLive ? 'bg-white/20 text-white' : DIFF_STYLE[quiz.difficulty]
@@ -578,7 +603,7 @@ export default function QuizManager() {
 
       {/* ── AI Generator Modal ── */}
       <Modal isOpen={showGenerator} onClose={() => setShowGenerator(false)} title="Generate AI Quiz">
-        <QuizGenerator onGenerate={handleGenerate} loading={generating} />
+        <QuizGenerator onGenerate={handleGenerate} loading={generating} materials={materials} />
       </Modal>
 
       {/* ── Manual Quiz Builder Modal ── */}

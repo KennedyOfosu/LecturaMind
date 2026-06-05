@@ -32,6 +32,8 @@ def generate():
     course_id = data.get("course_id", "").strip()
     num_questions = int(data.get("num_questions", 10))
     difficulty = data.get("difficulty", "medium").lower()
+    quiz_type = (data.get("quiz_type") or "general").lower()
+    material_id = (data.get("material_id") or "").strip() or None
 
     if not course_id:
         return jsonify({"error": "course_id is required", "code": 400}), 400
@@ -39,9 +41,13 @@ def generate():
         return jsonify({"error": "num_questions must be between 5 and 20", "code": 400}), 400
     if difficulty not in ("easy", "medium", "hard"):
         return jsonify({"error": "difficulty must be easy, medium, or hard", "code": 400}), 400
+    if quiz_type not in ("general", "hot"):
+        return jsonify({"error": "quiz_type must be 'general' or 'hot'", "code": 400}), 400
+    if quiz_type == "hot" and not material_id:
+        return jsonify({"error": "Select a lecture material for a hot test", "code": 400}), 400
 
     try:
-        quiz = generate_quiz(course_id, num_questions, difficulty)
+        quiz = generate_quiz(course_id, num_questions, difficulty, quiz_type, material_id)
     except ValueError as e:
         return jsonify({"error": str(e), "code": 400}), 400
     except Exception as e:

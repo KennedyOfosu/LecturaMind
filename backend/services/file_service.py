@@ -133,3 +133,23 @@ def get_all_course_text(course_id: str) -> str:
     ).execute()
     texts = [row["extracted_text"] for row in res.data if row.get("extracted_text")]
     return "\n\n---\n\n".join(texts)
+
+
+def get_material_text(material_id: str):
+    """
+    Retrieve the file name and extracted text for a single material (slide).
+    Used by 'hot test' quiz generation, which is scoped to one lecture material.
+
+    Args:
+        material_id: UUID of the material.
+
+    Returns:
+        A tuple (file_name, extracted_text). file_name is None if not found.
+    """
+    res = supabase.table("materials").select("file_name, extracted_text").eq(
+        "id", material_id
+    ).execute()
+    if not res.data:
+        return None, ""
+    row = res.data[0]
+    return row.get("file_name"), (row.get("extracted_text") or "")

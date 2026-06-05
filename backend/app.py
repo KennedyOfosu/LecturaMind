@@ -85,7 +85,7 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "LecturaMind API",
-        "build": "live-session-notify-1",
+        "build": "hot-general-quiz-1",
         "supabase_url_set": bool(Config.SUPABASE_URL),
         "service_key_set": bool(Config.SUPABASE_SERVICE_KEY),
         "anthropic_key_set": bool(Config.ANTHROPIC_API_KEY),
