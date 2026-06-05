@@ -35,6 +35,7 @@ export default function QuizView({ courseId }) {
   const [submitting,   setSubmitting]   = useState(false)
 
   // Live session state
+  const [activeLive,   setActiveLive]   = useState(null)   // { quiz_id, quiz_title, pin } | null
   const [pinInput,     setPinInput]     = useState('')
   const [joiningPin,   setJoiningPin]   = useState(false)
   const [liveQuiz,     setLiveQuiz]     = useState(null)   // quiz object from PIN lookup
@@ -54,6 +55,26 @@ export default function QuizView({ courseId }) {
       .finally(() => setLoading(false))
   }
   useEffect(load, [courseId])
+
+  /* ── Pull-based check: is a live session active for this course right now? ── */
+  const loadActiveLive = () => {
+    quizService.getActiveLive(courseId)
+      .then((res) => setActiveLive(res.data?.active ? res.data : null))
+      .catch(() => {})
+  }
+  useEffect(loadActiveLive, [courseId])
+
+  /* ── Socket: a live session started while the student is on this page ── */
+  useEffect(() => {
+    if (!socket) return
+    const handler = (data) => {
+      if (data?.course_id && String(data.course_id) === String(courseId)) {
+        setActiveLive(data)
+      }
+    }
+    socket.on('live_session_started', handler)
+    return () => socket.off('live_session_started', handler)
+  }, [socket, courseId])
 
   /* ── Socket: answer result for live session ── */
   useEffect(() => {
@@ -336,6 +357,27 @@ export default function QuizView({ courseId }) {
   // Quiz list view
   return (
     <div className="flex flex-col gap-4">
+      {/* Active live session banner — shown whenever a session is running */}
+      {activeLive && (
+        <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: '#7C3AED' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" stroke="none">
+                <path d="M13 2L4.09 12.26a1 1 0 0 0 .79 1.61H11l-1 8.14 8.91-10.26a1 1 0 0 0-.79-1.61H13l1-8.14z"/>
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-violet-700">Live session in progress</p>
+              <p className="text-sm font-bold text-navy truncate">{activeLive.quiz_title}</p>
+              <p className="text-xs text-gray-500">PIN: <span className="font-mono font-bold tracking-widest text-violet-700">{activeLive.pin}</span></p>
+            </div>
+          </div>
+          <Button variant="teal" loading={joiningPin} onClick={() => joinWithPin(activeLive.pin)}>
+            Join Now
+          </Button>
+        </div>
+      )}
+
       {/* Join live session */}
       <Card className="flex flex-col gap-3">
         <div className="flex items-center gap-2">

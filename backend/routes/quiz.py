@@ -298,3 +298,33 @@ def get_quiz_by_pin(pin: str):
         return jsonify({"error": "Quiz not found.", "code": 404}), 404
 
     return jsonify({**res.data, "live_session_active": True, "pin": pin}), 200
+
+
+@quiz_bp.get("/course/<course_id>/live")
+@require_auth
+def get_active_live_session(course_id: str):
+    """
+    Return the currently active live session for a course, if any.
+    Pull-based fallback so students who missed the real-time push still see
+    the active session (and its PIN) when they open the Quiz tab.
+    """
+    from sockets.events import live_sessions
+
+    active_ids = [qid for qid, s in live_sessions.items() if s.get("pin")]
+    if not active_ids:
+        return jsonify({"active": False}), 200
+
+    res = supabase.table("quizzes").select("id, title").in_(
+        "id", active_ids
+    ).eq("course_id", course_id).execute()
+
+    if not res.data:
+        return jsonify({"active": False}), 200
+
+    quiz = res.data[0]
+    return jsonify({
+        "active":     True,
+        "quiz_id":    quiz["id"],
+        "quiz_title": quiz["title"],
+        "pin":        live_sessions[quiz["id"]]["pin"],
+    }), 200
