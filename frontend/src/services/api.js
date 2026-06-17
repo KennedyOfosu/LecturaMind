@@ -24,6 +24,10 @@ function showToast(message, type) {
   window.dispatchEvent(new CustomEvent('lecturamind:toast', { detail: { message, type } }))
 }
 
+function showSessionPrompt() {
+  window.dispatchEvent(new CustomEvent('lecturamind:session-expiring'))
+}
+
 // Handle auth errors globally + auto-retry on network errors / 5xx (backend cold start)
 api.interceptors.response.use(
   (response) => response,
@@ -31,10 +35,10 @@ api.interceptors.response.use(
     const config = error.config
 
     if (error.response?.status === 401) {
-      localStorage.removeItem('lm_token')
-      localStorage.removeItem('lm_user')
-      showToast('Your session has expired. Please sign in again.', 'warning')
-      setTimeout(() => { window.location.href = '/login' }, 1500)
+      if (!config?.skipAuthPrompt) {
+        showToast('Your session is ending soon. Please choose whether to continue or exit.', 'warning')
+        showSessionPrompt()
+      }
       return Promise.reject(error)
     }
 

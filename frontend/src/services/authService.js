@@ -7,7 +7,7 @@ export const authService = {
   login: ({ id_number, password }) =>
     api.post('/api/auth/login', { id_number, password }),
 
-  logout: () => api.post('/api/auth/logout'),
+  logout: (config = {}) => api.post('/api/auth/logout', null, config),
 
-  me: () => api.get('/api/auth/me'),
+  me: (config = {}) => api.get('/api/auth/me', config),
 }
