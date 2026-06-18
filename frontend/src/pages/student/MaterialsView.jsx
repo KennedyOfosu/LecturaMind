@@ -175,9 +175,13 @@ function MaterialCard({ material, downloading, opening, sharing, onDownload, onO
 }
 
 async function copyToClipboard(text) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text)
-    return true
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    // Fall back to the older selection-based copy path below.
   }
 
   const input = document.createElement('textarea')
@@ -190,7 +194,9 @@ async function copyToClipboard(text) {
   input.select()
 
   try {
-    return document.execCommand('copy')
+    return Boolean(document.execCommand('copy'))
+  } catch {
+    return false
   } finally {
     document.body.removeChild(input)
   }
@@ -268,17 +274,25 @@ export default function MaterialsView({ courseId }) {
       const shareData = { title, text: `Course material: ${title}`, url }
 
       if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
-        await navigator.share(shareData)
-        toast.success('Material shared.')
-      } else {
-        const copied = await copyToClipboard(url)
-        if (!copied) throw new Error('Copy failed')
+        try {
+          await navigator.share(shareData)
+          toast.success('Material shared.')
+          return
+        } catch (error) {
+          if (error?.name === 'AbortError') return
+        }
+      }
+
+      const copied = await copyToClipboard(url)
+      if (copied) {
         toast.success('Share link copied.')
+        return
       }
-    } catch (error) {
-      if (error?.name !== 'AbortError') {
-        toast.error('Could not share this material. Please try again.')
-      }
+
+      window.prompt('Copy this material link:', url)
+      toast.info('Share link ready to copy.')
+    } catch {
+      toast.error('Could not create a share link. Please try again.')
     } finally {
       setSharing(null)
     }
