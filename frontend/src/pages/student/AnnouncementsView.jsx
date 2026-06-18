@@ -36,7 +36,7 @@ function getPreview(content) {
 
 function GroupCard({ group, selectedId, onSelect }) {
   return (
-    <section className={`rounded-lg border bg-white p-4 shadow-sm ${group.borderClass}`}>
+    <section className={`flex min-h-0 flex-col rounded-lg border bg-white p-4 shadow-sm ${group.borderClass}`}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">{group.title}</h3>
@@ -47,7 +47,7 @@ function GroupCard({ group, selectedId, onSelect }) {
         </span>
       </div>
 
-      <div className="space-y-2">
+      <div className="min-h-0 space-y-2 overflow-y-auto pr-1 scrollbar-hide xl:max-h-[260px]">
         {group.items.map((announcement) => {
           const selected = selectedId === announcement.id
           return (
@@ -88,7 +88,7 @@ function GroupCard({ group, selectedId, onSelect }) {
 function DetailPane({ announcement, groupMeta }) {
   if (!announcement) {
     return (
-      <aside className="flex min-h-[360px] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white p-8 text-center">
+      <aside className="flex min-h-[300px] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white p-8 text-center xl:max-h-[calc(100vh-250px)]">
         <p className="max-w-xs text-sm text-gray-500">
           Select an announcement from a group to preview the full message here.
         </p>
@@ -99,10 +99,10 @@ function DetailPane({ announcement, groupMeta }) {
   const meta = groupMeta || {}
 
   return (
-    <aside className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <aside className="flex min-h-[300px] flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm xl:max-h-[calc(100vh-250px)]">
       <div className={`h-1.5 rounded-t-lg ${meta.barClass || 'bg-teal-500'}`} />
-      <div className="p-6">
-        <div className="mb-5 flex flex-wrap items-center gap-2">
+      <div className="flex min-h-0 flex-1 flex-col p-5">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${meta.countClass || 'bg-teal-50 text-teal-700'}`}>
             {meta.title || 'Announcement'}
           </span>
@@ -116,7 +116,7 @@ function DetailPane({ announcement, groupMeta }) {
           </span>
         </div>
 
-        <h2 className="text-2xl font-bold leading-tight text-gray-950">
+        <h2 className="text-xl font-bold leading-tight text-gray-950">
           {announcement.title || 'Untitled announcement'}
         </h2>
 
@@ -124,7 +124,7 @@ function DetailPane({ announcement, groupMeta }) {
           Posted {formatDate(announcement.posted_at)}
         </div>
 
-        <div className="mt-6 whitespace-pre-line text-sm leading-7 text-gray-700">
+        <div className="mt-5 min-h-0 flex-1 overflow-y-auto whitespace-pre-line pr-2 text-sm leading-7 text-gray-700 scrollbar-thin">
           {announcement.content || 'No announcement details were provided.'}
         </div>
       </div>
@@ -211,7 +211,7 @@ export default function AnnouncementsView({ courseId }) {
   )
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+    <div className="grid w-full items-start gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
       <div className="space-y-4">
         <div>
           <h2 className="text-xl font-bold text-gray-950">Announcements</h2>
