@@ -112,7 +112,7 @@ function ArrowIcon() {
   )
 }
 
-function MaterialCard({ material, downloading, sharing, onDownload, onShare }) {
+function MaterialCard({ material, downloading, opening, sharing, onDownload, onOpen, onShare }) {
   const type = getFileType(material)
   const meta = TYPE_META[type] || TYPE_META.file
   const title = cleanTitle(material.file_name)
@@ -154,7 +154,7 @@ function MaterialCard({ material, downloading, sharing, onDownload, onShare }) {
         <button
           type="button"
           onClick={() => onDownload(material)}
-          disabled={downloading === material.id}
+          disabled={downloading === material.id || opening === material.id}
           className="flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-100 px-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-900 hover:text-white disabled:opacity-50"
         >
           {downloading === material.id ? <Spinner size="sm" /> : <DownloadIcon />}
@@ -162,16 +162,38 @@ function MaterialCard({ material, downloading, sharing, onDownload, onShare }) {
         </button>
         <button
           type="button"
-          onClick={() => onDownload(material)}
-          disabled={downloading === material.id}
+          onClick={() => onOpen(material)}
+          disabled={downloading === material.id || opening === material.id}
           title="Open material"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-teal-50 hover:text-teal-700 disabled:opacity-50"
         >
-          <ArrowIcon />
+          {opening === material.id ? <Spinner size="sm" /> : <ArrowIcon />}
         </button>
       </div>
     </article>
   )
+}
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return true
+  }
+
+  const input = document.createElement('textarea')
+  input.value = text
+  input.setAttribute('readonly', '')
+  input.style.position = 'fixed'
+  input.style.top = '-1000px'
+  input.style.opacity = '0'
+  document.body.appendChild(input)
+  input.select()
+
+  try {
+    return document.execCommand('copy')
+  } finally {
+    document.body.removeChild(input)
+  }
 }
 
 export default function MaterialsView({ courseId }) {
@@ -180,6 +202,7 @@ export default function MaterialsView({ courseId }) {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
   const [downloading, setDownloading] = useState(null)
+  const [opening, setOpening] = useState(null)
   const [sharing, setSharing] = useState(null)
 
   const load = () => {
@@ -195,6 +218,7 @@ export default function MaterialsView({ courseId }) {
 
   const getMaterialUrl = async (material) => {
     const res = await materialService.getDownloadUrl(material.id)
+    if (!res.data?.url) throw new Error('Missing download URL')
     return res.data.url
   }
 
@@ -205,15 +229,34 @@ export default function MaterialsView({ courseId }) {
       const link = document.createElement('a')
       link.href = url
       link.download = material.file_name
-      link.target = '_blank'
       link.rel = 'noopener noreferrer'
+      link.style.display = 'none'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      toast.success('Download started.')
     } catch {
       toast.error('Could not generate download link. Please try again.')
     } finally {
       setDownloading(null)
+    }
+  }
+
+  const handleOpen = async (material) => {
+    const tab = window.open('about:blank', '_blank', 'noopener,noreferrer')
+    setOpening(material.id)
+    try {
+      const url = await getMaterialUrl(material)
+      if (tab) {
+        tab.location.href = url
+      } else {
+        window.location.href = url
+      }
+    } catch {
+      if (tab) tab.close()
+      toast.error('Could not open this material. Please try again.')
+    } finally {
+      setOpening(null)
     }
   }
 
@@ -222,15 +265,15 @@ export default function MaterialsView({ courseId }) {
     try {
       const url = await getMaterialUrl(material)
       const title = cleanTitle(material.file_name)
-      if (navigator.share) {
-        await navigator.share({ title, text: `Course material: ${title}`, url })
+      const shareData = { title, text: `Course material: ${title}`, url }
+
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData)
         toast.success('Material shared.')
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url)
-        toast.success('Share link copied.')
       } else {
-        toast.info('Share link is ready in a new tab.')
-        window.open(url, '_blank', 'noopener,noreferrer')
+        const copied = await copyToClipboard(url)
+        if (!copied) throw new Error('Copy failed')
+        toast.success('Share link copied.')
       }
     } catch (error) {
       if (error?.name !== 'AbortError') {
@@ -280,8 +323,10 @@ export default function MaterialsView({ courseId }) {
             key={material.id}
             material={material}
             downloading={downloading}
+            opening={opening}
             sharing={sharing}
             onDownload={handleDownload}
+            onOpen={handleOpen}
             onShare={handleShare}
           />
         ))}
