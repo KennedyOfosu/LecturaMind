@@ -118,7 +118,10 @@ function MaterialCard({ material, downloading, opening, sharing, onDownload, onO
   const title = cleanTitle(material.file_name)
 
   return (
-    <article className="flex min-h-[220px] flex-col rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md">
+    <article
+      id={`material-${material.id}`}
+      className="flex min-h-[220px] flex-col rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md"
+    >
       <div className="flex items-start justify-between gap-3">
         <FileIcon meta={meta} />
         <button
@@ -202,6 +205,13 @@ async function copyToClipboard(text) {
   }
 }
 
+function getMaterialShareUrl(material) {
+  const url = new URL(window.location.href)
+  url.searchParams.set('tab', 'materials')
+  url.searchParams.set('material', material.id)
+  return url.toString()
+}
+
 export default function MaterialsView({ courseId }) {
   const toast = useToast()
   const [materials, setMaterials] = useState([])
@@ -221,6 +231,21 @@ export default function MaterialsView({ courseId }) {
   }
 
   useEffect(load, [courseId])
+
+  useEffect(() => {
+    if (!materials.length) return
+
+    const targetId = new URLSearchParams(window.location.search).get('material')
+    if (!targetId) return
+
+    const target = document.getElementById(`material-${targetId}`)
+    if (!target) return
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    target.classList.add('highlight-flash')
+    const timeout = setTimeout(() => target.classList.remove('highlight-flash'), 2000)
+    return () => clearTimeout(timeout)
+  }, [materials])
 
   const getMaterialUrl = async (material) => {
     const res = await materialService.getDownloadUrl(material.id)
@@ -269,7 +294,7 @@ export default function MaterialsView({ courseId }) {
   const handleShare = async (material) => {
     setSharing(material.id)
     try {
-      const url = await getMaterialUrl(material)
+      const url = getMaterialShareUrl(material)
       const title = cleanTitle(material.file_name)
       const shareData = { title, text: `Course material: ${title}`, url }
 
@@ -292,7 +317,7 @@ export default function MaterialsView({ courseId }) {
       window.prompt('Copy this material link:', url)
       toast.info('Share link ready to copy.')
     } catch {
-      toast.error('Could not create a share link. Please try again.')
+      toast.error('Could not share this material. Please try again.')
     } finally {
       setSharing(null)
     }

@@ -66,6 +66,7 @@ export default function CourseView() {
   const sessionId = searchParams.get('session')
   const tabParam  = searchParams.get('tab')
   const initialTab = (() => {
+    if (tabParam === 'materials')     return 'Materials'
     if (tabParam === 'announcements') return 'Announcements'
     if (tabParam === 'quiz')          return 'Quiz'
     if (tabParam === 'qna')           return 'Live Q&A'
