@@ -5,6 +5,7 @@ Text is extracted on upload and stored in the database for fast AI querying.
 
 from flask import Blueprint, request, jsonify, g, Response
 import datetime
+import requests
 from services.supabase_client import supabase
 from services.file_service import (
     upload_to_storage, extract_text_from_pdf,
@@ -125,6 +126,7 @@ def download_material_file(material_id: str):
     try:
         res = supabase.table("materials").select("file_path, file_name").eq("id", material_id).execute()
     except Exception as e:
+        print(f"[download-file] DB error: {e}")
         return jsonify({"error": f"Database error: {str(e)}", "code": 500}), 500
 
     if not res.data:
@@ -134,9 +136,21 @@ def download_material_file(material_id: str):
     file_name = res.data[0]["file_name"]
 
     try:
-        file_bytes = supabase.storage.from_("course-materials").download(file_path)
+        # Generate a signed URL (server-side, same approach as /download endpoint)
+        signed = supabase.storage.from_("course-materials").create_signed_url(
+            file_path, 3600
+        )
+        signed_url = _extract_signed_url(signed)
+        if not signed_url:
+            print(f"[download-file] Failed to extract signed URL for {file_path}")
+            return jsonify({"error": "Could not generate download link", "code": 500}), 500
+
+        # Fetch the file bytes server-to-server (no CORS issues)
+        resp = requests.get(signed_url, timeout=60)
+        resp.raise_for_status()
+        file_bytes = resp.content
     except Exception as e:
-        print(f"[download-file] Storage download failed for {file_path}: {e}")
+        print(f"[download-file] Failed for {file_path}: {e}")
         return jsonify({"error": f"Could not retrieve file from storage: {str(e)}", "code": 500}), 500
 
     mime = get_mime_type(file_name)
