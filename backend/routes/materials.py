@@ -212,10 +212,13 @@ def _extract_signed_url(signed_response):
 @require_auth
 def download_material(material_id: str):
     """Generate a 1-hour signed URL for downloading a material file."""
+    print(f"[download] Request for material_id={material_id}")
     try:
         res = supabase.table("materials").select("file_path, file_name").eq("id", material_id).execute()
     except Exception as e:
         print(f"[download] DB error for material {material_id}: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Database error: {str(e)}", "code": 500}), 500
 
     if not res.data:
@@ -224,7 +227,7 @@ def download_material(material_id: str):
 
     file_path = res.data[0]["file_path"]
     file_name = res.data[0]["file_name"]
-    print(f"[download] Generating signed URL for: {file_path}")
+    print(f"[download] Found material: file_path={file_path}, file_name={file_name}")
 
     try:
         signed = supabase.storage.from_("course-materials").create_signed_url(
@@ -235,9 +238,12 @@ def download_material(material_id: str):
         if not url:
             print(f"[download] Could not extract URL from response: {signed}")
             return jsonify({"error": "Could not generate download link", "code": 500}), 500
+        print(f"[download] Successfully extracted signed URL: {url[:50]}...")
         return jsonify({"url": url, "file_name": file_name}), 200
     except Exception as e:
         print(f"[download] Storage error for {file_path}: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Could not generate download link: {str(e)}", "code": 500}), 500
 
 
