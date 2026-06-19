@@ -9,5 +9,10 @@ export const materialService = {
     }),
   getByCourse: (courseId) => api.get(`/api/materials/course/${courseId}`),
   getDownloadUrl: (id) => api.get(`/api/materials/${id}/download`),
+  downloadFile: (id) =>
+    api.get(`/api/materials/${id}/file`, { responseType: 'blob' }),
+  downloadAll: (materialIds) =>
+    api.post('/api/materials/download-all', { material_ids: materialIds }),
   delete: (id) => api.delete(`/api/materials/${id}`),
 }
+

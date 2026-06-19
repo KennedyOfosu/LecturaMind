@@ -1,13 +1,21 @@
 /**
  * MaterialsView.jsx - Student material cards with download and share actions.
+ *
+ * Downloads go through the backend proxy endpoint (GET /api/materials/<id>/file)
+ * which streams the file from Supabase Storage with proper CORS headers, avoiding
+ * the cross-origin blob fetch issue from Supabase signed URLs.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { materialService } from '../../services/materialService'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
 import { formatDate } from '../../utils/formatDate'
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const RECENT_DAYS = 7 // files uploaded within this many days count as "recent"
 
 const TYPE_META = {
   pdf: {
@@ -47,6 +55,8 @@ const TYPE_META = {
   },
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function getFileType(material) {
   const type = (material.file_type || '').toLowerCase()
   if (type.includes('pdf')) return 'pdf'
@@ -67,6 +77,50 @@ function getSummary(material, meta) {
   const title = cleanTitle(material.file_name)
   return `${title} is a ${meta.label.toLowerCase()} resource. ${meta.summary}`
 }
+
+function isRecent(uploadedAt) {
+  if (!uploadedAt) return false
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - RECENT_DAYS)
+  return new Date(uploadedAt) >= cutoff
+}
+
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    // Fall back to the older selection-based copy path below.
+  }
+
+  const input = document.createElement('textarea')
+  input.value = text
+  input.setAttribute('readonly', '')
+  input.style.position = 'fixed'
+  input.style.top = '-1000px'
+  input.style.opacity = '0'
+  document.body.appendChild(input)
+  input.select()
+
+  try {
+    return Boolean(document.execCommand('copy'))
+  } catch {
+    return false
+  } finally {
+    document.body.removeChild(input)
+  }
+}
+
+function getMaterialShareUrl(material) {
+  const url = new URL(window.location.href)
+  url.searchParams.set('tab', 'materials')
+  url.searchParams.set('material', material.id)
+  return url.toString()
+}
+
+// ─── Icon components ──────────────────────────────────────────────────────────
 
 function FileIcon({ meta }) {
   return (
@@ -112,27 +166,81 @@ function ArrowIcon() {
   )
 }
 
-function MaterialCard({ material, downloading, opening, sharing, onDownload, onOpen, onShare }) {
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+// ─── Material card ────────────────────────────────────────────────────────────
+
+function MaterialCard({
+  material,
+  downloading,
+  opening,
+  sharing,
+  selected,
+  selectionMode,
+  onDownload,
+  onOpen,
+  onShare,
+  onToggleSelect,
+}) {
   const type = getFileType(material)
   const meta = TYPE_META[type] || TYPE_META.file
   const title = cleanTitle(material.file_name)
+  const isSelected = selected.has(material.id)
+  const recent = isRecent(material.uploaded_at)
 
   return (
     <article
       id={`material-${material.id}`}
-      className="flex min-h-[220px] flex-col rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md"
+      onClick={selectionMode ? () => onToggleSelect(material.id) : undefined}
+      className={[
+        'flex min-h-[220px] flex-col rounded-2xl border bg-white p-4 shadow-sm',
+        'transition-all hover:-translate-y-0.5 hover:shadow-md',
+        selectionMode ? 'cursor-pointer select-none' : '',
+        isSelected
+          ? 'border-gray-900 ring-2 ring-gray-900 ring-offset-1'
+          : 'border-gray-100 hover:border-gray-200',
+      ].join(' ')}
     >
       <div className="flex items-start justify-between gap-3">
-        <FileIcon meta={meta} />
-        <button
-          type="button"
-          onClick={() => onShare(material)}
-          disabled={sharing === material.id}
-          title="Share material"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-900 hover:text-white disabled:opacity-50"
-        >
-          {sharing === material.id ? <Spinner size="sm" /> : <ShareIcon />}
-        </button>
+        <div className="relative">
+          <FileIcon meta={meta} />
+          {recent && (
+            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" title="Recently added" />
+          )}
+        </div>
+
+        {/* Selection checkbox or Share button */}
+        {selectionMode ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleSelect(material.id) }}
+            aria-label={isSelected ? 'Deselect' : 'Select'}
+            className={[
+              'flex h-9 w-9 items-center justify-center rounded-full transition-colors',
+              isSelected
+                ? 'bg-gray-900 text-white'
+                : 'bg-gray-100 text-gray-400 hover:bg-gray-200',
+            ].join(' ')}
+          >
+            {isSelected && <CheckIcon />}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onShare(material)}
+            disabled={sharing === material.id}
+            title="Share material"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-900 hover:text-white disabled:opacity-50"
+          >
+            {sharing === material.id ? <Spinner size="sm" /> : <ShareIcon />}
+          </button>
+        )}
       </div>
 
       <div className="mt-4 min-h-0 flex-1">
@@ -140,6 +248,11 @@ function MaterialCard({ material, downloading, opening, sharing, onDownload, onO
           <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${meta.bg} ${meta.text}`}>
             {meta.label}
           </span>
+          {recent && (
+            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+              New
+            </span>
+          )}
           <span className="truncate text-xs text-gray-400">
             {formatDate(material.uploaded_at)}
           </span>
@@ -156,7 +269,7 @@ function MaterialCard({ material, downloading, opening, sharing, onDownload, onO
       <div className="mt-4 flex items-center gap-2">
         <button
           type="button"
-          onClick={() => onDownload(material)}
+          onClick={(e) => { e.stopPropagation(); onDownload(material) }}
           disabled={downloading === material.id || opening === material.id}
           className="flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-100 px-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-900 hover:text-white disabled:opacity-50"
         >
@@ -165,7 +278,7 @@ function MaterialCard({ material, downloading, opening, sharing, onDownload, onO
         </button>
         <button
           type="button"
-          onClick={() => onOpen(material)}
+          onClick={(e) => { e.stopPropagation(); onOpen(material) }}
           disabled={downloading === material.id || opening === material.id}
           title="Open material"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-teal-50 hover:text-teal-700 disabled:opacity-50"
@@ -177,99 +290,145 @@ function MaterialCard({ material, downloading, opening, sharing, onDownload, onO
   )
 }
 
-async function copyToClipboard(text) {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
-  } catch {
-    // Fall back to the older selection-based copy path below.
-  }
+// ─── Section heading ──────────────────────────────────────────────────────────
 
-  const input = document.createElement('textarea')
-  input.value = text
-  input.setAttribute('readonly', '')
-  input.style.position = 'fixed'
-  input.style.top = '-1000px'
-  input.style.opacity = '0'
-  document.body.appendChild(input)
-  input.select()
-
-  try {
-    return Boolean(document.execCommand('copy'))
-  } catch {
-    return false
-  } finally {
-    document.body.removeChild(input)
-  }
+function SectionHeading({ label, count, badge }) {
+  return (
+    <div className="flex items-center gap-3">
+      <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400">{label}</h3>
+      {badge && (
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+          {badge}
+        </span>
+      )}
+      <div className="h-px flex-1 bg-gray-100" />
+      <span className="text-xs text-gray-400">{count} {count === 1 ? 'file' : 'files'}</span>
+    </div>
+  )
 }
 
-function getMaterialShareUrl(material) {
-  const url = new URL(window.location.href)
-  url.searchParams.set('tab', 'materials')
-  url.searchParams.set('material', material.id)
-  return url.toString()
-}
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function MaterialsView({ courseId }) {
   const toast = useToast()
   const [materials, setMaterials] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
-  const [downloading, setDownloading] = useState(null)
+  const [downloading, setDownloading] = useState(null)   // single-file download ID
   const [opening, setOpening] = useState(null)
   const [sharing, setSharing] = useState(null)
 
-  const load = () => {
+  // Selection / bulk download state
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selected, setSelected] = useState(new Set())
+  const [bulkDownloading, setBulkDownloading] = useState(false)
+
+  const load = useCallback(() => {
     setLoading(true)
     setFetchError(false)
     materialService.getByCourse(courseId)
       .then((res) => setMaterials(res.data || []))
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
-  }
+  }, [courseId])
 
-  useEffect(load, [courseId])
+  useEffect(load, [load])
 
+  // Scroll to & highlight a linked material
   useEffect(() => {
     if (!materials.length) return
-
     const targetId = new URLSearchParams(window.location.search).get('material')
     if (!targetId) return
-
     const target = document.getElementById(`material-${targetId}`)
     if (!target) return
-
     target.scrollIntoView({ behavior: 'smooth', block: 'center' })
     target.classList.add('highlight-flash')
     const timeout = setTimeout(() => target.classList.remove('highlight-flash'), 2000)
     return () => clearTimeout(timeout)
   }, [materials])
 
-  const getMaterialUrl = async (material) => {
-    const res = await materialService.getDownloadUrl(material.id)
-    if (!res.data?.url) throw new Error('Missing download URL')
-    return res.data.url
-  }
+  // Reset selection when exiting selection mode
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false)
+    setSelected(new Set())
+  }, [])
 
+  const toggleSelect = useCallback((id) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    setSelected(new Set(materials.map((m) => m.id)))
+  }, [materials])
+
+  // ── Single file download (via backend proxy to avoid CORS issues) ────────────
   const handleDownload = async (material) => {
     setDownloading(material.id)
     try {
-      const url = await getMaterialUrl(material)
+      const response = await materialService.downloadFile(material.id)
+      const blobUrl = URL.createObjectURL(response.data)
       const link = document.createElement('a')
-      link.href = url
-      link.download = material.file_name
-      link.rel = 'noopener noreferrer'
+      link.href = blobUrl
+      link.download = material.file_name || 'download'
       link.style.display = 'none'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000)
       toast.success('Download started.')
     } catch {
-      toast.error('Could not generate download link. Please try again.')
+      toast.error('Could not download this file. Please try again.')
     } finally {
       setDownloading(null)
+    }
+  }
+
+  // ── Bulk download ─────────────────────────────────────────────────────────────
+  const handleBulkDownload = async () => {
+    if (!selected.size) return
+    setBulkDownloading(true)
+    const ids = [...selected]
+    let successCount = 0
+    try {
+      for (let i = 0; i < ids.length; i++) {
+        const material = materials.find((m) => m.id === ids[i])
+        if (!material) continue
+        try {
+          const response = await materialService.downloadFile(ids[i])
+          const blobUrl = URL.createObjectURL(response.data)
+          const link = document.createElement('a')
+          link.href = blobUrl
+          link.download = material.file_name || 'download'
+          link.style.display = 'none'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000)
+          successCount++
+          if (i < ids.length - 1) await new Promise((r) => setTimeout(r, 600))
+        } catch {
+          // Continue downloading others even if one fails
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(
+          successCount === 1
+            ? 'Download started.'
+            : `${successCount} files downloaded.`
+        )
+      } else {
+        toast.error('Could not download selected files. Please try again.')
+      }
+      exitSelectionMode()
+    } catch {
+      toast.error('Could not download selected files. Please try again.')
+    } finally {
+      setBulkDownloading(false)
     }
   }
 
@@ -277,7 +436,9 @@ export default function MaterialsView({ courseId }) {
     const tab = window.open('about:blank', '_blank', 'noopener,noreferrer')
     setOpening(material.id)
     try {
-      const url = await getMaterialUrl(material)
+      const res = await materialService.getDownloadUrl(material.id)
+      if (!res.data?.url) throw new Error('Missing download URL')
+      const url = res.data.url
       if (tab) {
         tab.location.href = url
       } else {
@@ -323,6 +484,14 @@ export default function MaterialsView({ courseId }) {
     }
   }
 
+  // ── Derived state ─────────────────────────────────────────────────────────────
+
+  const recentMaterials = materials.filter((m) => isRecent(m.uploaded_at))
+  const earlierMaterials = materials.filter((m) => !isRecent(m.uploaded_at))
+  const allSelected = selected.size === materials.length && materials.length > 0
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+
   if (loading) return <div className="flex justify-center py-16"><Spinner /></div>
 
   if (fetchError) return (
@@ -342,8 +511,11 @@ export default function MaterialsView({ courseId }) {
     />
   )
 
+  const cardProps = { downloading, opening, sharing, selected, selectionMode, onDownload: handleDownload, onOpen: handleOpen, onShare: handleShare, onToggleSelect: toggleSelect }
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* ── Header row ── */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-950">Course materials</h2>
@@ -351,25 +523,89 @@ export default function MaterialsView({ courseId }) {
             Documents, slides, and files uploaded for this course.
           </p>
         </div>
-        <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-500 shadow-sm">
-          {materials.length} {materials.length === 1 ? 'file' : 'files'}
-        </span>
+
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-500 shadow-sm">
+            {materials.length} {materials.length === 1 ? 'file' : 'files'}
+          </span>
+
+          {selectionMode ? (
+            <>
+              {/* Select-all toggle */}
+              <button
+                type="button"
+                onClick={allSelected ? () => setSelected(new Set()) : selectAll}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+              >
+                {allSelected ? 'Deselect all' : 'Select all'}
+              </button>
+
+              {/* Bulk download */}
+              <button
+                type="button"
+                onClick={handleBulkDownload}
+                disabled={!selected.size || bulkDownloading}
+                className="flex items-center gap-2 rounded-xl bg-gray-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-700 disabled:opacity-50"
+              >
+                {bulkDownloading ? (
+                  <><Spinner size="sm" /><span>Downloading…</span></>
+                ) : (
+                  <><DownloadIcon /><span>Download{selected.size > 0 ? ` (${selected.size})` : ''}</span></>
+                )}
+              </button>
+
+              {/* Cancel selection */}
+              <button
+                type="button"
+                onClick={exitSelectionMode}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-500 shadow-sm transition-colors hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSelectionMode(true)}
+              className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+            >
+              <CheckIcon />
+              <span>Select files</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {materials.map((material) => (
-          <MaterialCard
-            key={material.id}
-            material={material}
-            downloading={downloading}
-            opening={opening}
-            sharing={sharing}
-            onDownload={handleDownload}
-            onOpen={handleOpen}
-            onShare={handleShare}
+      {/* ── Recently added section ── */}
+      {recentMaterials.length > 0 && (
+        <section className="space-y-3">
+          <SectionHeading
+            label="Recently Added"
+            count={recentMaterials.length}
+            badge={`Last ${RECENT_DAYS} days`}
           />
-        ))}
-      </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {recentMaterials.map((material) => (
+              <MaterialCard key={material.id} material={material} {...cardProps} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Earlier uploads section ── */}
+      {earlierMaterials.length > 0 && (
+        <section className="space-y-3">
+          <SectionHeading
+            label={recentMaterials.length > 0 ? 'Earlier Uploads' : 'All Materials'}
+            count={earlierMaterials.length}
+          />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {earlierMaterials.map((material) => (
+              <MaterialCard key={material.id} material={material} {...cardProps} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

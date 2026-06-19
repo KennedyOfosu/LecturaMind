@@ -3,11 +3,13 @@ materials.py — File upload, retrieval, and deletion routes for course material
 Text is extracted on upload and stored in the database for fast AI querying.
 """
 
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, Response
+import datetime
 from services.supabase_client import supabase
 from services.file_service import (
     upload_to_storage, extract_text_from_pdf,
     extract_text_from_docx, extract_text_from_pptx,
+    get_mime_type,
 )
 from middleware.auth_middleware import require_auth, require_role
 
@@ -116,23 +118,139 @@ def get_course_materials(course_id: str):
     return jsonify(res.data), 200
 
 
-@materials_bp.get("/<material_id>/download")
+@materials_bp.get("/<material_id>/file")
 @require_auth
-def download_material(material_id: str):
-    """Generate a 60-second signed URL for downloading a material file."""
-    res = supabase.table("materials").select("file_path, file_name").eq("id", material_id).single().execute()
+def download_material_file(material_id: str):
+    """Proxy the file from Supabase Storage and stream it to the client as a download."""
+    try:
+        res = supabase.table("materials").select("file_path, file_name").eq("id", material_id).execute()
+    except Exception as e:
+        return jsonify({"error": f"Database error: {str(e)}", "code": 500}), 500
+
     if not res.data:
         return jsonify({"error": "Material not found", "code": 404}), 404
 
-    file_path = res.data["file_path"]
+    file_path = res.data[0]["file_path"]
+    file_name = res.data[0]["file_name"]
+
     try:
-        signed = supabase.storage.from_("course-materials").create_signed_url(file_path, 60)
-        url = signed.get("signedURL") or signed.get("signed_url") or signed.get("data", {}).get("signedURL")
-        if not url:
-            return jsonify({"error": "Could not generate download link", "code": 500}), 500
-        return jsonify({"url": url, "file_name": res.data["file_name"]}), 200
+        file_bytes = supabase.storage.from_("course-materials").download(file_path)
     except Exception as e:
+        print(f"[download-file] Storage download failed for {file_path}: {e}")
+        return jsonify({"error": f"Could not retrieve file from storage: {str(e)}", "code": 500}), 500
+
+    mime = get_mime_type(file_name)
+    response = Response(file_bytes, mimetype=mime)
+    response.headers["Content-Disposition"] = f'attachment; filename="{file_name}"'
+    response.headers["Content-Length"] = len(file_bytes)
+    return response
+
+
+def _extract_signed_url(signed_response):
+    """
+    Extract the signed URL string from the storage3 create_signed_url response.
+
+    storage3 (used by supabase-py 2.x) returns a plain dict:
+        {"signedURL": "https://...", ...}
+    We handle edge cases defensively in case of version drift.
+    """
+    if signed_response is None:
+        return None
+
+    # Primary: plain dict with "signedURL" key (storage3's actual format)
+    if isinstance(signed_response, dict):
+        url = (
+            signed_response.get("signedURL")
+            or signed_response.get("signedUrl")
+            or signed_response.get("signed_url")
+        )
+        if url:
+            return url
+        # Nested under "data"?
+        data = signed_response.get("data")
+        if isinstance(data, dict):
+            return (
+                data.get("signedURL")
+                or data.get("signedUrl")
+                or data.get("signed_url")
+            )
+
+    # Attribute-based access (future-proofing for model objects)
+    for attr in ("signedURL", "signed_url", "signedUrl"):
+        val = getattr(signed_response, attr, None)
+        if val:
+            return val
+
+    return None
+
+
+@materials_bp.get("/<material_id>/download")
+@require_auth
+def download_material(material_id: str):
+    """Generate a 1-hour signed URL for downloading a material file."""
+    try:
+        res = supabase.table("materials").select("file_path, file_name").eq("id", material_id).execute()
+    except Exception as e:
+        print(f"[download] DB error for material {material_id}: {e}")
+        return jsonify({"error": f"Database error: {str(e)}", "code": 500}), 500
+
+    if not res.data:
+        print(f"[download] Material {material_id} not found in database")
+        return jsonify({"error": "Material not found", "code": 404}), 404
+
+    file_path = res.data[0]["file_path"]
+    file_name = res.data[0]["file_name"]
+    print(f"[download] Generating signed URL for: {file_path}")
+
+    try:
+        signed = supabase.storage.from_("course-materials").create_signed_url(
+            file_path, 3600
+        )
+        print(f"[download] Signed URL response type={type(signed).__name__}, value={signed}")
+        url = _extract_signed_url(signed)
+        if not url:
+            print(f"[download] Could not extract URL from response: {signed}")
+            return jsonify({"error": "Could not generate download link", "code": 500}), 500
+        return jsonify({"url": url, "file_name": file_name}), 200
+    except Exception as e:
+        print(f"[download] Storage error for {file_path}: {e}")
         return jsonify({"error": f"Could not generate download link: {str(e)}", "code": 500}), 500
+
+
+@materials_bp.post("/download-all")
+@require_auth
+def download_all_materials():
+    """
+    Bulk signed-URL endpoint.
+    Body: { "material_ids": ["uuid1", "uuid2", ...] }
+    Returns: [{ "id", "file_name", "url" }, ...]
+    Caps at 20 files per request.
+    """
+    body = request.get_json(silent=True) or {}
+    ids = body.get("material_ids", [])
+    if not ids:
+        return jsonify({"error": "material_ids is required", "code": 400}), 400
+    if len(ids) > 20:
+        return jsonify({"error": "Cannot bulk-download more than 20 files at once", "code": 400}), 400
+
+    try:
+        res = supabase.table("materials").select("id, file_path, file_name").in_("id", ids).execute()
+    except Exception as e:
+        return jsonify({"error": str(e), "code": 500}), 500
+
+    results = []
+    for row in res.data:
+        try:
+            signed = supabase.storage.from_("course-materials").create_signed_url(
+                row["file_path"], 3600
+            )
+            url = _extract_signed_url(signed)
+            if url:
+                results.append({"id": row["id"], "file_name": row["file_name"], "url": url})
+        except Exception as e:
+            print(f"[download-all] Failed for {row['file_path']}: {e}")
+
+    return jsonify(results), 200
 
 
 @materials_bp.delete("/<material_id>")
