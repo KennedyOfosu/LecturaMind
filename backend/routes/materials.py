@@ -123,6 +123,7 @@ def get_course_materials(course_id: str):
 @require_auth
 def download_material_file(material_id: str):
     """Proxy the file from Supabase Storage and stream it to the client as a download."""
+    print(f"[download-file] Request for material_id={material_id}")
     try:
         res = supabase.table("materials").select("file_path, file_name").eq("id", material_id).execute()
     except Exception as e:
@@ -130,33 +131,42 @@ def download_material_file(material_id: str):
         return jsonify({"error": f"Database error: {str(e)}", "code": 500}), 500
 
     if not res.data:
+        print(f"[download-file] Material not found: {material_id}")
         return jsonify({"error": "Material not found", "code": 404}), 404
 
     file_path = res.data[0]["file_path"]
     file_name = res.data[0]["file_name"]
+    print(f"[download-file] Found material: file_path={file_path}, file_name={file_name}")
 
     try:
         # Generate a signed URL (server-side, same approach as /download endpoint)
         signed = supabase.storage.from_("course-materials").create_signed_url(
             file_path, 3600
         )
+        print(f"[download-file] Signed URL response: {signed}")
         signed_url = _extract_signed_url(signed)
         if not signed_url:
             print(f"[download-file] Failed to extract signed URL for {file_path}")
             return jsonify({"error": "Could not generate download link", "code": 500}), 500
 
+        print(f"[download-file] Fetching file from signed URL: {signed_url[:50]}...")
         # Fetch the file bytes server-to-server (no CORS issues)
         resp = requests.get(signed_url, timeout=60)
+        print(f"[download-file] Response status: {resp.status_code}")
         resp.raise_for_status()
         file_bytes = resp.content
+        print(f"[download-file] File size: {len(file_bytes)} bytes")
     except Exception as e:
         print(f"[download-file] Failed for {file_path}: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Could not retrieve file from storage: {str(e)}", "code": 500}), 500
 
     mime = get_mime_type(file_name)
     response = Response(file_bytes, mimetype=mime)
     response.headers["Content-Disposition"] = f'attachment; filename="{file_name}"'
     response.headers["Content-Length"] = len(file_bytes)
+    print(f"[download-file] Returning file: mime={mime}, size={len(file_bytes)}")
     return response
 
 

@@ -365,22 +365,24 @@ export default function MaterialsView({ courseId }) {
     setSelected(new Set(materials.map((m) => m.id)))
   }, [materials])
 
-  // ── Single file download (via backend proxy to avoid CORS issues) ────────────
+  // ── Single file download (via signed URL) ─────────────────────────────────────
   const handleDownload = async (material) => {
     setDownloading(material.id)
     try {
-      const response = await materialService.downloadFile(material.id)
-      const blobUrl = URL.createObjectURL(response.data)
+      const res = await materialService.getDownloadUrl(material.id)
+      if (!res.data?.url) throw new Error('Missing download URL')
+      
+      const url = res.data.url
       const link = document.createElement('a')
-      link.href = blobUrl
+      link.href = url
       link.download = material.file_name || 'download'
       link.style.display = 'none'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000)
       toast.success('Download started.')
-    } catch {
+    } catch (error) {
+      console.error('[Download] Error:', error)
       toast.error('Could not download this file. Please try again.')
     } finally {
       setDownloading(null)
@@ -398,16 +400,16 @@ export default function MaterialsView({ courseId }) {
         const material = materials.find((m) => m.id === ids[i])
         if (!material) continue
         try {
-          const response = await materialService.downloadFile(ids[i])
-          const blobUrl = URL.createObjectURL(response.data)
+          const res = await materialService.getDownloadUrl(ids[i])
+          if (!res.data?.url) throw new Error('Missing download URL')
+          
           const link = document.createElement('a')
-          link.href = blobUrl
+          link.href = res.data.url
           link.download = material.file_name || 'download'
           link.style.display = 'none'
           document.body.appendChild(link)
           link.click()
           document.body.removeChild(link)
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000)
           successCount++
           if (i < ids.length - 1) await new Promise((r) => setTimeout(r, 600))
         } catch {
