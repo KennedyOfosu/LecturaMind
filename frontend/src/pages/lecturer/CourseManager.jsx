@@ -480,22 +480,11 @@ function RiskPill({ level }) {
 
 /* ─────────────── mark entry modal ──────────────────────────── */
 function MarkEntryModal({ student, courseId, existingMarks, onClose, onSaved }) {
+  const toast = useToast()
   const [entries, setEntries] = useState(() => {
     const init = {}
     ASSESS_TYPES.forEach(t => { init[t] = [] })
-    existingMarks.forEach(m => {
-      if (init[m.assessment_type]) {
-        init[m.assessment_type].push({
-          _key: m.id,
-          id: m.id,
-          title: m.title || '',
-          score: String(m.score),
-          maxScore: String(m.max_score),
-          _deleted: false,
-          _dirty: false,
-        })
-      }
-    })
+    // Start with empty entries - don't pre-populate with existing marks
     return init
   })
   const [saving, setSaving] = useState(false)
@@ -551,6 +540,7 @@ function MarkEntryModal({ student, courseId, existingMarks, onClose, onSaved }) 
         })
       })
       await Promise.all(ops)
+      toast.success('Marks saved successfully')
       onSaved()
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save marks')
