@@ -60,6 +60,7 @@ export default function StudentProfile() {
   const [dirty,    setDirty]    = useState(false)
   const [enrolling, setEnrolling] = useState(false)
   const [courseCode, setCourseCode] = useState('')
+  const [unenrolling, setUnenrolling] = useState(null)
 
   const [form, setForm] = useState({
     full_name:      '',
@@ -146,6 +147,19 @@ export default function StudentProfile() {
     }
   }
 
+  const handleUnenrol = async (courseId) => {
+    setUnenrolling(courseId)
+    try {
+      const res = await api.delete(`/api/courses/${courseId}/unenrol-self`)
+      toast.success(res.data.message)
+      fetchAll()
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to unenroll')
+    } finally {
+      setUnenrolling(null)
+    }
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center py-24 gap-3">
       <Spinner size="lg" />
@@ -155,10 +169,10 @@ export default function StudentProfile() {
   const initials = user?.full_name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'S'
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="w-full">
 
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 px-6">
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <button onClick={() => navigate('/student/dashboard')} className="hover:text-gray-600">Home</button>
           <span>›</span>
@@ -177,126 +191,143 @@ export default function StudentProfile() {
         </div>
       </div>
 
-      {/* ── Banner ── */}
-      <div className="h-32 rounded-2xl overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #a8c8f8 0%, #c3b1e1 40%, #f0c4d4 100%)' }} />
-
-      {/* ── Avatar ── */}
-      <div className="flex justify-center -mt-10 mb-3">
-        <div className="h-20 w-20 rounded-full flex items-center justify-center text-2xl font-bold border-4 border-white shadow-md"
-          style={{ backgroundColor: '#111', color: '#fff' }}>
-          {initials}
-        </div>
-      </div>
-
-      {/* ── Name + ID centred ── */}
-      <div className="text-center mb-2">
-        <h1 className="text-xl font-bold text-gray-900">{profile?.full_name}</h1>
-        <p className="text-sm text-gray-400 mt-0.5 font-mono">{profile?.user_id_number}</p>
-      </div>
-      <div className="flex justify-center gap-6 mb-8 text-sm">
-        <span className="text-gray-500"><strong className="text-gray-800">{courses.length}</strong> Courses</span>
-        {form.level && <span className="text-gray-500">Level <strong className="text-gray-800">{form.level}</strong></span>}
-      </div>
-
-      {/* ══ Section: Personal Information ══ */}
-      <Section icon={
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
-          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-        </svg>
-      } title="Personal Information">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Field label="Full Name" value={form.full_name} onChange={(e) => patch('full_name', e.target.value)} />
-          <div>
-            <p className="text-xs font-medium text-gray-400 mb-1">Email</p>
-            <input value={profile?.email || ''} disabled
-              className="w-full bg-transparent border-b border-gray-100 py-2 text-sm text-gray-400 cursor-not-allowed focus:outline-none" />
-            <p className="text-xs text-gray-300 mt-0.5">Email is managed by your account and cannot be changed here.</p>
-          </div>
-          <Field label="Student ID" value={form.user_id_number} onChange={(e) => patch('user_id_number', e.target.value)} />
-          <Field label="Phone Number" value={form.phone} onChange={(e) => patch('phone', e.target.value)} />
-        </div>
-      </Section>
-
-      {/* ══ Section: Academic Information ══ */}
-      <Section icon={
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
-          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-        </svg>
-      } title="Academic Information">
-        <p className="text-xs text-gray-400 mb-5">Updating your level automatically connects you to matching courses.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-2">
-            <p className="text-xs font-medium text-gray-400 mb-1">Programme</p>
-            <select value={form.programme} onChange={(e) => patch('programme', e.target.value)}
-              className="w-full bg-transparent border-b border-gray-200 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-500">
-              <option value="">Select your programme</option>
-              {PROGRAMMES.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 mb-1">Current Level</p>
-            <select value={form.level} onChange={(e) => patch('level', e.target.value)}
-              className="w-full bg-transparent border-b border-gray-200 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-500">
-              <option value="">Select level</option>
-              {LEVELS.map((l) => <option key={l} value={l}>Level {l}</option>)}
-            </select>
-          </div>
-          <Field label="Academic Year" value={form.academic_year}
-            onChange={(e) => patch('academic_year', e.target.value)} />
-        </div>
-      </Section>
-
-      {/* ══ Section: Enrolled Courses ══ */}
-      <Section icon={
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
-          <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-        </svg>
-      } title="My Enrolled Courses">
-
-        {/* Self-enrol form */}
-        <div className="flex items-center gap-2 mb-6">
-          <input
-            value={courseCode}
-            onChange={(e) => setCourseCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && handleEnrol()}
-            placeholder="Enter course code (e.g. DC 201)"
-            className="flex-1 bg-transparent border-b border-gray-200 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-500"
-          />
-          <button onClick={handleEnrol} disabled={enrolling || !courseCode.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40"
-            style={{ backgroundColor: '#111' }}>
-            {enrolling ? '…' : 'Enrol'}
-          </button>
-        </div>
-
-        {!courses.length ? (
-          <p className="text-sm text-gray-400">
-            No courses yet. Enter a course code above to enrol, or ask your lecturer to connect courses to your programme.
-          </p>
-        ) : (
-          <div className="flex flex-col divide-y divide-gray-100">
-            {courses.map((c) => (
-              <div key={c.id} className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">
-                    {c.course_name}
-                    {c.course_code && <span className="text-gray-400 ml-2 text-xs">({c.course_code})</span>}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {c.profiles?.full_name || 'Lecturer'}
-                    {c.level && <span> · Level {c.level}</span>}
-                  </p>
-                </div>
-                <button onClick={() => navigate(`/student/courses/${c.id}`)}
-                  className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
-                  View →
-                </button>
+      {/* ── Two-column layout ── */}
+      <div className="flex gap-8 px-6">
+        {/* Left column: Profile card with personal information */}
+        <div className="w-1/2">
+          <div className="rounded-2xl border border-gray-200 p-6 bg-white">
+            {/* Avatar + Name + ID */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
+                style={{ backgroundColor: '#111', color: '#fff' }}>
+                {initials}
               </div>
-            ))}
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">{profile?.full_name}</h1>
+                <p className="text-sm text-gray-400 mt-0.5 font-mono">{profile?.user_id_number}</p>
+              </div>
+            </div>
+            <div className="flex gap-6 mb-6 text-sm pb-6 border-b border-gray-100">
+              <span className="text-gray-500"><strong className="text-gray-800">{courses.length}</strong> Courses</span>
+              {form.level && <span className="text-gray-500">Level <strong className="text-gray-800">{form.level}</strong></span>}
+            </div>
+
+            {/* Personal Information */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-4">
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <span className="text-sm font-semibold text-gray-700">Personal Information</span>
+              </div>
+              <div className="grid grid-cols-1 gap-6">
+                <Field label="Full Name" value={form.full_name} onChange={(e) => patch('full_name', e.target.value)} />
+                <div>
+                  <p className="text-xs font-medium text-gray-400 mb-1">Email</p>
+                  <input value={profile?.email || ''} disabled
+                    className="w-full bg-transparent border-b border-gray-100 py-2 text-sm text-gray-400 cursor-not-allowed focus:outline-none" />
+                  <p className="text-xs text-gray-300 mt-0.5">Email is managed by your account and cannot be changed here.</p>
+                </div>
+                <Field label="Student ID" value={form.user_id_number} onChange={(e) => patch('user_id_number', e.target.value)} />
+                <Field label="Phone Number" value={form.phone} onChange={(e) => patch('phone', e.target.value)} />
+              </div>
+            </div>
           </div>
-        )}
-      </Section>
+        </div>
+
+        {/* Right column: Academic Information + Enrolled Courses */}
+        <div className="w-1/2 flex flex-col gap-6">
+          {/* Academic Information */}
+          <div className="rounded-2xl border border-gray-200 p-6 bg-white">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+              </svg>
+              <span className="text-sm font-semibold text-gray-700">Academic Information</span>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">Updating your level automatically connects you to matching courses.</p>
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <p className="text-xs font-medium text-gray-400 mb-1">Programme</p>
+                <select value={form.programme} onChange={(e) => patch('programme', e.target.value)}
+                  className="w-full bg-transparent border-b border-gray-200 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-500">
+                  <option value="">Select your programme</option>
+                  {PROGRAMMES.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 mb-1">Current Level</p>
+                <select value={form.level} onChange={(e) => patch('level', e.target.value)}
+                  className="w-full bg-transparent border-b border-gray-200 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-500">
+                  <option value="">Select level</option>
+                  {LEVELS.map((l) => <option key={l} value={l}>Level {l}</option>)}
+                </select>
+              </div>
+              <Field label="Academic Year" value={form.academic_year}
+                onChange={(e) => patch('academic_year', e.target.value)} />
+            </div>
+          </div>
+
+          {/* My Enrolled Courses */}
+          <div className="rounded-2xl border border-gray-200 p-6 bg-white">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+              </svg>
+              <span className="text-sm font-semibold text-gray-700">My Enrolled Courses</span>
+            </div>
+
+            {/* Self-enrol form */}
+            <div className="flex items-center gap-2 mb-6">
+              <input
+                value={courseCode}
+                onChange={(e) => setCourseCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && handleEnrol()}
+                placeholder="Enter course code (e.g. DC 201)"
+                className="flex-1 bg-transparent border-b border-gray-200 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-500"
+              />
+              <button onClick={handleEnrol} disabled={enrolling || !courseCode.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40"
+                style={{ backgroundColor: '#111' }}>
+                {enrolling ? '…' : 'Enrol'}
+              </button>
+            </div>
+
+            {!courses.length ? (
+              <p className="text-sm text-gray-400">
+                No courses yet. Enter a course code above to enrol, or ask your lecturer to connect courses to your programme.
+              </p>
+            ) : (
+              <div className="flex flex-col divide-y divide-gray-100">
+                {courses.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {c.course_name}
+                        {c.course_code && <span className="text-gray-400 ml-2 text-xs">({c.course_code})</span>}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {c.profiles?.full_name || 'Lecturer'}
+                        {c.level && <span> · Level {c.level}</span>}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => navigate(`/student/courses/${c.id}`)}
+                        className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
+                        View →
+                      </button>
+                      <button onClick={() => handleUnenrol(c.id)} disabled={unenrolling === c.id}
+                        className="text-xs text-red-400 hover:text-red-600 transition-colors disabled:opacity-40">
+                        {unenrolling === c.id ? '…' : 'Remove'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
     </div>
   )

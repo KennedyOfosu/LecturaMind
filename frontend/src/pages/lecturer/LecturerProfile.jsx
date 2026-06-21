@@ -134,10 +134,10 @@ export default function LecturerProfile() {
   }, {})
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="w-full">
 
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 px-6">
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <button onClick={() => navigate('/lecturer/dashboard')} className="hover:text-gray-600">Home</button>
           <span>›</span>
@@ -156,128 +156,136 @@ export default function LecturerProfile() {
         </div>
       </div>
 
-      {/* ── Banner ── */}
-      <div className="h-32 rounded-2xl overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #c3b1e1 0%, #a8c8f8 50%, #b8e4c9 100%)' }} />
-
-      {/* ── Avatar ── */}
-      <div className="flex justify-center -mt-10 mb-3">
-        <div className="h-20 w-20 rounded-full flex items-center justify-center text-2xl font-bold border-4 border-white shadow-md"
-          style={{ backgroundColor: '#374151', color: '#fff' }}>
-          {initials}
-        </div>
-      </div>
-
-      {/* ── Name + ID ── */}
-      <div className="text-center mb-2">
-        <h1 className="text-xl font-bold text-gray-900">{profile?.full_name}</h1>
-        <p className="text-sm text-gray-400 mt-0.5 font-mono">{profile?.user_id_number}</p>
-        {profile?.department && <p className="text-xs text-gray-400 mt-1">{profile.department}</p>}
-      </div>
-      <div className="flex justify-center gap-6 mb-8 text-sm">
-        <span className="text-gray-500"><strong className="text-gray-800">{courses.length}</strong> Courses</span>
-        <span className="text-gray-500"><strong className="text-gray-800">{assignments.length}</strong> Assignments</span>
-      </div>
-
-      {/* ══ Section: Personal Information ══ */}
-      <Section icon={
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
-          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-        </svg>
-      } title="Personal Information">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Field label="Full Name"    value={form.full_name}  onChange={(e) => patch('full_name', e.target.value)} />
-          <div>
-            <p className="text-xs font-medium text-gray-400 mb-1">Email</p>
-            <input value={profile?.email || ''} disabled
-              className="w-full bg-transparent border-b border-gray-100 py-2 text-sm text-gray-400 cursor-not-allowed focus:outline-none" />
-            <p className="text-xs text-gray-300 mt-0.5">Email is managed by your account and cannot be changed here.</p>
-          </div>
-          <Field label="Lecturer ID"  value={form.user_id_number} onChange={(e) => patch('user_id_number', e.target.value)} placeholder="e.g. LEC-2024-001" />
-          <Field label="Phone Number" value={form.phone}      onChange={(e) => patch('phone', e.target.value)} placeholder="+233…" />
-          <div className="md:col-span-2">
-            <Field label="Department"   value={form.department} onChange={(e) => patch('department', e.target.value)} placeholder="e.g. Department of Information Technology" />
-          </div>
-          <div className="md:col-span-2">
-            <p className="text-xs font-medium text-gray-400 mb-1">Bio</p>
-            <textarea value={form.bio} onChange={(e) => patch('bio', e.target.value.slice(0, 300))} rows={3}
-              placeholder="A short description about you (max 300 characters)"
-              className="w-full bg-transparent border-b border-gray-200 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-500 resize-none" />
-            <p className="text-xs text-gray-300 mt-0.5">{form.bio.length}/300</p>
-          </div>
-        </div>
-      </Section>
-
-      {/* ══ Section: Teaching Assignments ══ */}
-      <Section icon={
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
-          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-        </svg>
-      } title="Teaching Assignments">
-
-        <div className="flex justify-end mb-4">
-          <button onClick={() => setShowAddModal(true)}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-400 transition-colors">
-            + Add Assignment
-          </button>
-        </div>
-
-        {!Object.keys(grouped).length ? (
-          <p className="text-sm text-gray-400">No assignments yet. Add one to connect your courses to student programmes.</p>
-        ) : (
-          <div className="flex flex-col gap-5">
-            {Object.entries(grouped).map(([groupKey, items]) => (
-              <div key={groupKey}>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{groupKey}</p>
-                <div className="flex flex-col divide-y divide-gray-100">
-                  {items.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between py-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">
-                          {a.courses?.course_name} <span className="text-gray-400 text-xs">({a.courses?.course_code})</span>
-                        </p>
-                        {(a.semester || a.academic_year) && (
-                          <p className="text-xs text-gray-400 mt-0.5">{[a.semester, a.academic_year].filter(Boolean).join(' · ')}</p>
-                        )}
-                      </div>
-                      <button onClick={() => handleRemove(a.id)} disabled={removing === a.id}
-                        className="text-xs text-red-400 hover:text-red-600 transition-colors disabled:opacity-40">
-                        {removing === a.id ? '…' : 'Remove'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
+      {/* ── Two-column layout ── */}
+      <div className="flex gap-8 px-6">
+        {/* Left column: Profile card with personal information */}
+        <div className="w-1/2">
+          <div className="rounded-2xl border border-gray-200 p-6 bg-white">
+            {/* Avatar + Name + ID */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
+                style={{ backgroundColor: '#374151', color: '#fff' }}>
+                {initials}
               </div>
-            ))}
-          </div>
-        )}
-      </Section>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">{profile?.full_name}</h1>
+                <p className="text-sm text-gray-400 mt-0.5 font-mono">{profile?.user_id_number}</p>
+                {profile?.department && <p className="text-xs text-gray-400 mt-1">{profile.department}</p>}
+              </div>
+            </div>
+            <div className="flex gap-6 mb-6 text-sm pb-6 border-b border-gray-100">
+              <span className="text-gray-500"><strong className="text-gray-800">{courses.length}</strong> Courses</span>
+              <span className="text-gray-500"><strong className="text-gray-800">{assignments.length}</strong> Assignments</span>
+            </div>
 
-      {/* ══ Section: My Courses ══ */}
-      <Section icon={
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
-          <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-        </svg>
-      } title="My Courses">
-        {!courses.length ? (
-          <p className="text-sm text-gray-400">No courses yet. Create a course in the Course Manager.</p>
-        ) : (
-          <div className="flex flex-col divide-y divide-gray-100">
-            {courses.map((c) => (
-              <div key={c.id} className="flex items-center justify-between py-3">
+            {/* Personal Information */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-4">
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <span className="text-sm font-semibold text-gray-700">Personal Information</span>
+              </div>
+              <div className="grid grid-cols-1 gap-6">
+                <Field label="Full Name"    value={form.full_name}  onChange={(e) => patch('full_name', e.target.value)} />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">
-                    {c.course_name} <span className="text-gray-400 text-xs">({c.course_code})</span>
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">Level {c.level}{c.programme && ` · ${c.programme}`}</p>
+                  <p className="text-xs font-medium text-gray-400 mb-1">Email</p>
+                  <input value={profile?.email || ''} disabled
+                    className="w-full bg-transparent border-b border-gray-100 py-2 text-sm text-gray-400 cursor-not-allowed focus:outline-none" />
+                  <p className="text-xs text-gray-300 mt-0.5">Email is managed by your account and cannot be changed here.</p>
                 </div>
-                <button onClick={() => navigate('/lecturer/courses')}
-                  className="text-xs text-gray-400 hover:text-gray-700">Manage →</button>
+                <Field label="Lecturer ID"  value={form.user_id_number} onChange={(e) => patch('user_id_number', e.target.value)} placeholder="e.g. LEC-2024-001" />
+                <Field label="Phone Number" value={form.phone}      onChange={(e) => patch('phone', e.target.value)} placeholder="+233…" />
+                <Field label="Department"   value={form.department} onChange={(e) => patch('department', e.target.value)} placeholder="e.g. Department of Information Technology" />
+                <div>
+                  <p className="text-xs font-medium text-gray-400 mb-1">Bio</p>
+                  <textarea value={form.bio} onChange={(e) => patch('bio', e.target.value.slice(0, 300))} rows={3}
+                    placeholder="A short description about you (max 300 characters)"
+                    className="w-full bg-transparent border-b border-gray-200 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-500 resize-none" />
+                  <p className="text-xs text-gray-300 mt-0.5">{form.bio.length}/300</p>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
-        )}
-      </Section>
+        </div>
+
+        {/* Right column: Teaching Assignments + My Courses */}
+        <div className="w-1/2 flex flex-col gap-6">
+          {/* Teaching Assignments */}
+          <div className="rounded-2xl border border-gray-200 p-6 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                </svg>
+                <span className="text-sm font-semibold text-gray-700">Teaching Assignments</span>
+              </div>
+              <button onClick={() => setShowAddModal(true)}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-400 transition-colors">
+                + Add Assignment
+              </button>
+            </div>
+
+            {!Object.keys(grouped).length ? (
+              <p className="text-sm text-gray-400">No assignments yet. Add one to connect your courses to student programmes.</p>
+            ) : (
+              <div className="flex flex-col gap-5">
+                {Object.entries(grouped).map(([groupKey, items]) => (
+                  <div key={groupKey}>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{groupKey}</p>
+                    <div className="flex flex-col divide-y divide-gray-100">
+                      {items.map((a) => (
+                        <div key={a.id} className="flex items-center justify-between py-3">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">
+                              {a.courses?.course_name} <span className="text-gray-400 text-xs">({a.courses?.course_code})</span>
+                            </p>
+                            {(a.semester || a.academic_year) && (
+                              <p className="text-xs text-gray-400 mt-0.5">{[a.semester, a.academic_year].filter(Boolean).join(' · ')}</p>
+                            )}
+                          </div>
+                          <button onClick={() => handleRemove(a.id)} disabled={removing === a.id}
+                            className="text-xs text-red-400 hover:text-red-600 transition-colors disabled:opacity-40">
+                            {removing === a.id ? '…' : 'Remove'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* My Courses */}
+          <div className="rounded-2xl border border-gray-200 p-6 bg-white">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+              </svg>
+              <span className="text-sm font-semibold text-gray-700">My Courses</span>
+            </div>
+            {!courses.length ? (
+              <p className="text-sm text-gray-400">No courses yet. Create a course in the Course Manager.</p>
+            ) : (
+              <div className="flex flex-col divide-y divide-gray-100">
+                {courses.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {c.course_name} <span className="text-gray-400 text-xs">({c.course_code})</span>
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">Level {c.level}{c.programme && ` · ${c.programme}`}</p>
+                    </div>
+                    <button onClick={() => navigate('/lecturer/courses')}
+                      className="text-xs text-gray-400 hover:text-gray-700">Manage →</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Add assignment modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Teaching Assignment">

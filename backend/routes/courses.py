@@ -171,6 +171,27 @@ def enrol_self():
     }), 201
 
 
+@courses_bp.delete("/<course_id>/unenrol-self")
+@require_auth
+@require_role("student")
+def unenrol_self(course_id: str):
+    """Student removes themselves from a course."""
+    # Verify the student is enrolled in this course
+    existing = supabase.table("enrolments").select("id").eq(
+        "student_id", g.user_id
+    ).eq("course_id", course_id).execute()
+
+    if not existing.data:
+        return jsonify({"error": "You are not enrolled in this course.", "code": 404}), 404
+
+    # Delete the enrollment
+    supabase.table("enrolments").delete().eq(
+        "student_id", g.user_id
+    ).eq("course_id", course_id).execute()
+
+    return jsonify({"message": "Successfully unenrolled from the course."}), 200
+
+
 @courses_bp.post("/<course_id>/enrol")
 @require_auth
 @require_role("lecturer")

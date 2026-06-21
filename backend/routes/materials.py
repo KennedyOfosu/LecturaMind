@@ -35,6 +35,7 @@ def upload_material():
     Form data: { file, course_id }
     Returns: the created material database record.
     """
+    print(f"[upload] Starting upload process")
     course_id = request.form.get("course_id", "").strip()
     if not course_id:
         return jsonify({"error": "course_id is required", "code": 400}), 400
@@ -64,7 +65,10 @@ def upload_material():
     ext = fn.rsplit(".", 1)[-1] if "." in fn else ""
     allowed_exts = {"pdf", "docx", "pptx", "ppt"}
 
+    print(f"[upload] File info: filename={fn}, ext={ext}, mime={mime}, size={file_size}")
+
     if ext not in allowed_exts:
+        print(f"[upload] Rejected: extension '{ext}' not in allowed_exts {allowed_exts}")
         return jsonify({
             "error": "Unsupported file type. Please upload a PDF, DOCX, or PPTX file.",
             "code": 415,
@@ -78,24 +82,36 @@ def upload_material():
         "ppt":  "application/vnd.ms-powerpoint",
     }
     mime = ext_to_mime[ext]
+    print(f"[upload] Normalized MIME type: {mime}")
 
     # Extract text based on file type
     if mime == "application/pdf" or fn.endswith(".pdf"):
+        print(f"[upload] Extracting text from PDF")
         extracted_text = extract_text_from_pdf(file_bytes)
         file_type = "pdf"
     elif fn.endswith(".pptx") or fn.endswith(".ppt") or "presentation" in mime:
+        print(f"[upload] Extracting text from PPTX/PPT")
         extracted_text = extract_text_from_pptx(file_bytes)
         file_type = "pptx"
     else:
+        print(f"[upload] Extracting text from DOCX")
         extracted_text = extract_text_from_docx(file_bytes)
         file_type = "docx"
 
+    print(f"[upload] Text extraction complete, length={len(extracted_text)}, file_type={file_type}")
+
     try:
+        print(f"[upload] Uploading to Supabase storage")
         file_path = upload_to_storage(file_bytes, file.filename, course_id)
+        print(f"[upload] Storage upload successful, path={file_path}")
     except Exception as e:
+        print(f"[upload] Storage upload failed: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Storage upload failed: {str(e)}", "code": 500}), 500
 
     try:
+        print(f"[upload] Inserting into database")
         res = supabase.table("materials").insert({
             "course_id": course_id,
             "file_name": file.filename,
@@ -103,7 +119,11 @@ def upload_material():
             "file_type": file_type,
             "extracted_text": extracted_text,
         }).execute()
+        print(f"[upload] Database insert successful")
     except Exception as e:
+        print(f"[upload] Database insert failed: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e), "code": 500}), 500
 
     return jsonify(res.data[0]), 201
