@@ -46,7 +46,7 @@ export default function QuizManager() {
   const [previewQuiz, setPreviewQuiz] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
-  const [manualForm, setManualForm] = useState({ title: '', questions: [emptyQuestion()] })
+  const [manualForm, setManualForm] = useState({ title: '', questions: [emptyQuestion()], timer_minutes: 30 })
   const [showPanel, setShowPanel] = useState(false)
   const panelRef = useRef(null)
 
@@ -141,6 +141,7 @@ export default function QuizManager() {
       await quizService.createManual({
         course_id: selectedCourse,
         title: manualForm.title.trim(),
+        timer_minutes: manualForm.timer_minutes,
         questions: manualForm.questions.map(q => ({
           question:       q.question.trim(),
           options:        q.options.map(o => o.trim()),
@@ -150,7 +151,7 @@ export default function QuizManager() {
       })
       toast.success("Quiz saved. Activate it when you're ready for students.")
       setShowManual(false)
-      setManualForm({ title: '', questions: [emptyQuestion()] })
+      setManualForm({ title: '', questions: [emptyQuestion()], timer_minutes: 30 })
       const res = await quizService.getByCourse(selectedCourse)
       setQuizzes(res.data)
     } catch {
@@ -657,6 +658,24 @@ export default function QuizManager() {
               placeholder="e.g. Chapter 3 Review Quiz"
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal/50"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Time Limit: <span className="text-teal font-bold">{manualForm.timer_minutes} minutes</span>
+            </label>
+            <input
+              type="range"
+              min="5"
+              max="120"
+              step="5"
+              value={manualForm.timer_minutes}
+              onChange={e => setManualForm(prev => ({ ...prev, timer_minutes: Number(e.target.value) }))}
+              className="w-full accent-teal"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>5 min</span><span>120 min</span>
+            </div>
           </div>
 
           <div className="flex flex-col gap-4">

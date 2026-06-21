@@ -29,6 +29,7 @@ export function QuizGenerator({ onGenerate, loading, materials = [] }) {
   const [difficulty, setDifficulty]     = useState('medium')
   const [quizType, setQuizType]         = useState('general')
   const [materialId, setMaterialId]     = useState(materials[0]?.id || '')
+  const [timerMinutes, setTimerMinutes] = useState(30)
 
   const selectType = (key) => {
     setQuizType(key)
@@ -47,6 +48,7 @@ export function QuizGenerator({ onGenerate, loading, materials = [] }) {
       difficulty,
       quiz_type:     quizType,
       material_id:   quizType === 'hot' ? materialId : null,
+      timer_minutes: timerMinutes,
     })
   }
 
@@ -139,6 +141,25 @@ export function QuizGenerator({ onGenerate, loading, materials = [] }) {
               {d}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Timer */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Time Limit: <span className="text-teal font-bold">{timerMinutes} minutes</span>
+        </label>
+        <input
+          type="range"
+          min="5"
+          max="120"
+          step="5"
+          value={timerMinutes}
+          onChange={(e) => setTimerMinutes(Number(e.target.value))}
+          className="w-full accent-teal"
+        />
+        <div className="flex justify-between text-xs text-gray-400 mt-1">
+          <span>5 min</span><span>120 min</span>
         </div>
       </div>
 

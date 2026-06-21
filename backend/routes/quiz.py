@@ -25,7 +25,7 @@ def generate():
     """
     Trigger AI quiz generation for a course.
 
-    Body: { course_id, num_questions (default 10), difficulty (default 'medium') }
+    Body: { course_id, num_questions (default 10), difficulty (default 'medium'), timer_minutes (default 30) }
     Returns: the created quiz record.
     """
     data = request.get_json(silent=True) or {}
@@ -34,6 +34,7 @@ def generate():
     difficulty = data.get("difficulty", "medium").lower()
     quiz_type = (data.get("quiz_type") or "general").lower()
     material_id = (data.get("material_id") or "").strip() or None
+    timer_minutes = int(data.get("timer_minutes", 30))
 
     if not course_id:
         return jsonify({"error": "course_id is required", "code": 400}), 400
@@ -45,9 +46,11 @@ def generate():
         return jsonify({"error": "quiz_type must be 'general' or 'hot'", "code": 400}), 400
     if quiz_type == "hot" and not material_id:
         return jsonify({"error": "Select a lecture material for a hot test", "code": 400}), 400
+    if timer_minutes < 5 or timer_minutes > 120:
+        return jsonify({"error": "timer_minutes must be between 5 and 120", "code": 400}), 400
 
     try:
-        quiz = generate_quiz(course_id, num_questions, difficulty, quiz_type, material_id)
+        quiz = generate_quiz(course_id, num_questions, difficulty, quiz_type, material_id, timer_minutes)
     except ValueError as e:
         return jsonify({"error": str(e), "code": 400}), 400
     except Exception as e:
@@ -63,12 +66,13 @@ def create_manual():
     """
     Save a manually authored quiz.
 
-    Body: { course_id, title, questions: [{question, options, correct_answer, explanation}] }
+    Body: { course_id, title, timer_minutes, questions: [{question, options, correct_answer, explanation}] }
     Returns: the created quiz record.
     """
     data = request.get_json(silent=True) or {}
     course_id  = data.get("course_id", "").strip()
     title      = data.get("title", "").strip()
+    timer_minutes = int(data.get("timer_minutes", 30))
     questions  = data.get("questions", [])
 
     if not course_id:
@@ -77,6 +81,8 @@ def create_manual():
         return jsonify({"error": "Quiz title is required", "code": 400}), 400
     if not questions:
         return jsonify({"error": "At least one question is required", "code": 400}), 400
+    if timer_minutes < 5 or timer_minutes > 120:
+        return jsonify({"error": "timer_minutes must be between 5 and 120", "code": 400}), 400
 
     for i, q in enumerate(questions):
         if not q.get("question", "").strip():
@@ -90,6 +96,7 @@ def create_manual():
     res = supabase.table("quizzes").insert({
         "course_id": course_id,
         "title": title,
+        "timer_minutes": timer_minutes,
         "questions": questions,
         "is_active": False,
     }).execute()

@@ -107,14 +107,21 @@ def extract_text_from_pptx(file_bytes: bytes) -> str:
         Concatenated slide text, or empty string on failure.
     """
     try:
+        print(f"[pptx] Starting text extraction, file_size={len(file_bytes)} bytes")
         prs = Presentation(io.BytesIO(file_bytes))
+        print(f"[pptx] Loaded presentation, slides={len(prs.slides)}")
         text_parts = []
         for slide in prs.slides:
             for shape in slide.shapes:
                 if hasattr(shape, "text") and shape.text.strip():
                     text_parts.append(shape.text.strip())
-        return "\n".join(text_parts)
-    except Exception:
+        result = "\n".join(text_parts)
+        print(f"[pptx] Extraction complete, text_length={len(result)}")
+        return result
+    except Exception as e:
+        print(f"[pptx] Extraction failed: {e}")
+        import traceback
+        traceback.print_exc()
         return ""
 
 

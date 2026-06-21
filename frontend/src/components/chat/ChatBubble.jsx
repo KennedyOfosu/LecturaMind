@@ -10,7 +10,7 @@ export function ChatBubble({ message }) {
   return (
     <div className={`flex flex-col ${isStudent ? 'items-end' : 'items-start'} gap-1`}>
       {!isStudent && (
-        <span className="text-xs font-semibold text-teal ml-1">LecturaMind AI</span>
+        <img src="/LecturaMind Logo.svg" alt="LecturaMind AI" className="h-6 w-auto ml-1" />
       )}
       <div
         className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${

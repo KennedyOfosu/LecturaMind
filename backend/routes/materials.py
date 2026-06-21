@@ -101,13 +101,16 @@ def upload_material():
     print(f"[upload] Text extraction complete, length={len(extracted_text)}, file_type={file_type}")
 
     try:
-        print(f"[upload] Uploading to Supabase storage")
+        print(f"[upload] Uploading to Supabase storage, file_size={len(file_bytes)} bytes")
         file_path = upload_to_storage(file_bytes, file.filename, course_id)
         print(f"[upload] Storage upload successful, path={file_path}")
     except Exception as e:
         print(f"[upload] Storage upload failed: {e}")
         import traceback
         traceback.print_exc()
+        # Check if it's a file size issue
+        if "413" in str(e) or "too large" in str(e).lower() or "size" in str(e).lower():
+            return jsonify({"error": "File is too large. Maximum file size is 10MB.", "code": 413}), 413
         return jsonify({"error": f"Storage upload failed: {str(e)}", "code": 500}), 500
 
     try:

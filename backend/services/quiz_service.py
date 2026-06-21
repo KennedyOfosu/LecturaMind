@@ -42,6 +42,7 @@ def generate_quiz(
     difficulty: str = "medium",
     quiz_type: str = "general",
     material_id: str | None = None,
+    timer_minutes: int = 30,
 ) -> dict:
     """
     Generate a quiz from course material and save it to the database.
@@ -59,6 +60,7 @@ def generate_quiz(
         difficulty: 'easy', 'medium', or 'hard'.
         quiz_type: 'hot' or 'general'.
         material_id: UUID of the material to scope a hot test to (hot mode only).
+        timer_minutes: Time limit for the quiz in minutes (5–120).
 
     Returns:
         The created quiz database record.
@@ -116,6 +118,7 @@ def generate_quiz(
     res = supabase.table("quizzes").insert({
         "course_id": course_id,
         "title": title,
+        "timer_minutes": timer_minutes,
         "questions": questions,
     }).execute()
 

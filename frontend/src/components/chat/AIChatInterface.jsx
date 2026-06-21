@@ -84,11 +84,7 @@ function AIMessage({ msg, courseId, msgId }) {
     <div id={msgId}>
       {/* Label */}
       <div className="flex items-center gap-1.5 mb-1.5">
-        <svg width="16" height="13" viewBox="0 0 40 32" fill="none">
-          <path d="M2 30L20 4L38 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M10 30L20 14L30 30" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        <span className="text-xs font-semibold text-gray-500">LecturaMind AI</span>
+        <img src="/LecturaMind Logo.svg" alt="LecturaMind AI" className="h-5 w-auto" />
       </div>
 
       {/* Response — no card, just text */}
@@ -305,7 +301,7 @@ export default function AIChatInterface({
                 <div className="flex gap-1">
                   {[0,1,2].map((i) => <span key={i} className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
                 </div>
-                <span className="text-xs text-gray-400">LecturaMind AI is thinking…</span>
+                <span className="text-xs text-gray-400">Thinking…</span>
               </div>
             )}
             <div ref={bottomRef} />
