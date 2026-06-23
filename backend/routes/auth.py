@@ -262,8 +262,11 @@ def seed():
     accounts = [
         {"full_name": "Dr. Amidini",   "email": "lecturer@lecturamind.com",
          "password": "lecturer123",    "id_number": "LEC-1001"},
-        {"full_name": "Kennedy Ofosu", "email": "student@lecturamind.com",
-         "password": "student123",     "id_number": "STU-2001"},
+        {"full_name": "Jane Doe", "email": "jane.doe@lecturamind.com", "password": "lecturer123", "id_number": "LEC-2001"},
+    {"full_name": "Kennedy Ofosu", "email": "student@lecturamind.com",
+         "password": "student123",    "id_number": "STU-2001"},
+    {"full_name": "Jane Doe", "email": "jane.doe@lecturamind.com",
+         "password": "lecturer123",    "id_number": "LEC-2001"},
     ]
     results = []
     for acc in accounts:
