@@ -189,13 +189,15 @@ export default function StudentSidebar({ open, onToggle }) {
 
       {/* Top nav */}
       <nav className="px-3 mt-1 flex flex-col gap-0.5">
-        <button onClick={() => navigate('/student/dashboard')}
+        <button data-tour="student-home"
+          onClick={() => navigate('/student/dashboard')}
           className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             isActive('/student/dashboard') ? 'bg-white text-gray-900' : 'text-gray-600 hover:bg-white'
           }`}>
           <I.Home /> Home
         </button>
-        <button onClick={() => navigate('/student/profile')}
+        <button data-tour="student-profile"
+          onClick={() => navigate('/student/profile')}
           className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             isActive('/student/profile') ? 'bg-white text-gray-900' : 'text-gray-600 hover:bg-white'
           }`}>
@@ -204,7 +206,7 @@ export default function StudentSidebar({ open, onToggle }) {
       </nav>
 
       {/* My Courses — tree-style session groups */}
-      <div className="px-3 mt-5 flex flex-col min-h-0 overflow-y-auto flex-1">
+      <div data-tour="student-courses" className="px-3 mt-5 flex flex-col min-h-0 overflow-y-auto flex-1">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">
           My Courses
         </p>

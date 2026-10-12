@@ -3,16 +3,18 @@
  * Banner + centered avatar, line-separated sections, unified Save Changes.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
+import { Avatar } from '../../components/ui/Avatar'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/Toast'
 import { PROGRAMMES, LEVELS, SEMESTERS } from '../../utils/constants'
+import { useOnboarding } from '../../context/OnboardingContext'
 
 /* ── Inline field ── */
 function Field({ label, value, onChange, disabled, placeholder }) {
@@ -42,6 +44,7 @@ export default function LecturerProfile() {
   const { user, token, refreshUser } = useAuth()
   const toast    = useToast()
   const navigate = useNavigate()
+  const { startOnboarding } = useOnboarding()
 
   const [profile,     setProfile]     = useState(null)
   const [courses,     setCourses]     = useState([])
@@ -53,12 +56,35 @@ export default function LecturerProfile() {
   const [adding,      setAdding]      = useState(false)
   const [removing,    setRemoving]    = useState(null)
 
+  const fileInputRef = useRef(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+
   const [form, setForm] = useState({ full_name: '', department: '', phone: '', bio: '', user_id_number: '' })
   const [original, setOriginal] = useState(null)
 
   const [newA, setNewA] = useState({ course_id: '', programme: '', level: '', semester: '', academic_year: '' })
 
   const patch = (key, val) => { setForm((f) => ({ ...f, [key]: val })); setDirty(true) }
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('avatar', file)
+      const res = await api.post('/api/profile/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setProfile((p) => ({ ...p, avatar_url: res.data.avatar_url }))
+      toast.success('Profile picture updated')
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to upload image')
+    } finally {
+      setAvatarUploading(false)
+      e.target.value = ''
+    }
+  }
 
   const fetchAll = async () => {
     setLoading(true)
@@ -124,8 +150,6 @@ export default function LecturerProfile() {
 
   if (loading) return <div className="flex justify-center py-24"><Spinner size="lg" /></div>
 
-  const initials = user?.full_name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'L'
-
   const grouped = assignments.reduce((acc, a) => {
     const key = `${a.programme} — Level ${a.level}`
     if (!acc[key]) acc[key] = []
@@ -161,11 +185,29 @@ export default function LecturerProfile() {
         {/* Left column: Profile card with personal information */}
         <div className="w-1/2">
           <div className="rounded-2xl border border-gray-200 p-6 bg-white">
-            {/* Avatar + Name + ID */}
+            {/* Avatar + Upload + Name + ID */}
             <div className="flex items-center gap-4 mb-6">
-              <div className="h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
-                style={{ backgroundColor: '#374151', color: '#fff' }}>
-                {initials}
+              <div className="relative shrink-0">
+                <Avatar src={profile?.avatar_url} name={profile?.full_name} size="lg" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors shadow-sm disabled:opacity-50"
+                  title="Upload photo"
+                >
+                  {avatarUploading ? (
+                    <svg className="animate-spin h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-3.5 w-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  )}
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleAvatarUpload} />
               </div>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">{profile?.full_name}</h1>
@@ -283,6 +325,21 @@ export default function LecturerProfile() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Help & Support */}
+          <div className="rounded-2xl border border-gray-200 p-6 bg-white">
+            <div className="flex items-center gap-2 mb-3">
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" className="text-gray-400">
+                <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span className="text-sm font-semibold text-gray-700">Help & Support</span>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">Get familiar with LecturaMind's features.</p>
+            <button onClick={startOnboarding}
+              className="text-xs font-medium px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors">
+              Take Tour Again
+            </button>
           </div>
         </div>
       </div>

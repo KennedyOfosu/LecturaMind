@@ -6,7 +6,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, useSearchParams, Outlet } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { Avatar } from '../ui/Avatar'
 import { courseService } from '../../services/courseService'
+import { useOnboarding } from '../../context/OnboardingContext'
+import OnboardingOverlay from '../onboarding/OnboardingOverlay'
 
 /* ── Icons ── */
 const I = {
@@ -111,6 +114,11 @@ export default function LecturerLayout() {
     courseService.getMyCourses().then((r) => setCourses(r.data)).catch(() => {})
   }, [])
 
+  const { isActive: onboardingActive } = useOnboarding()
+  useEffect(() => {
+    if (onboardingActive) setSidebarOpen(true)
+  }, [onboardingActive])
+
   const isActive       = (path) => location.pathname === path
   const activeCourseId = location.pathname === '/lecturer/courses' ? urlParams.get('course') : null
 
@@ -194,14 +202,14 @@ export default function LecturerLayout() {
 
         {/* Home + My Profile */}
         <nav className="px-3 mt-1 flex flex-col gap-0.5">
-          <button
+          <button data-tour="lecturer-home"
             onClick={() => navigate('/lecturer/dashboard')}
             className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive('/lecturer/dashboard') ? 'bg-white text-gray-900' : 'text-gray-600 hover:bg-white'
             }`}>
             <I.Home /> Home
           </button>
-          <button
+          <button data-tour="lecturer-profile"
             onClick={() => navigate('/lecturer/profile')}
             className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive('/lecturer/profile') ? 'bg-white text-gray-900' : 'text-gray-600 hover:bg-white'
@@ -211,7 +219,7 @@ export default function LecturerLayout() {
         </nav>
 
         {/* My Courses */}
-        <div className="px-3 mt-5">
+        <div data-tour="lecturer-courses" className="px-3 mt-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">My Courses</p>
           <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
             {!courses.length
@@ -242,11 +250,11 @@ export default function LecturerLayout() {
         </div>
 
         {/* Management */}
-        <div className="px-3 mt-5">
+        <div data-tour="lecturer-management" className="px-3 mt-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Management</p>
           <div className="flex flex-col gap-0.5">
             {navItems.map(({ label, Icon, path }) => (
-              <button key={path} onClick={() => navigate(path)}
+              <button key={path} data-tour={`lecturer-${label.toLowerCase().replace(/\s+/g, '')}`} onClick={() => navigate(path)}
                 className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                   isActive(path) ? 'bg-white text-gray-900 font-medium' : 'text-gray-600 hover:bg-white'
                 }`}>
@@ -283,6 +291,8 @@ export default function LecturerLayout() {
           <Outlet />
         </div>
       </main>
+
+      <OnboardingOverlay />
     </div>
   )
 }

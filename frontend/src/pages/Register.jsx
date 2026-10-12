@@ -68,11 +68,17 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false)
   const [errors,    setErrors]    = useState({})
   const [apiError,  setApiError]  = useState('')
+  const [showPassword,        setShowPassword]        = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', confirmPassword: '',
     idNumber: '', programme: '', level: '', academicYear: '',
   })
+
+  const bothFilled = form.password.length > 0 && form.confirmPassword.length > 0
+  const passwordsMatch    = bothFilled && form.password === form.confirmPassword
+  const passwordsMismatch = bothFilled && form.password !== form.confirmPassword
 
   const isStudent  = form.idNumber.startsWith('STU-')
   const isLecturer = form.idNumber.startsWith('LEC-')
@@ -124,7 +130,8 @@ export default function Register() {
         payload.academic_year = form.academicYear || null
       }
       const user = await register(payload)
-      if (user.role === 'lecturer') toast.success('Account created successfully. Welcome to LecturaMind!')
+      localStorage.setItem('lm_onboarding_pending', 'true')
+      toast.success('Account created successfully. Welcome to LecturaMind!')
       navigate(dashboardPath(user.role))
     } catch (err) {
       const msg = err.response?.data?.error || ''
@@ -251,10 +258,84 @@ export default function Register() {
                     <input type="email" placeholder="Email address" value={form.email} onChange={set('email')} {...inp('email')} />
                   </Field>
                   <Field error={errors.password}>
-                    <input type="password" placeholder="Password" value={form.password} onChange={set('password')} {...inp('password')} />
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Password"
+                        value={form.password}
+                        onChange={set('password')}
+                        style={{ ...inp('password').style, paddingRight: 44 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        style={{
+                          position: 'absolute', right: 14, top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          padding: 0, lineHeight: 0,
+                          color: '#9ca3af', display: 'flex', alignItems: 'center',
+                        }}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </Field>
-                  <Field error={errors.confirmPassword}>
-                    <input type="password" placeholder="Confirm password" value={form.confirmPassword} onChange={set('confirmPassword')} {...inp('confirmPassword')} />
+                  <Field error={passwordsMismatch ? 'Passwords do not match.' : errors.confirmPassword}>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Confirm password"
+                        value={form.confirmPassword}
+                        onChange={set('confirmPassword')}
+                        style={{
+                          ...inputBase,
+                          paddingRight: passwordsMatch ? 66 : 44,
+                          ...(((errors.confirmPassword || passwordsMismatch)) ? { borderColor: '#fca5a5', backgroundColor: '#fff5f5' } : {}),
+                        }}
+                      />
+                      {passwordsMatch && (
+                        <span style={{
+                          position: 'absolute', right: 44, top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#10b981', fontSize: 16, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', lineHeight: 0,
+                        }}>✓</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        style={{
+                          position: 'absolute', right: 14, top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          padding: 0, lineHeight: 0,
+                          color: '#9ca3af', display: 'flex', alignItems: 'center',
+                        }}
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </Field>
                   <button type="submit" style={{
                     width: '100%', padding: '13px', backgroundColor: BLUE, color: '#fff',

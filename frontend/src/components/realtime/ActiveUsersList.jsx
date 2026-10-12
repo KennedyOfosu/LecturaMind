@@ -2,6 +2,7 @@
  * ActiveUsersList.jsx — Live list of currently online students.
  */
 
+import { Avatar } from '../ui/Avatar'
 import { OnlineIndicator } from './OnlineIndicator'
 
 export function ActiveUsersList({ users = [] }) {
@@ -19,16 +20,13 @@ export function ActiveUsersList({ users = [] }) {
       {users.map((u) => {
         const id   = u.student_id || u.user_id
         const name = u.student_name || u.name || 'Student'
-        const initials = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
         return (
           <div
             key={id}
             className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl animate-fade-in"
           >
             <div className="relative">
-              <div className="h-9 w-9 rounded-full bg-navy text-white flex items-center justify-center text-sm font-bold">
-                {initials}
-              </div>
+              <Avatar src={u.avatar_url} name={name} size="md" className="!bg-navy" />
               <OnlineIndicator className="absolute -bottom-0.5 -right-0.5" />
             </div>
             <div className="min-w-0 flex-1">

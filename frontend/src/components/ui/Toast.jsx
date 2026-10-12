@@ -1,13 +1,33 @@
-/**
- * Toast.jsx — Notification toast system.
- * Usage: import { useToast } from this file; call toast.success() / toast.error().
- */
-
-import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 
 const ToastContext = createContext(null)
 
 let toastId = 0
+
+/* ── Gentle notification chime via Web Audio API ── */
+let audioCtx = null
+function playNotificationSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    const now = audioCtx.currentTime
+    const notes = [523.25, 659.25, 783.99]
+    notes.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator()
+      const gain = audioCtx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0, now + i * 0.08)
+      gain.gain.linearRampToValueAtTime(0.06, now + i * 0.08 + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2)
+      osc.connect(gain)
+      gain.connect(audioCtx.destination)
+      osc.start(now + i * 0.08)
+      osc.stop(now + i * 0.08 + 0.25)
+    })
+  } catch {
+    /* audio not supported — silent fallback */
+  }
+}
 
 const ICONS = {
   success: '✓',
@@ -34,20 +54,41 @@ function SpinnerIcon() {
   )
 }
 
-/* Individual toast item — handles its own slide-down entrance animation */
-function ToastItem({ message, type }) {
-  const [visible, setVisible] = useState(false)
+const EXIT_DURATION = 400
+
+function ToastItem({ id, message, type, onRemove, duration }) {
+  const [exiting, setExiting] = useState(false)
+  const played = useRef(false)
+  const timerRef = useRef(null)
+  const exitTimerRef = useRef(null)
 
   useEffect(() => {
-    const id = setTimeout(() => setVisible(true), 16)
-    return () => clearTimeout(id)
-  }, [])
+    if (!played.current) {
+      playNotificationSound()
+      played.current = true
+    }
+    if (duration > 0) {
+      timerRef.current = setTimeout(() => setExiting(true), duration)
+    }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [duration])
+
+  useEffect(() => {
+    if (exiting) {
+      exitTimerRef.current = setTimeout(() => onRemove(id), EXIT_DURATION)
+    }
+    return () => {
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current)
+    }
+  }, [exiting, id, onRemove])
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 rounded-xl text-white text-sm
-                     font-medium shadow-lg w-80 transition-all duration-300
+                     font-medium shadow-lg w-80
                      ${TYPE_STYLES[type]}
-                     ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3'}`}>
+                     ${exiting ? 'animate-[toast-exit_0.4s_ease-out_forwards]' : 'animate-[toast-enter_0.4s_ease-out_forwards]'}`}>
       {type === 'loading' ? <SpinnerIcon /> : <span className="text-base shrink-0">{ICONS[type]}</span>}
       <span>{message}</span>
     </div>
@@ -56,17 +97,16 @@ function ToastItem({ message, type }) {
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
+  const toastsRef = useRef(toasts)
+  toastsRef.current = toasts
 
   const addToast = useCallback((message, type = 'info', duration = 4000) => {
     const id = ++toastId
-    setToasts((prev) => [...prev, { id, message, type }])
-    if (duration > 0) {
-      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), duration)
-    }
+    setToasts((prev) => [...prev, { id, message, type, duration }])
     return id
   }, [])
 
-  const dismiss = useCallback((id) => {
+  const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
@@ -75,10 +115,9 @@ export function ToastProvider({ children }) {
     error:   (msg) => addToast(msg, 'error'),
     info:    (msg) => addToast(msg, 'info'),
     warning: (msg) => addToast(msg, 'warning'),
-    loading: (msg) => { const id = addToast(msg, 'loading', 0); return () => dismiss(id) },
+    loading: (msg) => { const id = addToast(msg, 'loading', 0); return () => removeToast(id) },
   }
 
-  /* Bridge for api.js interceptor (outside React context) */
   useEffect(() => {
     const handler = (e) => addToast(e.detail.message, e.detail.type)
     window.addEventListener('lecturamind:toast', handler)
@@ -88,12 +127,17 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999]
-                      flex flex-col items-center gap-2 pointer-events-none"
-           style={{ marginTop: '0.5rem' }}>
+      <div className="fixed bottom-4 right-4 z-[99999]
+                       flex flex-col items-end gap-2 pointer-events-none">
         {toasts.map((t) => (
           <div key={t.id} className="pointer-events-auto">
-            <ToastItem message={t.message} type={t.type} />
+            <ToastItem
+              id={t.id}
+              message={t.message}
+              type={t.type}
+              duration={t.duration}
+              onRemove={removeToast}
+            />
           </div>
         ))}
       </div>

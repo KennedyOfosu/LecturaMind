@@ -3,14 +3,16 @@
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider }     from './context/AuthContext'
-import { SocketProvider }   from './context/SocketContext'
-import { SessionsProvider } from './context/SessionsContext'
-import { CoursesProvider }  from './context/CoursesContext'
-import { ToastProvider }    from './components/ui/Toast'
-import { ProtectedRoute }   from './components/layout/ProtectedRoute'
+import { AuthProvider }       from './context/AuthContext'
+import { SocketProvider }     from './context/SocketContext'
+import { SessionsProvider }   from './context/SessionsContext'
+import { CoursesProvider }    from './context/CoursesContext'
+import { ToastProvider }      from './components/ui/Toast'
+import { ProtectedRoute }     from './components/layout/ProtectedRoute'
+import { OnboardingProvider } from './context/OnboardingContext'
 import LecturerLayout       from './components/layout/LecturerLayout'
 import StudentLayout        from './components/layout/StudentLayout'
+import SuperadminLayout     from './components/layout/SuperadminLayout'
 
 // Public pages
 import Landing  from './pages/Landing'
@@ -34,12 +36,25 @@ import StudentDashboard from './pages/student/StudentDashboard'
 import CourseView       from './pages/student/CourseView'
 import StudentProfile   from './pages/student/StudentProfile'
 
+// Superadmin pages
+import SuperadminDashboard   from './pages/superadmin/SuperadminDashboard'
+import UserManagement        from './pages/superadmin/UserManagement'
+import CourseManagement      from './pages/superadmin/CourseManagement'
+import ClassroomManagement   from './pages/superadmin/ClassroomManagement'
+import AcademicStructure     from './pages/superadmin/AcademicStructure'
+import Allocations           from './pages/superadmin/Allocations'
+import Enrolments            from './pages/superadmin/Enrolments'
+import FeesManagement        from './pages/superadmin/FeesManagement'
+import AttendanceOversight   from './pages/superadmin/AttendanceOversight'
+import ReportCards           from './pages/superadmin/ReportCards'
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
           <SocketProvider>
+            <OnboardingProvider>
             <Routes>
               {/* ── Public ── */}
               <Route path="/"         element={<Landing />} />
@@ -76,9 +91,24 @@ export default function App() {
                 <Route path="/student/profile"            element={<StudentProfile />} />
               </Route>
 
+              {/* ── Superadmin pages ── */}
+              <Route element={<ProtectedRoute role="superadmin"><SuperadminLayout /></ProtectedRoute>}>
+                <Route path="/superadmin/dashboard"    element={<SuperadminDashboard />} />
+                <Route path="/superadmin/users"        element={<UserManagement />} />
+                <Route path="/superadmin/courses"      element={<CourseManagement />} />
+                <Route path="/superadmin/classrooms"   element={<ClassroomManagement />} />
+                <Route path="/superadmin/academics"    element={<AcademicStructure />} />
+                <Route path="/superadmin/allocations"  element={<Allocations />} />
+                <Route path="/superadmin/enrolments"   element={<Enrolments />} />
+                <Route path="/superadmin/fees"         element={<FeesManagement />} />
+                <Route path="/superadmin/attendance"   element={<AttendanceOversight />} />
+                <Route path="/superadmin/report-cards" element={<ReportCards />} />
+              </Route>
+
               {/* ── Fallback ── */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+          </OnboardingProvider>
           </SocketProvider>
         </ToastProvider>
       </AuthProvider>

@@ -13,7 +13,13 @@ export function ProtectedRoute({ children, role }) {
 
   if (loading) return <PageSpinner />
   if (!user) return <Navigate to="/login" replace />
-  if (role && user.role !== role) return <Navigate to={dashboardPath(user.role)} replace />
+
+  if (role) {
+    const roles = Array.isArray(role) ? role : [role]
+    if (!roles.includes(user.role) && user.role !== 'superadmin') {
+      return <Navigate to={dashboardPath(user.role)} replace />
+    }
+  }
 
   return children
 }

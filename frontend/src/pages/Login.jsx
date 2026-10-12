@@ -33,7 +33,7 @@ export default function Login() {
     setIsLoading(true)
     try {
       const user = await login(idNumber.trim(), password)
-      if (user.role === 'lecturer') toast.success('Welcome back! You are now signed in.')
+      toast.success(`Welcome back, ${user.full_name}!`) 
       navigate(dashboardPath(user.role))
     } catch (err) {
       const msg = err.response?.data?.error || ''

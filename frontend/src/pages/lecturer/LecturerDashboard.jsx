@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useSocket } from '../../hooks/useSocket'
 import { useToast } from '../../components/ui/Toast'
+import { Modal } from '../../components/ui/Modal'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
 
@@ -49,6 +50,90 @@ function Card({ title, Icon, linkText, onLink, children }) {
         )}
       </div>
       <div className="flex-1 overflow-y-auto">{children}</div>
+    </div>
+  )
+}
+
+/* ── Live Monitor Card ──────────────────────────────────────── */
+function LiveMonitorCard({ onlineUsers = [], onOpenFull }) {
+  const ITEMS_PER_PAGE = 4
+  const [page, setPage] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(onlineUsers.length / ITEMS_PER_PAGE))
+  const safePage = Math.min(page, totalPages - 1)
+  const paged = onlineUsers.slice(safePage * ITEMS_PER_PAGE, (safePage + 1) * ITEMS_PER_PAGE)
+  const count = onlineUsers.length
+
+  return (
+    <div className="rounded-2xl flex flex-col overflow-hidden cursor-pointer transition-all hover:shadow-md active:scale-[0.99]"
+      style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}
+      onClick={onOpenFull}>
+      <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: '#F0F0F2' }}>
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+          <Ic.Eye /> Live Monitor
+        </div>
+        <span className="flex items-center gap-1 text-xs text-gray-400">
+          View all <Ic.Arrow />
+        </span>
+      </div>
+      <div className="flex gap-4 px-5 py-4">
+        {/* Left — count */}
+        <div className="w-28 shrink-0 flex flex-col items-center justify-center text-center p-3 rounded-xl"
+          style={{ backgroundColor: count ? '#ecfdf5' : '#F0F0F2' }}>
+          <span className="text-3xl font-bold" style={{ color: count ? '#059669' : '#9ca3af' }}>
+            {count}
+          </span>
+          <p className="text-xs font-semibold text-gray-800 mt-1">
+            {count === 0 ? 'No one online' : `Active ${count === 1 ? 'Student' : 'Students'}`}
+          </p>
+          <p className="text-[10px] text-gray-400 mt-0.5">across courses</p>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px shrink-0" style={{ backgroundColor: '#E5E7EB' }} />
+
+        {/* Right — list */}
+        <div className="flex-1 min-w-0">
+          {count > 0 ? (
+            <div className="flex flex-col">
+              {paged.map((u, i) => {
+                const name = u.student_name || u.name || 'Student'
+                const idNum = u.id_number || u.student_id_number || ''
+                const uid = u.student_id || u.user_id || i
+                return (
+                  <div key={uid} className="flex items-center gap-2.5 py-2 border-b last:border-0" style={{ borderColor: '#F0F0F2' }}>
+                    <div className="h-7 w-7 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0">
+                      {name[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-800 truncate">{name}</p>
+                      {idNum && <p className="text-xs text-gray-400 truncate">{idNum}</p>}
+                    </div>
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 py-4 text-center">Students appear here when active</p>
+          )}
+
+          {count > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-between pt-2">
+              <button onClick={(e) => { e.stopPropagation(); setPage(p => Math.max(0, p - 1)) }}
+                disabled={safePage === 0}
+                className="text-xs text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                ← Previous
+              </button>
+              <span className="text-xs text-gray-400">{safePage + 1} of {totalPages}</span>
+              <button onClick={(e) => { e.stopPropagation(); setPage(p => Math.min(totalPages - 1, p + 1)) }}
+                disabled={safePage === totalPages - 1}
+                className="text-xs text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -253,6 +338,12 @@ export default function LecturerDashboard() {
   const [onlineUsers,   setOnlineUsers]   = useState([])
   const [myCourseIds,   setMyCourseIds]   = useState([])
   const [loading,       setLoading]       = useState(true)
+  const [liveMonitorOpen, setLiveMonitorOpen] = useState(false)
+  const [studentPage, setStudentPage] = useState(0)
+  const STUDENTS_PER_PAGE = 8
+  const totalStudentPages = Math.max(1, Math.ceil(allStudents.length / STUDENTS_PER_PAGE))
+  const safeStudentPage = Math.min(studentPage, totalStudentPages - 1)
+  const pagedStudents = allStudents.slice(safeStudentPage * STUDENTS_PER_PAGE, (safeStudentPage + 1) * STUDENTS_PER_PAGE)
 
   useEffect(() => {
     Promise.all([
@@ -370,12 +461,16 @@ export default function LecturerDashboard() {
       </div>
 
       {/* ── Summary grid: 2 cols left (students) + 1 col right (stacked cards) ── */}
-      <div className="grid grid-cols-3 gap-4 items-start">
+      <div className="grid grid-cols-3 gap-4">
 
-        {/* ── Enrolled Students — tall, spans 2 cols, fills height ── */}
+        {/* ── Enrolled Students — fixed height, scroll + pagination ── */}
         <div className="col-span-2 rounded-2xl overflow-hidden flex flex-col"
-          style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-          <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: '#F0F0F2' }}>
+          style={{
+            backgroundColor: '#fff',
+            border: '1px solid #D2D4D9',
+            maxHeight: 'calc(100vh - 300px)',
+          }}>
+          <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: '#F0F0F2' }}>
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
               <Ic.Users /> Enrolled Students
             </div>
@@ -386,39 +481,73 @@ export default function LecturerDashboard() {
           </div>
 
           {!allStudents.length ? (
-            <div className="flex items-center justify-center py-16 text-xs text-gray-400">
+            <div className="flex items-center justify-center flex-1 text-xs text-gray-400" style={{ minHeight: 200 }}>
               No students enrolled yet
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ backgroundColor: '#F0F0F2' }}>
-                  {['Student', 'Course', 'Status'].map((h) => (
-                    <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {allStudents.map((s, i) => (
-                  <tr key={i} className="border-t hover:bg-gray-50 transition-colors" style={{ borderColor: '#F0F0F2' }}>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0">
-                          {s.full_name?.[0] || '?'}
-                        </div>
-                        <span className="font-medium text-gray-800 text-sm">{s.full_name}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-xs text-gray-500">{s.course_name}</td>
-                    <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
-                        Enrolled
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: '#F0F0F2' }}>
+                      {['Student', 'Course', 'Status'].map((h) => (
+                        <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 sticky top-0"
+                          style={{ backgroundColor: '#F0F0F2', zIndex: 1 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedStudents.map((s, i) => (
+                      <tr key={i} className="border-t hover:bg-gray-50 transition-colors" style={{ borderColor: '#F0F0F2' }}>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0">
+                              {s.full_name?.[0] || '?'}
+                            </div>
+                            <span className="font-medium text-gray-800 text-sm">{s.full_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-gray-500">{s.course_name}</td>
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex items-center text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
+                            Enrolled
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {allStudents.length > STUDENTS_PER_PAGE && (
+                <div className="flex items-center justify-between px-5 py-3 border-t shrink-0" style={{ borderColor: '#F0F0F2' }}>
+                  <button onClick={() => setStudentPage(p => Math.max(0, p - 1))}
+                    disabled={safeStudentPage === 0}
+                    className="text-xs text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                    ← Previous
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalStudentPages }, (_, i) => (
+                      <button key={i} onClick={() => setStudentPage(i)}
+                        className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${
+                          i === safeStudentPage
+                            ? 'bg-gray-900 text-white'
+                            : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+                        }`}>
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button onClick={() => setStudentPage(p => Math.min(totalStudentPages - 1, p + 1))}
+                    disabled={safeStudentPage === totalStudentPages - 1}
+                    className="text-xs text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -426,32 +555,43 @@ export default function LecturerDashboard() {
         <div className="flex flex-col gap-4">
 
           {/* Live Monitor */}
-          <Card title="Live Monitor" Icon={Ic.Eye} linkText="Open" onLink={() => navigate('/lecturer/live-monitor')}>
-            <div className="p-5 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl flex items-center justify-center text-xl font-bold"
-                  style={{ backgroundColor: onlineUsers.length ? '#ecfdf5' : '#F0F0F2',
-                           color: onlineUsers.length ? '#059669' : '#9ca3af' }}>
-                  {onlineUsers.length}
+          <LiveMonitorCard onlineUsers={onlineUsers} onOpenFull={() => setLiveMonitorOpen(true)} />
+
+          {/* Expanded Live Monitor overlay */}
+          <Modal isOpen={liveMonitorOpen} onClose={() => setLiveMonitorOpen(false)}
+            title="Live Monitor" maxWidth="max-w-xl">
+            <div>
+              {onlineUsers.length > 0 ? (
+                <div className="flex flex-col divide-y" style={{ borderColor: '#F0F0F2' }}>
+                  {onlineUsers.map((u, i) => {
+                    const name = u.student_name || u.name || 'Student'
+                    const idNum = u.id_number || u.student_id_number || ''
+                    const uid = u.student_id || u.user_id || i
+                    return (
+                      <div key={uid} className="flex items-center gap-3 py-3">
+                        <div className="relative">
+                          <div className="h-9 w-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-sm font-bold shrink-0">
+                            {name[0]?.toUpperCase() || '?'}
+                          </div>
+                          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-white" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-800">{name}</p>
+                          <p className="text-xs text-gray-400">{idNum || 'No ID'}</p>
+                        </div>
+                        <span className="text-xs text-gray-400">{u.course_name || ''}</span>
+                      </div>
+                    )
+                  })}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">
-                    {onlineUsers.length === 0 ? 'No one online' : `${onlineUsers.length} online`}
-                  </p>
-                  <p className="text-xs text-gray-400">across all courses</p>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <p className="text-sm font-medium">No students are currently online</p>
+                  <p className="text-xs mt-1">Students will appear here when they log into their dashboard</p>
                 </div>
-              </div>
-              {onlineUsers.slice(0, 4).map((u, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs text-gray-600">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
-                  {u.name || 'Student'}
-                </div>
-              ))}
-              {!onlineUsers.length && (
-                <p className="text-xs text-gray-400">Students appear here when active</p>
               )}
             </div>
-          </Card>
+          </Modal>
 
           {/* Announcements — calendar + event list */}
           <AnnouncementsCalendarCard

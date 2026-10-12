@@ -61,15 +61,33 @@ def require_auth(f):
     return decorated
 
 
-def require_role(role: str):
-    """Enforces a specific role. Must be used after @require_auth."""
+def require_role(*roles: str):
+    """
+    Enforces one or more allowed roles. Superadmin always passes.
+    Must be used after @require_auth.
+    Usage: @require_role("lecturer") or @require_role("lecturer", "superadmin")
+    """
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
             current_role = g.get("user_role")
-            print(f"[ROLE] required={role} got={current_role}")
-            if current_role != role:
+            print(f"[ROLE] allowed={roles} got={current_role}")
+            if current_role == "superadmin":
+                return f(*args, **kwargs)
+            if current_role not in roles:
                 return jsonify({"error": "Access denied: insufficient role", "code": 403}), 403
             return f(*args, **kwargs)
         return decorated
     return decorator
+
+
+def require_superadmin(f):
+    """Enforces superadmin role. Must be used after @require_auth."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        current_role = g.get("user_role")
+        print(f"[SUPERADMIN] required=superadmin got={current_role}")
+        if current_role != "superadmin":
+            return jsonify({"error": "Access denied: superadmin role required", "code": 403}), 403
+        return f(*args, **kwargs)
+    return decorated

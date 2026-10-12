@@ -43,6 +43,7 @@ from routes.dashboard import dashboard_bp
 from routes.assignments import assignments_bp
 from routes.profile import profile_bp
 from routes.marks import marks_bp
+from routes.superadmin import superadmin_bp
 
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
 app.register_blueprint(courses_bp, url_prefix="/api/courses")
@@ -54,6 +55,7 @@ app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 app.register_blueprint(assignments_bp, url_prefix="/api/assignments")
 app.register_blueprint(profile_bp, url_prefix="/api/profile")
 app.register_blueprint(marks_bp, url_prefix="/api/marks")
+app.register_blueprint(superadmin_bp, url_prefix="/api/admin")
 
 # Make socketio accessible to route blueprints (avoids circular imports)
 from services.socket_service import init_socketio
@@ -128,4 +130,4 @@ def internal_error(e):
 
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=Config.FLASK_PORT, debug=(Config.FLASK_ENV == "development"))
+    socketio.run(app, host="0.0.0.0", port=Config.FLASK_PORT, debug=(Config.FLASK_ENV == "development"), use_reloader=False)

@@ -11,15 +11,22 @@ import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useSocket } from '../../hooks/useSocket'
 import { useCourses } from '../../context/CoursesContext'
+import { useOnboarding } from '../../context/OnboardingContext'
 import StudentSidebar from './StudentSidebar'
 import AnnouncementToast from '../realtime/AnnouncementToast'
 import LiveSessionToast from '../realtime/LiveSessionToast'
+import OnboardingOverlay from '../onboarding/OnboardingOverlay'
 
 export default function StudentLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { user }    = useAuth()
   const { socket }  = useSocket()
   const { courses } = useCourses()
+  const { isActive: onboardingActive } = useOnboarding()
+
+  useEffect(() => {
+    if (onboardingActive) setSidebarOpen(true)
+  }, [onboardingActive])
 
   // Emit student_login every time the socket or courses list becomes available.
   // Uses the shared CoursesContext so no extra getEnrolled() call is made here.
@@ -56,6 +63,8 @@ export default function StudentLayout() {
       {/* Global real-time toasts — visible on every student page */}
       <AnnouncementToast />
       <LiveSessionToast />
+
+      <OnboardingOverlay />
     </div>
   )
 }

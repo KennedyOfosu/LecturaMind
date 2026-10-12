@@ -16,10 +16,12 @@ auth_bp = Blueprint("auth", __name__)
 def detect_role_from_id(id_number: str):
     """
     Detects role from ID number prefix.
-    Returns 'lecturer', 'student', or None if invalid.
+    Returns 'superadmin', 'lecturer', 'student', or None if invalid.
     """
     id_upper = id_number.strip().upper()
-    if id_upper.startswith("LEC-") and len(id_upper) == 8:
+    if id_upper.startswith("SUP-") and len(id_upper) == 8:
+        return "superadmin"
+    elif id_upper.startswith("LEC-") and len(id_upper) == 8:
         return "lecturer"
     elif id_upper.startswith("STU-") and len(id_upper) == 8:
         return "student"
@@ -267,6 +269,8 @@ def seed():
          "password": "student123",    "id_number": "STU-2001"},
     {"full_name": "Jane Doe", "email": "jane.doe@lecturamind.com",
          "password": "lecturer123",    "id_number": "LEC-2001"},
+    {"full_name": "System Admin", "email": "admin@lecturamind.com",
+         "password": "admin123",    "id_number": "SUP-1001"},
     ]
     results = []
     for acc in accounts:

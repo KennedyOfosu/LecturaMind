@@ -3,14 +3,18 @@ profile.py — Profile update endpoint.
 Students who update programme/level trigger auto-enrolment.
 """
 
+import uuid
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
 from middleware.auth_middleware import require_auth
 
 profile_bp = Blueprint("profile", __name__)
 
-LECTURER_FIELDS = ["full_name", "department", "phone", "bio", "user_id_number"]
-STUDENT_FIELDS  = ["full_name", "phone", "programme", "level", "academic_year", "user_id_number"]
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2 MB
+
+LECTURER_FIELDS = ["full_name", "department", "phone", "bio", "user_id_number", "avatar_url"]
+STUDENT_FIELDS  = ["full_name", "phone", "programme", "level", "academic_year", "user_id_number", "avatar_url"]
 
 
 @profile_bp.put("/update")
@@ -68,6 +72,51 @@ def update_profile():
         "message": "Profile updated successfully.",
         "auto_enrolled": auto_enrolled,
     }), 200
+
+
+@profile_bp.post("/avatar")
+@require_auth
+def upload_avatar():
+    """Upload a profile avatar image to Supabase Storage."""
+    user_id = g.user_id
+
+    if "avatar" not in request.files:
+        return jsonify({"error": "No image file provided", "code": 400}), 400
+
+    file = request.files["avatar"]
+    if not file or not file.filename:
+        return jsonify({"error": "No file selected", "code": 400}), 400
+
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        return jsonify({"error": "Only JPG, PNG, GIF, and WebP images are allowed", "code": 415}), 415
+
+    file_bytes = file.read()
+    if len(file_bytes) > MAX_IMAGE_SIZE:
+        return jsonify({"error": "Image must be under 2 MB", "code": 413}), 413
+    if len(file_bytes) == 0:
+        return jsonify({"error": "The uploaded file is empty", "code": 400}), 400
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "png"
+    safe_name = f"{uuid.uuid4().hex}.{ext}"
+    path = f"{user_id}/{safe_name}"
+
+    try:
+        supabase.storage.from_("avatars").upload(
+            path,
+            file_bytes,
+            {"content-type": file.content_type, "x-upsert": "true"},
+        )
+    except Exception as e:
+        return jsonify({"error": f"Storage upload failed: {str(e)}", "code": 500}), 500
+
+    public_url = supabase.storage.from_("avatars").get_public_url(path)
+
+    try:
+        supabase.table("profiles").update({"avatar_url": public_url}).eq("id", user_id).execute()
+    except Exception as e:
+        return jsonify({"error": f"Profile update failed: {str(e)}", "code": 500}), 500
+
+    return jsonify({"avatar_url": public_url}), 200
 
 
 @profile_bp.get("/")

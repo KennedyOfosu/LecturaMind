@@ -37,22 +37,24 @@ def upload_to_storage(file_bytes: bytes, file_name: str, course_id: str) -> str:
     supabase.storage.from_("course-materials").upload(
         path,
         file_bytes,
-        {"content-type": get_mime_type(safe_name), "upsert": "false"},
+        {"content-type": get_mime_type(safe_name), "x-upsert": "false"},
     )
     return path
 
 
 def ensure_storage_bucket():
-    """Create the course-materials bucket if it does not exist."""
+    """Create required storage buckets if they do not exist."""
+    required = {
+        "course-materials": {"public": False, "file_size_limit": 10 * 1024 * 1024},
+        "avatars":          {"public": True,  "file_size_limit": 2 * 1024 * 1024},
+    }
     try:
         buckets = supabase.storage.list_buckets()
         names = [b.name if hasattr(b, "name") else b.get("name") for b in buckets]
-        if "course-materials" not in names:
-            supabase.storage.create_bucket(
-                "course-materials",
-                options={"public": False, "file_size_limit": 10 * 1024 * 1024},
-            )
-            print("[storage] course-materials bucket created.")
+        for name, opts in required.items():
+            if name not in names:
+                supabase.storage.create_bucket(name, options=opts)
+                print(f"[storage] '{name}' bucket created.")
     except Exception as e:
         print(f"[storage] Bucket check failed: {e}")
 

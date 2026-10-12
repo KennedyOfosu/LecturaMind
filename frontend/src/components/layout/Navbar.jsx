@@ -4,6 +4,7 @@
 
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
 import { useToast } from '../ui/Toast'
 
@@ -17,10 +18,6 @@ export function Navbar() {
     toast.success('Logged out successfully')
     navigate('/login')
   }
-
-  const initials = user?.full_name
-    ? user.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-    : '?'
 
   return (
     <nav className="bg-navy text-white shadow-lg h-16 flex items-center px-6 gap-4 sticky top-0 z-40">
@@ -40,9 +37,7 @@ export function Navbar() {
             {user.role}
           </Badge>
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-teal flex items-center justify-center text-sm font-semibold">
-              {initials}
-            </div>
+            <Avatar src={user?.avatar_url} name={user?.full_name} size="sm" className="!bg-teal" />
             <span className="text-sm hidden sm:block">{user.full_name}</span>
           </div>
           <button

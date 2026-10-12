@@ -37,6 +37,9 @@ export function AuthProvider({ children }) {
     setCheckingSession(false)
     try { await authService.logout({ skipAuthPrompt: true }) } catch { /* ignore */ }
     clearSession()
+    window.dispatchEvent(new CustomEvent('lecturamind:toast', {
+      detail: { message: 'You have been signed out successfully.', type: 'success' },
+    }))
     navigate('/login', { replace: true })
   }, [clearSession, navigate])
 
