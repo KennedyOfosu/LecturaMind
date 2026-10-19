@@ -13,7 +13,7 @@ LecturaMind is a full-stack web application that serves as an AI-powered Teachin
 | Frontend     | React 18 (Vite), TailwindCSS 3                  |
 | Backend      | Python 3.10+, Flask, Flask-CORS, Flask-SocketIO |
 | Database     | Supabase (PostgreSQL + Storage + Auth)          |
-| AI           | OpenAI GPT API (gpt-3.5-turbo)                  |
+| AI           | Anthropic Claude (claude-haiku-4-5-20251001)     |
 | Real-time    | Flask-SocketIO + Socket.IO client               |
 | File Storage | Supabase Storage Buckets                        |
 | Text Extract | pdfplumber (PDF), python-docx (DOCX)            |
@@ -41,14 +41,14 @@ LecturaMind is a full-stack web application that serves as an AI-powered Teachin
 - Python 3.10+
 - Node.js 18+
 - A Supabase project (free tier works)
-- An OpenAI API key
+- An Anthropic API key
 
 ---
 
 ### 1. Supabase Setup
 
 1. Go to [supabase.com](https://supabase.com) and create a new project.
-2. Open the **SQL Editor** and run all the `CREATE TABLE` statements from `CLAUDE.md` (Database Schema section).
+2. Open the **SQL Editor** and apply the database schema required by the application, then run the numbered SQL migrations in `backend/migrations/` in order. The migrations add marks, announcements status, academic structure, fees and attendance, and report cards.
 3. Go to **Storage → New Bucket**, create a bucket named `course-materials`, set it to **private**.
 4. Note your **Project URL**, **anon key**, and **service role key** from Settings → API.
 
@@ -68,11 +68,10 @@ venv\Scripts\activate          # Windows
 pip install -r requirements.txt
 
 # Configure environment
-cp .env.example .env
-# Edit .env and fill in:
+# Create backend/.env manually and add:
 #   SUPABASE_URL=...
 #   SUPABASE_SERVICE_KEY=...
-#   OPENAI_API_KEY=...
+#   ANTHROPIC_API_KEY=...
 #   JWT_SECRET=any-long-random-string
 
 # Run the development server
@@ -92,11 +91,8 @@ cd frontend
 npm install
 
 # Configure environment
-cp .env.example .env
-# Edit .env and fill in:
+# Create frontend/.env manually and add:
 #   VITE_API_BASE_URL=http://localhost:5000
-#   VITE_SUPABASE_URL=...
-#   VITE_SUPABASE_ANON_KEY=...
 #   VITE_SOCKET_URL=http://localhost:5000
 
 # Run the development server
