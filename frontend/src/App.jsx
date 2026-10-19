@@ -18,6 +18,7 @@ import SuperadminLayout     from './components/layout/SuperadminLayout'
 import Landing  from './pages/Landing'
 import Login    from './pages/Login'
 import Register from './pages/Register'
+import ActivateAccount from './pages/ActivateAccount'
 
 // Lecturer pages
 import LecturerDashboard   from './pages/lecturer/LecturerDashboard'
@@ -44,7 +45,6 @@ import ClassroomManagement   from './pages/superadmin/ClassroomManagement'
 import AcademicStructure     from './pages/superadmin/AcademicStructure'
 import Allocations           from './pages/superadmin/Allocations'
 import Enrolments            from './pages/superadmin/Enrolments'
-import FeesManagement        from './pages/superadmin/FeesManagement'
 import AttendanceOversight   from './pages/superadmin/AttendanceOversight'
 import ReportCards           from './pages/superadmin/ReportCards'
 
@@ -60,6 +60,7 @@ export default function App() {
               <Route path="/"         element={<Landing />} />
               <Route path="/login"    element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/activate-account" element={<ActivateAccount />} />
 
               {/* ── Lecturer pages (shared sidebar layout) ── */}
               <Route element={<ProtectedRoute role="lecturer"><LecturerLayout /></ProtectedRoute>}>
@@ -100,7 +101,6 @@ export default function App() {
                 <Route path="/superadmin/academics"    element={<AcademicStructure />} />
                 <Route path="/superadmin/allocations"  element={<Allocations />} />
                 <Route path="/superadmin/enrolments"   element={<Enrolments />} />
-                <Route path="/superadmin/fees"         element={<FeesManagement />} />
                 <Route path="/superadmin/attendance"   element={<AttendanceOversight />} />
                 <Route path="/superadmin/report-cards" element={<ReportCards />} />
               </Route>

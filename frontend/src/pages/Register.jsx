@@ -6,12 +6,13 @@
  * All 3-step form logic preserved.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../components/ui/Toast'
 import { dashboardPath } from '../utils/roleGuard'
 import { PROGRAMMES, LEVELS } from '../utils/constants'
+import { authService } from '../services/authService'
 
 const BLUE = '#2e54fe'
 
@@ -68,6 +69,9 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false)
   const [errors,    setErrors]    = useState({})
   const [apiError,  setApiError]  = useState('')
+  const [identityCheckPending, setIdentityCheckPending] = useState(false)
+  const [identityCheckNotice, setIdentityCheckNotice] = useState('')
+  const identityValidationSeq = useRef(0)
   const [showPassword,        setShowPassword]        = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
@@ -82,6 +86,75 @@ export default function Register() {
 
   const isStudent  = form.idNumber.startsWith('STU-')
   const isLecturer = form.idNumber.startsWith('LEC-')
+
+  const normalizedFullName = form.fullName.trim().replace(/\s+/g, ' ')
+  const normalizedEmail = form.email.trim().toLowerCase()
+  const emailLooksValid = /^\S+@\S+\.\S+$/.test(normalizedEmail)
+
+  const checkRegistrationIdentity = async () => {
+    const seq = ++identityValidationSeq.current
+    setIdentityCheckNotice('')
+    if (!normalizedFullName || !emailLooksValid) {
+      setIdentityCheckPending(false)
+      return {}
+    }
+
+    setIdentityCheckPending(true)
+    try {
+      const response = await authService.validateRegistration({
+        full_name: normalizedFullName,
+        email: normalizedEmail,
+      })
+      const duplicateErrors = response.data?.errors || {}
+      if (seq === identityValidationSeq.current) {
+        setErrors((previous) => ({
+          ...previous,
+          fullName: duplicateErrors.full_name || '',
+          email: duplicateErrors.email || '',
+        }))
+      }
+      return duplicateErrors
+    } catch {
+      if (seq === identityValidationSeq.current) {
+        setIdentityCheckNotice('We could not verify these details right now. We will check again when you submit.')
+      }
+      return {}
+    } finally {
+      if (seq === identityValidationSeq.current) setIdentityCheckPending(false)
+    }
+  }
+
+  useEffect(() => {
+    const seq = ++identityValidationSeq.current
+    setIdentityCheckNotice('')
+    if (!normalizedFullName || !emailLooksValid) {
+      setIdentityCheckPending(false)
+      return undefined
+    }
+    setIdentityCheckPending(true)
+    const timer = setTimeout(async () => {
+      try {
+        const response = await authService.validateRegistration({
+          full_name: normalizedFullName,
+          email: normalizedEmail,
+        })
+        if (seq !== identityValidationSeq.current) return
+        const duplicateErrors = response.data?.errors || {}
+        setErrors((previous) => ({
+          ...previous,
+          fullName: duplicateErrors.full_name || '',
+          email: duplicateErrors.email || '',
+        }))
+      } catch {
+        if (seq === identityValidationSeq.current) {
+          setIdentityCheckNotice('We could not verify these details right now. We will check again when you submit.')
+        }
+      } finally {
+        if (seq === identityValidationSeq.current) setIdentityCheckPending(false)
+      }
+    }, 450)
+    return () => clearTimeout(timer)
+  }, [normalizedFullName, normalizedEmail, emailLooksValid])
 
   const set = (field) => (e) => {
     const val = field === 'idNumber' ? e.target.value.toUpperCase() : e.target.value
@@ -105,8 +178,10 @@ export default function Register() {
   const validateStep2 = () => {
     const e = {}
     if (!form.idNumber.trim()) e.idNumber = 'ID number is required.'
-    else if (!form.idNumber.startsWith('STU-') && !form.idNumber.startsWith('LEC-'))
-      e.idNumber = 'ID must start with STU- or LEC-.'
+    else if (form.idNumber.startsWith('LEC-')) e.idNumber = 'Lecturer accounts are created by a Super-Admin. Contact your administrator to get an account.'
+    else if (form.idNumber.startsWith('SUP-')) e.idNumber = 'Super-Admin accounts are created by the system administrator.'
+    else if (!form.idNumber.startsWith('STU-'))
+      e.idNumber = 'Student registration IDs must start with STU-.'
     if (isStudent) {
       if (!form.programme) e.programme = 'Select your programme.'
       if (!form.level)     e.level     = 'Select your level.'
@@ -114,7 +189,13 @@ export default function Register() {
     setErrors(e); return !Object.keys(e).length
   }
 
-  const handleStep1 = (e) => { e.preventDefault(); if (validateStep1()) setStep(2) }
+  const handleStep1 = async (e) => {
+    e.preventDefault()
+    if (!validateStep1()) return
+    const duplicateErrors = await checkRegistrationIdentity()
+    if (duplicateErrors.full_name || duplicateErrors.email) return
+    setStep(2)
+  }
   const handleStep2 = (e) => { e.preventDefault(); if (validateStep2()) setStep(3) }
 
   const handleSubmit = async (e) => {
@@ -135,6 +216,15 @@ export default function Register() {
       navigate(dashboardPath(user.role))
     } catch (err) {
       const msg = err.response?.data?.error || ''
+      const field = err.response?.data?.field
+      const fieldErrors = err.response?.data?.errors || {}
+      if (field === 'full_name' || field === 'email') {
+        const identityMessage = fieldErrors[field] || msg
+        setErrors((previous) => ({ ...previous, [field === 'full_name' ? 'fullName' : 'email']: identityMessage }))
+        setApiError('')
+        setStep(1)
+        return
+      }
       const lower = msg.toLowerCase()
       if (lower.includes('already exists') && lower.includes('id')) {
         toast.error('An account with this ID number already exists.')
@@ -252,11 +342,12 @@ export default function Register() {
                   width: 360, maxWidth: '100%', margin: 'auto auto 0',
                 }}>
                   <Field error={errors.fullName}>
-                    <input placeholder="Full name" value={form.fullName} onChange={set('fullName')} {...inp('fullName')} />
+                  <input placeholder="Full name" value={form.fullName} onChange={set('fullName')} onBlur={() => { if (normalizedFullName && emailLooksValid) checkRegistrationIdentity() }} {...inp('fullName')} />
                   </Field>
                   <Field error={errors.email}>
-                    <input type="email" placeholder="Email address" value={form.email} onChange={set('email')} {...inp('email')} />
+                    <input type="email" placeholder="Email address" value={form.email} onChange={set('email')} onBlur={() => { if (normalizedFullName && emailLooksValid) checkRegistrationIdentity() }} {...inp('email')} />
                   </Field>
+                  {identityCheckNotice && <span style={{ color: '#9a6700', fontSize: 11, fontFamily: 'Inter, sans-serif' }}>{identityCheckNotice}</span>}
                   <Field error={errors.password}>
                     <div style={{ position: 'relative' }}>
                       <input
@@ -337,10 +428,10 @@ export default function Register() {
                       </button>
                     </div>
                   </Field>
-                  <button type="submit" style={{
+                  <button type="submit" disabled={identityCheckPending || Boolean(errors.fullName || errors.email)} style={{
                     width: '100%', padding: '13px', backgroundColor: BLUE, color: '#fff',
                     border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600,
-                    fontFamily: 'Inter, sans-serif', cursor: 'pointer', marginTop: 4,
+                    fontFamily: 'Inter, sans-serif', cursor: identityCheckPending || errors.fullName || errors.email ? 'not-allowed' : 'pointer', marginTop: 4,
                   }}>Continue</button>
                 </form>
               </>

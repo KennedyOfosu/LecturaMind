@@ -50,7 +50,7 @@ LecturaMind is a full-stack web application that serves as an AI-powered Teachin
 1. Go to [supabase.com](https://supabase.com) and create a new project.
 2. Open the **SQL Editor** and apply the database schema required by the application, then run the numbered SQL migrations in `backend/migrations/` in order. The migrations add marks, announcements status, academic structure, fees and attendance, and report cards.
 3. Go to **Storage → New Bucket**, create a bucket named `course-materials`, set it to **private**.
-4. Note your **Project URL**, **anon key**, and **service role key** from Settings → API.
+4. Note your **Project URL** and **service role key** from Settings → API.
 
 ---
 
@@ -68,7 +68,9 @@ venv\Scripts\activate          # Windows
 pip install -r requirements.txt
 
 # Configure environment
-# Create backend/.env manually and add:
+# macOS/Linux: cp .env.example .env
+# Windows:     copy .env.example .env
+# Then set these values in .env:
 #   SUPABASE_URL=...
 #   SUPABASE_SERVICE_KEY=...
 #   ANTHROPIC_API_KEY=...
@@ -91,7 +93,9 @@ cd frontend
 npm install
 
 # Configure environment
-# Create frontend/.env manually and add:
+# macOS/Linux: cp .env.example .env
+# Windows:     copy .env.example .env
+# Then set these values in .env:
 #   VITE_API_BASE_URL=http://localhost:5000
 #   VITE_SOCKET_URL=http://localhost:5000
 

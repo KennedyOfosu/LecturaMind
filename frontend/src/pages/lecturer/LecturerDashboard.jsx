@@ -11,6 +11,7 @@ import { useToast } from '../../components/ui/Toast'
 import { Modal } from '../../components/ui/Modal'
 import { courseService } from '../../services/courseService'
 import api from '../../services/api'
+import { classroomLabel } from '../../utils/classroomDisplay'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -331,6 +332,12 @@ export default function LecturerDashboard() {
   const firstName  = user?.full_name?.split(' ')[0] || 'Lecturer'
 
   const [stats,         setStats]         = useState(null)
+  const [assignedClasses, setAssignedClasses] = useState([])
+  const [classesError, setClassesError] = useState(false)
+  const [openedClass, setOpenedClass] = useState(null)
+  const [classStudents, setClassStudents] = useState([])
+  const [classStudentsLoading, setClassStudentsLoading] = useState(false)
+  const [classStudentsError, setClassStudentsError] = useState('')
   const [allStudents,   setAllStudents]   = useState([])
   const [announcements, setAnnouncements] = useState([])
   const [chatLogs,      setChatLogs]      = useState([])
@@ -345,13 +352,31 @@ export default function LecturerDashboard() {
   const safeStudentPage = Math.min(studentPage, totalStudentPages - 1)
   const pagedStudents = allStudents.slice(safeStudentPage * STUDENTS_PER_PAGE, (safeStudentPage + 1) * STUDENTS_PER_PAGE)
 
+  const openClass = async (classroom) => {
+    setOpenedClass(classroom)
+    setClassStudents([])
+    setClassStudentsError('')
+    setClassStudentsLoading(true)
+    try {
+      const response = await api.get(`/api/dashboard/lecturer/classes/${classroom.id}/students`)
+      setClassStudents(Array.isArray(response.data) ? response.data : [])
+    } catch (error) {
+      setClassStudentsError(error.response?.data?.error || 'Could not load students for this class.')
+    } finally {
+      setClassStudentsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    Promise.all([
-      api.get('/api/dashboard/lecturer/stats'),
-      courseService.getMyCourses(),
-    ]).then(async ([statsRes, coursesRes]) => {
-      setStats(statsRes.data)
-      const courses = coursesRes.data
+    api.get('/api/dashboard/lecturer/classes')
+      .then((response) => setAssignedClasses(Array.isArray(response.data) ? response.data : []))
+      .catch(() => setClassesError(true))
+    const statsRequest = api.get('/api/dashboard/lecturer/stats')
+      .then((statsRes) => setStats(statsRes.data || {}))
+      .catch(() => toast.error('Could not load lecturer overview figures. Please refresh the page.'))
+
+    const coursesRequest = courseService.getMyCourses().then(async (coursesRes) => {
+      const courses = Array.isArray(coursesRes.data) ? coursesRes.data : []
       setMyCourseIds(courses.map((c) => c.id))
 
       if (courses.length) {
@@ -371,8 +396,9 @@ export default function LecturerDashboard() {
         setMaterials(matRes.data.slice(0, 4))
         setAllStudents(studentArrs.flat().slice(0, 8))
       }
-    }).catch(() => toast.error('Could not load dashboard data. Please refresh the page.'))
-      .finally(() => setLoading(false))
+    }).catch(() => toast.error('Could not load your courses. Please refresh the page.'))
+
+    Promise.all([statsRequest, coursesRequest]).finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
@@ -424,6 +450,29 @@ export default function LecturerDashboard() {
         </h1>
         <p className="text-sm text-gray-400 mt-0.5">Here's a summary of your platform today</p>
       </div>
+
+      {!!stats?.data_warnings?.length && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          Some lecturer overview data could not be loaded ({stats.data_warnings.join(', ')}). Other available figures are shown.
+        </div>
+      )}
+
+      <section className="rounded-2xl border bg-white px-5 py-4" style={{ borderColor: '#D2D4D9' }}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-800">Assigned Classes</h2>
+          <span className="text-xs text-gray-400">{assignedClasses.length} classes</span>
+        </div>
+        {classesError ? <p className="mt-3 text-xs text-red-600">Could not load your assigned classes. Refresh to try again.</p>
+          : assignedClasses.length ? <div className="mt-3 flex flex-wrap gap-2">{assignedClasses.map((classroom) => <button type="button" key={classroom.id} onClick={() => openClass(classroom)} className="rounded-lg bg-gray-50 px-3 py-2 text-left text-sm hover:bg-gray-100"><span className="block font-medium text-gray-800">{classroomLabel(classroom)}</span><span className="text-xs text-gray-400">{classroom.student_count} students</span><span className="ml-3 text-xs text-blue-700">View students</span></button>)}</div>
+            : <p className="mt-3 text-xs text-gray-500">No classes are assigned to your account yet. Contact your Super-Admin to be assigned to a class.</p>}
+      </section>
+
+      <Modal isOpen={Boolean(openedClass)} onClose={() => setOpenedClass(null)} title={openedClass ? `${openedClass.name} students` : 'Class students'}>
+        {classStudentsLoading ? <p className="py-6 text-center text-sm text-gray-500">Loading students…</p>
+          : classStudentsError ? <p role="alert" className="py-6 text-center text-sm text-red-600">{classStudentsError}</p>
+            : classStudents.length ? <div className="divide-y">{classStudents.map((student) => <div key={student.id} className="flex items-center justify-between py-3"><div><p className="text-sm font-medium text-gray-800">{student.full_name}</p><p className="text-xs text-gray-500">{student.user_id_number || 'No student ID'}{student.programme ? ` · ${student.programme}` : ''}</p></div><span className="text-xs text-gray-500">{student.level ? `Level ${student.level}` : ''}</span></div>)}</div>
+              : <p className="py-6 text-center text-sm text-gray-500">No students are assigned to this class yet.</p>}
+      </Modal>
 
       {/* ── Stats row — 5 cards horizontally ── */}
       <div className="grid grid-cols-5 gap-3">

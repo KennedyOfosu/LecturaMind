@@ -20,9 +20,29 @@ VALID_LEVELS = [100, 200, 300, 400]
 def get_my_assignments():
     """Return all teaching assignments for the current lecturer."""
     res = supabase.table("lecturer_assignments").select(
-        "*, courses(id, course_name, course_code)"
+        "*, courses(id, course_name, course_code, programme, level, semester, academic_year)"
     ).eq("lecturer_id", g.user_id).order("programme").order("level").execute()
-    return jsonify(res.data or []), 200
+    assignments = res.data or []
+    try:
+        schedules = supabase.table("course_schedules").select(
+            "assignment_id, session_type, day_of_week, start_time, end_time, "
+            "classrooms!course_schedules_classroom_id_fkey(name, code)"
+        ).eq("lecturer_id", g.user_id).execute().data or []
+        schedule_by_assignment = {}
+        for schedule in schedules:
+            classroom = schedule.pop("classrooms", None) or {}
+            schedule["classroom"] = classroom
+            schedule_by_assignment[schedule["assignment_id"]] = schedule
+        for assignment in assignments:
+            assignment["schedule"] = schedule_by_assignment.get(assignment["id"])
+    except Exception as exc:
+        error_text = str(exc).lower()
+        if "course_schedules" not in error_text or not any(
+            marker in error_text for marker in ("pgrst205", "could not find the table", "does not exist")
+        ):
+            raise
+        print("[ASSIGNMENTS] course_schedules migration is pending; returning assignments without meeting times.")
+    return jsonify(assignments), 200
 
 
 @assignments_bp.post("/create")
@@ -79,10 +99,13 @@ def create_assignment():
 
     # Backfill enrolments for existing students
     enrolled = backfill_student_enrolments(course_id, programme, level)
+    from services.course_schedule_service import create_course_schedule_for_assignment
+    schedule = create_course_schedule_for_assignment(res.data[0])
 
     return jsonify({
         "assignment": res.data[0],
         "students_enrolled": enrolled,
+        "schedule": schedule,
         "message": f"Assignment created. {enrolled} matching student(s) auto-enrolled.",
     }), 201
 

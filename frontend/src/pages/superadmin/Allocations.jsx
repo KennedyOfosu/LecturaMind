@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminService } from '../../services/adminService'
+import { classroomLabel } from '../../utils/classroomDisplay'
+import { AdminActionButton } from '../../components/ui/AdminActionButton'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/Toast'
-import { SEMESTERS } from '../../utils/constants'
+import { DAYS_OF_WEEK, SEMESTERS } from '../../utils/constants'
 
 const TAB_COLORS = {
   active: 'bg-white text-gray-900 shadow-sm',
@@ -59,7 +61,7 @@ function LecturerAllocationTab({ toast }) {
     <div className="space-y-4">
       <div className="flex justify-end"><Button variant="primary" onClick={openModal}>+ Allocate Lecturer</Button></div>
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-        <table className="w-full text-sm">
+        <table className="superadmin-admin-table w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
               <th className="text-left px-5 py-3 font-semibold">Lecturer</th>
@@ -173,7 +175,7 @@ function ClassroomAllocationTab({ toast }) {
         value={search} onChange={(e) => setSearch(e.target.value)}
         className="w-full px-3 py-2 rounded-lg text-sm border" style={{ borderColor: '#D2D4D9' }} />
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-        <table className="w-full text-sm">
+        <table className="superadmin-admin-table w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
               <th className="text-left px-5 py-3 font-semibold">Student</th>
@@ -195,13 +197,11 @@ function ClassroomAllocationTab({ toast }) {
                   <td className="px-5 py-3 text-gray-500">{s.programme || '-'}</td>
                   <td className="px-5 py-3">
                     {cr ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{cr.name}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{classroomLabel(cr)}</span>
                     ) : <span className="text-xs text-gray-400">Unassigned</span>}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <button onClick={() => openModal(s)} className="text-xs text-gray-500 hover:text-gray-800">
-                      {cr ? 'Change' : 'Assign'}
-                    </button>
+                    <AdminActionButton icon="assign" tone="info" label={`${cr ? 'Change' : 'Assign'} class for ${s.full_name}`} onClick={() => openModal(s)} />
                   </td>
                 </tr>
               )
@@ -217,7 +217,7 @@ function ClassroomAllocationTab({ toast }) {
             <select value={form.classroom_id || ''} onChange={(e) => setForm({ ...form, classroom_id: e.target.value })}
               className="w-full px-3 py-2 rounded-lg text-sm border" style={{ borderColor: '#D2D4D9' }}>
               <option value="">Select classroom</option>
-              {classrooms.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
+              {classrooms.map((c) => <option key={c.id} value={c.id}>{classroomLabel(c)}</option>)}
             </select>
           </div>
           <div>
@@ -236,6 +236,77 @@ function ClassroomAllocationTab({ toast }) {
   )
 }
 
+function TeachingScheduleTab() {
+  const [schedules, setSchedules] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [sessionFilter, setSessionFilter] = useState('')
+  const [error, setError] = useState('')
+
+  const fetch = useCallback(() => {
+    setLoading(true)
+    setError('')
+    adminService.getCourseSchedules(sessionFilter ? { session_type: sessionFilter } : {})
+      .then((response) => setSchedules(response.data || []))
+      .catch(() => setError('Teaching schedules are not available yet. Apply migration 009_course_schedules.sql, then reload this page.'))
+      .finally(() => setLoading(false))
+  }, [sessionFilter])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  const time = (value) => String(value || '').slice(0, 5)
+  const dayName = (value) => DAYS_OF_WEEK.find((day) => day.value === value)?.label || '—'
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-gray-500">Weekly class meetings scheduled between 8:00 a.m. and 2:00 p.m.</p>
+        <select value={sessionFilter} onChange={(event) => setSessionFilter(event.target.value)}
+          className="px-3 py-2 rounded-lg text-sm border bg-white" style={{ borderColor: '#D2D4D9' }}>
+          <option value="">Weekday and weekend</option>
+          <option value="weekday">Weekday session</option>
+          <option value="weekend">Weekend session</option>
+        </select>
+      </div>
+
+      {error ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{error}</div>
+        : loading ? <Spinner /> : (
+          <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
+            <div className="overflow-x-auto">
+              <table className="superadmin-admin-table w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
+                    <th className="text-left px-4 py-3 font-semibold">Day / Time</th>
+                    <th className="text-left px-4 py-3 font-semibold">Session</th>
+                    <th className="text-left px-4 py-3 font-semibold">Course</th>
+                    <th className="text-left px-4 py-3 font-semibold">Lecturer</th>
+                    <th className="text-left px-4 py-3 font-semibold">Classroom</th>
+                    <th className="text-left px-4 py-3 font-semibold">Programme / Level</th>
+                    <th className="text-left px-4 py-3 font-semibold">Term</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedules.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No teaching schedules found</td></tr>
+                  ) : schedules.map((schedule) => (
+                    <tr key={schedule.id} className="hover:bg-gray-50" style={{ borderBottom: '1px solid #F0F0F2' }}>
+                      <td className="px-4 py-3 font-medium text-gray-800">{dayName(schedule.day_of_week)}<span className="block text-xs text-gray-500">{time(schedule.start_time)}–{time(schedule.end_time)}</span></td>
+                      <td className="px-4 py-3"><span className={`text-xs px-2 py-1 rounded-full ${schedule.session_type === 'weekend' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>{schedule.session_type === 'weekend' ? 'Weekend' : 'Weekday'}</span></td>
+                      <td className="px-4 py-3"><span className="font-medium text-gray-800">{schedule.course?.course_name}</span><span className="block text-xs text-gray-500">{schedule.course?.course_code}</span></td>
+                      <td className="px-4 py-3 text-gray-700">{schedule.lecturer?.full_name}</td>
+                      <td className="px-4 py-3 text-gray-700">{classroomLabel({ ...schedule.classroom, physical_room: schedule.physical_room || schedule.classroom?.physical_room })}</td>
+                      <td className="px-4 py-3 text-gray-600">{schedule.programme}<span className="block text-xs">Level {schedule.level}</span></td>
+                      <td className="px-4 py-3 text-gray-600">{schedule.semester}<span className="block text-xs">{schedule.academic_year}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+    </div>
+  )
+}
+
 export default function Allocations() {
   const [activeTab, setActiveTab] = useState('lecturer')
   const toast = useToast()
@@ -243,6 +314,7 @@ export default function Allocations() {
   const tabs = [
     { key: 'lecturer', label: 'Lecturer → Course' },
     { key: 'classroom', label: 'Student → Classroom' },
+    { key: 'schedule', label: 'Teaching Schedule' },
   ]
 
   return (
@@ -262,6 +334,7 @@ export default function Allocations() {
 
       {activeTab === 'lecturer' && <LecturerAllocationTab toast={toast} />}
       {activeTab === 'classroom' && <ClassroomAllocationTab toast={toast} />}
+      {activeTab === 'schedule' && <TeachingScheduleTab />}
     </div>
   )
 }

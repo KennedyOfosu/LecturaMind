@@ -4,6 +4,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/Toast'
+import { AdminActionButton } from '../../components/ui/AdminActionButton'
 import { ATTENDANCE_STATUSES } from '../../utils/constants'
 
 export default function AttendanceOversight() {
@@ -84,7 +85,7 @@ export default function AttendanceOversight() {
       {loading ? <Spinner /> : (
         <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="superadmin-admin-table w-full text-sm">
               <thead>
                 <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
                   <th className="text-left px-5 py-3 font-semibold">Student</th>
@@ -120,7 +121,7 @@ export default function AttendanceOversight() {
                       ) : <span className="text-xs text-gray-400">No</span>}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <button onClick={() => openEdit(r)} className="text-xs text-gray-500 hover:text-gray-800">Edit</button>
+                      <AdminActionButton icon="edit" label={`Edit attendance for ${r.profiles?.full_name || 'student'}`} onClick={() => openEdit(r)} />
                     </td>
                   </tr>
                 ))}

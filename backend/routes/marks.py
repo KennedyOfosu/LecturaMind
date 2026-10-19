@@ -8,6 +8,7 @@ from quiz_attempts and merged into the response.
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
 from middleware.auth_middleware import require_auth, require_role
+from services.lecturer_access import lecturer_can_manage_course_student
 
 marks_bp = Blueprint("marks", __name__)
 
@@ -23,6 +24,8 @@ def get_student_marks(student_id: str, course_id: str):
     Combines manual student_marks rows with auto-graded quiz_attempts.
     """
     results = []
+    if g.user_role != "superadmin" and not lecturer_can_manage_course_student(supabase, g.user_id, student_id, course_id):
+        return jsonify({"error": "Student is outside your assigned classes or this course is not yours.", "code": 403}), 403
 
     # ── Manual marks ──────────────────────────────────────────────────────
     try:
@@ -84,6 +87,9 @@ def create_mark():
     if not student_id or not course_id or not title:
         return jsonify({"error": "student_id, course_id, and title are required.", "code": 400}), 400
 
+    if g.user_role != "superadmin" and not lecturer_can_manage_course_student(supabase, g.user_id, student_id, course_id):
+        return jsonify({"error": "Student is outside your assigned classes or this course is not yours.", "code": 403}), 403
+
     if assessment_type not in VALID_TYPES:
         assessment_type = "Other"
 
@@ -130,6 +136,15 @@ def update_mark(mark_id: str):
     if not updates:
         return jsonify({"error": "Nothing to update.", "code": 400}), 400
 
+    current = supabase.table("student_marks").select("student_id, course_id, lecturer_id").eq(
+        "id", mark_id
+    ).limit(1).execute()
+    if not current.data or current.data[0].get("lecturer_id") != g.user_id:
+        return jsonify({"error": "Mark not found or not yours.", "code": 404}), 404
+    mark = current.data[0]
+    if g.user_role != "superadmin" and not lecturer_can_manage_course_student(supabase, g.user_id, mark["student_id"], mark["course_id"]):
+        return jsonify({"error": "Student is outside your assigned classes.", "code": 403}), 403
+
     res = supabase.table("student_marks").update(updates).eq(
         "id", mark_id
     ).eq("lecturer_id", g.user_id).execute()
@@ -143,6 +158,14 @@ def update_mark(mark_id: str):
 @require_role("lecturer")
 def delete_mark(mark_id: str):
     """Delete a manual mark."""
+    current = supabase.table("student_marks").select("student_id, course_id, lecturer_id").eq(
+        "id", mark_id
+    ).limit(1).execute()
+    if not current.data or current.data[0].get("lecturer_id") != g.user_id:
+        return jsonify({"error": "Mark not found or not yours.", "code": 404}), 404
+    mark = current.data[0]
+    if g.user_role != "superadmin" and not lecturer_can_manage_course_student(supabase, g.user_id, mark["student_id"], mark["course_id"]):
+        return jsonify({"error": "Student is outside your assigned classes.", "code": 403}), 403
     res = supabase.table("student_marks").delete().eq(
         "id", mark_id
     ).eq("lecturer_id", g.user_id).execute()

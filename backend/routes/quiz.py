@@ -9,6 +9,15 @@ from services.supabase_client import supabase
 from services.quiz_service import generate_quiz
 from services.socket_service import get_socketio
 from middleware.auth_middleware import require_auth, require_role
+from services.lecturer_access import lecturer_can_manage_student, lecturer_managed_student_ids, lecturer_owns_course
+
+
+def _owned_quiz(quiz_id, lecturer_id, columns="id, course_id"):
+    result = supabase.table("quizzes").select(columns).eq("id", quiz_id).limit(1).execute()
+    if not result.data:
+        return None
+    quiz = result.data[0]
+    return quiz if g.user_role == "superadmin" or lecturer_owns_course(supabase, lecturer_id, quiz.get("course_id")) else None
 
 
 def _generate_pin() -> str:
@@ -38,6 +47,8 @@ def generate():
 
     if not course_id:
         return jsonify({"error": "course_id is required", "code": 400}), 400
+    if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
+        return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
     if num_questions < 5 or num_questions > 20:
         return jsonify({"error": "num_questions must be between 5 and 20", "code": 400}), 400
     if difficulty not in ("easy", "medium", "hard"):
@@ -77,6 +88,8 @@ def create_manual():
 
     if not course_id:
         return jsonify({"error": "course_id is required", "code": 400}), 400
+    if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
+        return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
     if not title:
         return jsonify({"error": "Quiz title is required", "code": 400}), 400
     if not questions:
@@ -108,6 +121,11 @@ def create_manual():
 @require_auth
 def get_course_quizzes(course_id: str):
     """Return all quizzes for a course. Students only see active quizzes."""
+    course = supabase.table("courses").select("id, lecturer_id").eq("id", course_id).limit(1).execute()
+    if not course.data:
+        return jsonify({"error": "Course not found", "code": 404}), 404
+    if g.user_role == "lecturer" and course.data[0].get("lecturer_id") != g.user_id:
+        return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
     query = supabase.table("quizzes").select("*").eq("course_id", course_id)
 
     if g.user_role == "student":
@@ -122,6 +140,8 @@ def get_course_quizzes(course_id: str):
 @require_role("lecturer")
 def toggle_activate(quiz_id: str):
     """Toggle quiz active/inactive status to control student visibility."""
+    if not _owned_quiz(quiz_id, g.user_id):
+        return jsonify({"error": "Quiz not found or not assigned to you.", "code": 404}), 404
     current = supabase.table("quizzes").select("is_active").eq("id", quiz_id).single().execute()
     if not current.data:
         return jsonify({"error": "Quiz not found", "code": 404}), 404
@@ -136,6 +156,8 @@ def toggle_activate(quiz_id: str):
 @require_role("lecturer")
 def delete_quiz(quiz_id: str):
     """Delete a quiz and all associated attempt records."""
+    if not _owned_quiz(quiz_id, g.user_id):
+        return jsonify({"error": "Quiz not found or not assigned to you.", "code": 404}), 404
     res = supabase.table("quizzes").delete().eq("id", quiz_id).execute()
     if not res.data:
         return jsonify({"error": "Quiz not found", "code": 404}), 404
@@ -187,10 +209,20 @@ def submit_attempt(quiz_id: str):
 @require_role("lecturer")
 def get_results(quiz_id: str):
     """Return all student attempts and scores for a quiz."""
+    if not _owned_quiz(quiz_id, g.user_id):
+        return jsonify({"error": "Quiz not found or not assigned to you.", "code": 404}), 404
     res = supabase.table("quiz_attempts").select(
-        "*, profiles!quiz_attempts_student_id_fkey(full_name, avatar_url)"
+        "*, profiles!quiz_attempts_student_id_fkey(full_name, avatar_url, classroom_id)"
     ).eq("quiz_id", quiz_id).order("completed_at", desc=True).execute()
-    return jsonify(res.data), 200
+    attempt_rows = res.data or []
+    allowed_student_ids = lecturer_managed_student_ids(
+        supabase, g.user_id, [row.get("student_id") for row in attempt_rows if row.get("student_id")]
+    ) if g.user_role != "superadmin" else set()
+    rows = [row for row in attempt_rows if g.user_role == "superadmin" or row.get("student_id") in allowed_student_ids]
+    for row in rows:
+        if row.get("profiles"):
+            row["profiles"].pop("classroom_id", None)
+    return jsonify(rows), 200
 
 
 @quiz_bp.get("/<quiz_id>/my-attempt")
@@ -232,6 +264,8 @@ def start_live_session(quiz_id: str):
 
     quiz          = quiz_res.data[0]
     course_id     = quiz.get("course_id")
+    if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
+        return jsonify({"error": "Quiz not found or not assigned to you.", "code": 404}), 404
     title         = quiz.get("title") or "Quiz"
     num_questions = len(quiz.get("questions") or [])
 
@@ -250,6 +284,11 @@ def start_live_session(quiz_id: str):
         enrolments = supabase.table("enrolments").select("student_id").eq(
             "course_id", course_id
         ).execute()
+        enrolment_rows = enrolments.data or []
+        allowed_student_ids = lecturer_managed_student_ids(
+            supabase, g.user_id, [row.get("student_id") for row in enrolment_rows if row.get("student_id")]
+        ) if g.user_role != "superadmin" else set()
+        eligible_enrolments = [row for row in enrolment_rows if g.user_role == "superadmin" or row.get("student_id") in allowed_student_ids]
 
         sio = get_socketio()
         if sio:
@@ -263,12 +302,13 @@ def start_live_session(quiz_id: str):
             }
             # Emit to each student's personal room AND the course room so the
             # notification arrives regardless of which room joined first.
-            for row in (enrolments.data or []):
+            for row in eligible_enrolments:
                 sio.emit("live_session_started", payload,
                          room=f"student_{row['student_id']}", namespace="/")
-            sio.emit("live_session_started", payload,
-                     room=f"course_{course_id}", namespace="/")
-            print(f"[start_live] Notified {len(enrolments.data or [])} student(s) — PIN {pin}")
+            if len(eligible_enrolments) == len(enrolments.data or []):
+                sio.emit("live_session_started", payload,
+                         room=f"course_{course_id}", namespace="/")
+            print(f"[start_live] Notified {len(eligible_enrolments)} assigned-class student(s)")
     except Exception as e:
         print(f"[start_live] Socket emit failed (non-fatal): {e}")
 
@@ -281,6 +321,8 @@ def start_live_session(quiz_id: str):
 @require_role("lecturer")
 def end_live_session(quiz_id: str):
     """End a live quiz session and clear the in-memory leaderboard."""
+    if not _owned_quiz(quiz_id, g.user_id):
+        return jsonify({"error": "Quiz not found or not assigned to you.", "code": 404}), 404
     from sockets.events import live_sessions
     live_sessions.pop(quiz_id, None)
     return jsonify({"id": quiz_id, "live_session_active": False}), 200
@@ -315,19 +357,15 @@ def deploy_live_marks(quiz_id: str):
 
     quiz      = quiz_res.data[0]
     course_id = quiz["course_id"]
+    if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
+        return jsonify({"error": "Quiz not found or not assigned to you.", "code": 404}), 404
     title     = quiz.get("title") or "Live Quiz"
     total_q   = len(quiz.get("questions") or []) or 1
 
-    # Remove any previously deployed marks for this exact quiz (idempotent re-deploy)
-    try:
-        supabase.table("student_marks").delete().eq(
-            "course_id", course_id
-        ).eq("assessment_type", "Quiz").eq("title", title).eq("source", "live").execute()
-    except Exception as e:
-        print(f"[deploy_marks] cleanup skipped (non-fatal): {e}")
-
     rows = []
     for sid, entry in students.items():
+        if g.user_role != "superadmin" and not lecturer_can_manage_student(supabase, g.user_id, sid):
+            continue
         correct    = entry.get("answers_correct", 0)
         percentage = round(correct / total_q * 100)
         rows.append({
@@ -340,6 +378,20 @@ def deploy_live_marks(quiz_id: str):
             "max_score":       100,
             "source":          "live",
         })
+
+    if not rows:
+        return jsonify({"error": "No participating students are in your assigned classes.", "code": 403}), 403
+
+    # Re-deploy only replaces marks for students the lecturer may manage.
+    student_ids = [row["student_id"] for row in rows]
+    try:
+        supabase.table("student_marks").delete().eq(
+            "course_id", course_id
+        ).eq("assessment_type", "Quiz").eq("title", title).eq("source", "live").in_(
+            "student_id", student_ids
+        ).execute()
+    except Exception as e:
+        print(f"[deploy_marks] cleanup skipped (non-fatal): {e}")
 
     try:
         supabase.table("student_marks").insert(rows).execute()
@@ -373,6 +425,21 @@ def get_quiz_by_pin(pin: str):
 
     if not res.data:
         return jsonify({"error": "Quiz not found.", "code": 404}), 404
+
+    if g.user_role == "student":
+        course_result = supabase.table("courses").select("id, lecturer_id").eq(
+            "id", res.data["course_id"]
+        ).limit(1).execute()
+        if not course_result.data:
+            return jsonify({"error": "Course not found.", "code": 404}), 404
+        lecturer_id = course_result.data[0].get("lecturer_id")
+        enrollment = supabase.table("enrolments").select("id").eq(
+            "student_id", g.user_id
+        ).eq("course_id", res.data["course_id"]).limit(1).execute()
+        if not enrollment.data or not lecturer_id or not lecturer_can_manage_student(supabase, lecturer_id, g.user_id):
+            return jsonify({"error": "This live session is outside your assigned classes.", "code": 403}), 403
+    elif g.user_role != "superadmin":
+        return jsonify({"error": "Only enrolled students can join this live session.", "code": 403}), 403
 
     return jsonify({**res.data, "live_session_active": True, "pin": pin}), 200
 

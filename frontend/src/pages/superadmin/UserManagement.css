@@ -1,0 +1,332 @@
+.user-management-page {
+  width: 100%;
+  max-width: 1600px;
+  min-width: 0;
+  margin-inline: auto;
+  padding-inline: clamp(0px, 0.75vw, 12px);
+  box-sizing: border-box;
+}
+
+.user-management-table-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.user-management-table {
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.user-management-table th,
+.user-management-table td {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  vertical-align: middle;
+  padding: 0.75rem 1rem;
+}
+
+.user-management-table th {
+  line-height: 1.35;
+  white-space: nowrap;
+  padding-right: 0.625rem;
+  padding-left: 0.625rem;
+}
+
+.user-management-table th,
+.user-management-table td {
+  padding-block: 0.85rem;
+}
+
+.user-management-truncate {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-management-truncate:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid #64715B;
+  outline-offset: 2px;
+}
+
+.user-management-table td > *,
+.user-management-table td button {
+  max-width: 100%;
+}
+
+.user-management-table th:first-child,
+.user-management-table td:first-child {
+  padding-left: 1.25rem;
+}
+
+.user-management-actions-cell {
+  padding-right: 1.25rem !important;
+  padding-left: 0.5rem !important;
+  text-align: center;
+  white-space: nowrap !important;
+}
+
+.user-management-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.user-management-action-button {
+  display: inline-flex;
+  width: 1.625rem;
+  height: 1.75rem;
+  flex: 0 0 1.625rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.user-management-action-button svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.user-management-action-button:hover {
+  border-color: #E5E7EB;
+  background: #F9FAFB;
+  color: #111827;
+}
+
+.user-management-action-button.is-danger {
+  color: #DC2626;
+}
+
+.user-management-action-button.is-danger:hover {
+  border-color: #FECACA;
+  background: #FEF2F2;
+  color: #B91C1C;
+}
+
+.user-management-action-button.is-warning {
+  color: #B7791F;
+}
+
+.user-management-action-button.is-warning:hover {
+  border-color: #FDE68A;
+  background: #FFFBEB;
+  color: #92400E;
+}
+
+.user-management-action-button.is-success {
+  color: #15803D;
+}
+
+.user-management-action-button.is-success:hover {
+  border-color: #BBF7D0;
+  background: #F0FDF4;
+  color: #166534;
+}
+
+.user-management-action-button.is-info {
+  color: #2563EB;
+}
+
+.user-management-action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.user-management-action-button:focus-visible {
+  outline: 2px solid #64715B;
+  outline-offset: 2px;
+}
+
+.user-management-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #F0F0F2;
+  padding: 0.85rem 1rem;
+  color: #6B7280;
+  font-size: 0.75rem;
+}
+
+.user-management-pagination-summary strong {
+  color: #374151;
+  font-weight: 600;
+}
+
+.user-management-pagination-controls,
+.user-management-page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-management-page-size select {
+  min-width: 3.25rem;
+  border: 1px solid #D2D4D9;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.35rem 0.5rem;
+  color: #374151;
+  font: inherit;
+}
+
+.user-management-page-button {
+  border: 1px solid #D2D4D9;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.4rem 0.65rem;
+  color: #374151;
+  font: inherit;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.user-management-page-button:not(:disabled):hover {
+  border-color: #AEB4BD;
+  background: #F9FAFB;
+}
+
+.user-management-page-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.user-management-page-indicator {
+  min-width: 4.5rem;
+  text-align: center;
+  color: #4B5563;
+}
+
+@container (max-width: 1199px) {
+  .user-management-table-card {
+    overflow: visible;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .user-management-table,
+  .user-management-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .user-management-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .user-management-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 1rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.875rem;
+    border: 1px solid #D2D4D9 !important;
+    border-radius: 0.875rem;
+    background: #fff;
+  }
+
+  .user-management-table tbody tr td {
+    display: block;
+    padding: 0.75rem 0 !important;
+    border: 0;
+    text-align: left;
+  }
+
+  .user-management-table tbody tr td::before {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #6B7280;
+    content: attr(data-label);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .user-management-table tbody tr td[colspan] {
+    grid-column: 1 / -1;
+  }
+
+  .user-management-table tbody tr td[colspan]::before {
+    content: none;
+  }
+
+  .user-management-table tbody tr td[data-label="Actions"] {
+    grid-column: 1 / -1;
+    border-top: 1px solid #F0F0F2;
+  }
+
+  .user-management-table tbody tr td[data-label="Actions"] > div {
+    justify-content: flex-start;
+  }
+
+  .user-management-table tbody tr td[data-label="Actions"] {
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .user-management-truncate {
+    display: block;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
+@container (max-width: 560px) {
+  .user-management-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 0.75rem;
+  }
+
+  .user-management-pagination-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .user-management-page-size {
+    margin-right: auto;
+  }
+
+  .user-management-table tbody tr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-management-table tbody tr td[data-label="Actions"] {
+    grid-column: 1;
+  }
+}
+
+.user-management-level-truncate {
+  display: block;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

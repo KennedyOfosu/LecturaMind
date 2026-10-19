@@ -5,8 +5,19 @@
 
 import axios from 'axios'
 
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const localApiBaseUrl = configuredApiBaseUrl?.replace(
+  /^http:\/\/localhost(?=[:/]|$)/i,
+  'http://127.0.0.1'
+)
+const apiBaseUrl = import.meta.env.DEV
+  ? (localApiBaseUrl || 'http://127.0.0.1:5000')
+  : (configuredApiBaseUrl || 'https://lecturamind.onrender.com')
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://lecturamind.onrender.com',
+  // Normalize localhost to IPv4 in development. On Windows, localhost can
+  // resolve to IPv6 while Flask is listening on IPv4.
+  baseURL: apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -49,15 +60,19 @@ api.interceptors.response.use(
 
     // Retry up to 2 times on network errors or 5xx responses
     const shouldRetry = !error.response || error.response.status >= 500
-    if (shouldRetry && (config.__retryCount || 0) < 2) {
+    if (shouldRetry && config && (config.__retryCount || 0) < 2) {
       config.__retryCount = (config.__retryCount || 0) + 1
       await new Promise((r) => setTimeout(r, 1000 * config.__retryCount))
       return api(config)
     }
 
     // After retries exhausted, surface network errors
-    if (!error.response) {
-      showToast('Connection lost. Please check your internet and try again.', 'error')
+    if (!error.response && !config?.suppressNetworkToast) {
+      const requestPath = config?.url?.split('?')[0]
+      const message = requestPath
+        ? `Could not reach ${requestPath}. Check the local API connection and try again.`
+        : 'Could not reach the API. Check the local API connection and try again.'
+      showToast(message, 'error')
     }
 
     return Promise.reject(error)

@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
 from services.ai_service import process_student_query, simplify_response
 from middleware.auth_middleware import require_auth, require_role
+from services.lecturer_access import lecturer_can_manage_student, lecturer_managed_student_ids, lecturer_owns_course
 
 chatbot_bp = Blueprint("chatbot", __name__)
 
@@ -54,10 +55,20 @@ def get_logs(course_id: str):
     Return all chat messages for a course, joined with student profiles.
     Grouped view for the lecturer's chat log review panel.
     """
+    if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
+        return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
     res = supabase.table("chat_messages").select(
-        "*, profiles!chat_messages_student_id_fkey(full_name, avatar_url)"
+        "*, profiles!chat_messages_student_id_fkey(full_name, avatar_url, classroom_id)"
     ).eq("course_id", course_id).order("timestamp", desc=True).execute()
-    return jsonify(res.data), 200
+    log_rows = res.data or []
+    allowed_student_ids = lecturer_managed_student_ids(
+        supabase, g.user_id, [row.get("student_id") for row in log_rows if row.get("student_id")]
+    ) if g.user_role != "superadmin" else set()
+    rows = [row for row in log_rows if g.user_role == "superadmin" or row.get("student_id") in allowed_student_ids]
+    for row in rows:
+        if row.get("profiles"):
+            row["profiles"].pop("classroom_id", None)
+    return jsonify(rows), 200
 
 
 @chatbot_bp.get("/sessions")
@@ -112,9 +123,15 @@ def simplify_message():
 @require_role("lecturer")
 def flag_message(message_id: str):
     """Toggle the flagged boolean on a chat message."""
-    current_res = supabase.table("chat_messages").select("flagged").eq("id", message_id).single().execute()
+    current_res = supabase.table("chat_messages").select("flagged, course_id, student_id").eq("id", message_id).single().execute()
     if not current_res.data:
         return jsonify({"error": "Message not found", "code": 404}), 404
+
+    if g.user_role != "superadmin" and (
+        not lecturer_owns_course(supabase, g.user_id, current_res.data.get("course_id"))
+        or not lecturer_can_manage_student(supabase, g.user_id, current_res.data.get("student_id"))
+    ):
+        return jsonify({"error": "Message is outside your assigned classes.", "code": 403}), 403
 
     new_flag = not current_res.data["flagged"]
     res = supabase.table("chat_messages").update({"flagged": new_flag}).eq("id", message_id).execute()

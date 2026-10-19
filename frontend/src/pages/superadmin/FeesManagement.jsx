@@ -4,6 +4,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/Toast'
+import { AdminActionButton } from '../../components/ui/AdminActionButton'
 import { FEE_STATUSES, PAYMENT_METHODS } from '../../utils/constants'
 
 const TAB_COLORS = {
@@ -77,7 +78,7 @@ function FeeRecordsTab({ toast }) {
         <Button variant="primary" onClick={openCreate}>+ New Fee Record</Button>
       </div>
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-        <table className="w-full text-sm">
+        <table className="superadmin-admin-table w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
               <th className="text-left px-5 py-3 font-semibold">Student</th>
@@ -210,7 +211,7 @@ function FeeTypesTab({ toast }) {
     <div className="space-y-4">
       <div className="flex justify-end"><Button variant="primary" onClick={openCreate}>+ Fee Type</Button></div>
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-        <table className="w-full text-sm">
+        <table className="superadmin-admin-table w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
               <th className="text-left px-5 py-3 font-semibold">Name</th>
@@ -232,7 +233,7 @@ function FeeTypesTab({ toast }) {
                   ) : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Optional</span>}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <button onClick={() => handleDelete(ft.id)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                  <AdminActionButton icon="delete" tone="danger" label={`Delete fee type ${ft.name}`} onClick={() => handleDelete(ft.id)} />
                 </td>
               </tr>
             ))}
@@ -322,7 +323,7 @@ function PaymentsTab({ toast }) {
     <div className="space-y-4">
       <div className="flex justify-end"><Button variant="primary" onClick={openModal}>+ Record Payment</Button></div>
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-        <table className="w-full text-sm">
+        <table className="superadmin-admin-table w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
               <th className="text-left px-5 py-3 font-semibold">Date</th>

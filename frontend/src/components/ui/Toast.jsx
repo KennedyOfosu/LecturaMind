@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 
 const ToastContext = createContext(null)
 
@@ -110,13 +110,13 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
-  const toast = {
+  const toast = useMemo(() => ({
     success: (msg) => addToast(msg, 'success'),
     error:   (msg) => addToast(msg, 'error'),
     info:    (msg) => addToast(msg, 'info'),
     warning: (msg) => addToast(msg, 'warning'),
     loading: (msg) => { const id = addToast(msg, 'loading', 0); return () => removeToast(id) },
-  }
+  }), [addToast, removeToast])
 
   useEffect(() => {
     const handler = (e) => addToast(e.detail.message, e.detail.type)

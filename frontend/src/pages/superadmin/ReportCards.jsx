@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import { Card } from '../../components/ui/Card'
 import { useToast } from '../../components/ui/Toast'
+import { AdminActionButton } from '../../components/ui/AdminActionButton'
 import { LEVELS, PROGRAMMES } from '../../utils/constants'
 
 export default function ReportCards() {
@@ -179,7 +180,7 @@ export default function ReportCards() {
           <h2 className="text-sm font-semibold text-gray-800">Generated Report Cards</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="superadmin-admin-table w-full text-sm">
             <thead>
               <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
                 <th className="text-left px-5 py-3 font-semibold">Student</th>
@@ -212,9 +213,9 @@ export default function ReportCards() {
                   </td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openView(rc)} className="text-xs text-gray-500 hover:text-gray-800">View</button>
+                      <AdminActionButton icon="view" label={`View report card for ${rc.student_name || 'student'}`} onClick={() => openView(rc)} />
                       {!rc.is_finalized && (
-                        <button onClick={() => handleFinalize(rc.id)} className="text-xs text-indigo-500 hover:text-indigo-700">Finalize</button>
+                        <AdminActionButton icon="finalize" tone="success" label={`Finalize report card for ${rc.student_name || 'student'}`} onClick={() => handleFinalize(rc.id)} />
                       )}
                     </div>
                   </td>
@@ -244,7 +245,7 @@ export default function ReportCards() {
 
             <div>
               <h3 className="text-sm font-semibold text-gray-800 mb-2">Course Breakdown</h3>
-              <table className="w-full text-sm">
+              <table className="superadmin-admin-table w-full text-sm">
                 <thead>
                   <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #E5E7EB' }}>
                     <th className="text-left px-3 py-2 font-semibold">Course</th>

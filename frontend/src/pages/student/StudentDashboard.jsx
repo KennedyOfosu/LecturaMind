@@ -3,10 +3,13 @@
  * Sidebar is provided by StudentLayout. This renders the main chat area.
  */
 
+import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import api from '../../services/api'
 import { useCourses } from '../../context/CoursesContext'
 import { useSessions } from '../../context/SessionsContext'
 import AIChatInterface from '../../components/chat/AIChatInterface'
+import { classroomLabel } from '../../utils/classroomDisplay'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -19,6 +22,14 @@ export default function StudentDashboard() {
   const { user }            = useAuth()
   const { courses }         = useCourses()
   const { refreshSessions } = useSessions()
+  const [profile, setProfile] = useState(null)
+  const [profileLoadError, setProfileLoadError] = useState(false)
+
+  useEffect(() => {
+    api.get('/api/profile/')
+      .then((response) => setProfile(response.data))
+      .catch(() => setProfileLoadError(true))
+  }, [])
 
   const firstName = user?.full_name?.split(' ')[0] || 'Student'
 
@@ -45,6 +56,10 @@ export default function StudentDashboard() {
         onRefreshSessions={refreshSessions}
         greeting={greeting}
       />
+      <div className="mx-auto mb-3 w-full max-w-3xl rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm">
+        <span className="text-gray-500">Your class: </span>
+        <span className="font-medium text-gray-800">{profileLoadError ? 'Class details could not be loaded' : profile?.classroom ? classroomLabel(profile.classroom) : 'No class assigned yet'}</span>
+      </div>
     </div>
   )
 }

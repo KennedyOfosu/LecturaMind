@@ -123,9 +123,18 @@ def upload_avatar():
 @require_auth
 def get_profile():
     """Return the full profile for the authenticated user."""
-    res = supabase.table("profiles").select("*").eq("id", g.user_id).execute()
+    res = supabase.table("profiles").select(
+        "*, classrooms!profiles_classroom_id_fkey(id, name, code, programme, level, room_id, physical_rooms!classrooms_room_id_fkey(id, name, code, building, campus, capacity))"
+    ).eq("id", g.user_id).execute()
     if not res.data:
         return jsonify({"error": "Profile not found", "code": 404}), 404
     profile = res.data[0]
+    classroom = profile.pop("classrooms", None)
+    if classroom:
+        room = classroom.pop("physical_rooms", None)
+        classroom["physical_room"] = room
+        classroom["class_code"] = classroom.get("code")
+        classroom["code"] = room.get("code") if room else None
+    profile["classroom"] = classroom
     profile["email"] = g.user_email
     return jsonify(profile), 200

@@ -2,13 +2,17 @@ import api from './api'
 
 export const adminService = {
   // Dashboard
-  getDashboard: () => api.get('/api/admin/dashboard'),
+  getDashboard: () => api.get('/api/admin/dashboard', { params: { _refresh: Date.now() } }),
 
   // Users
   getUsers: (params) => api.get('/api/admin/users', { params }),
   getUser: (userId) => api.get(`/api/admin/users/${userId}`),
   updateUser: (userId, data) => api.patch(`/api/admin/users/${userId}`, data),
   deleteUser: (userId) => api.delete(`/api/admin/users/${userId}`),
+  getActivationMode: () => api.get('/api/admin/activation-mode'),
+  generateLecturerActivationLink: (userId) => api.post(`/api/admin/users/${userId}/activation-link`),
+  updateLecturerClassrooms: (userId, classroom_ids) => api.patch(`/api/admin/users/${userId}/classrooms`, { classroom_ids }),
+  updateLecturerStatus: (userId, account_status) => api.patch(`/api/admin/users/${userId}/status`, { account_status }),
 
   // Courses
   getCourses: (params) => api.get('/api/admin/courses', { params }),
@@ -25,9 +29,27 @@ export const adminService = {
   // Admin registration
   registerLecturer: (data) => api.post('/api/admin/register-lecturer', data),
   registerStudent: (data) => api.post('/api/admin/register-student', data),
+  generateAccountId: (role) => api.post('/api/admin/generate-account-id', { role }),
 
   // Classrooms
-  getClassrooms: () => api.get('/api/admin/classrooms'),
+  getClassrooms: (filters = {}) => api.get('/api/admin/classrooms', {
+    // A classroom list is small and changes infrequently, but stale cached
+    // empty responses make lecturer assignment look as if classes vanished.
+    params: { ...filters, _refresh: Date.now() },
+  }).then((response) => {
+    const payload = response.data
+    const classrooms = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.classrooms)
+        ? payload.classrooms
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : null
+    if (!classrooms) throw new Error('The classrooms API returned an unexpected response.')
+    return { ...response, data: classrooms }
+  }),
+  getRooms: () => api.get('/api/admin/rooms', { params: { _refresh: Date.now() } }),
+  getClassroomMigrationReview: () => api.get('/api/admin/classroom-migration-review', { params: { _refresh: Date.now() } }),
   createClassroom: (data) => api.post('/api/admin/classrooms', data),
   updateClassroom: (id, data) => api.patch(`/api/admin/classrooms/${id}`, data),
   deleteClassroom: (id) => api.delete(`/api/admin/classrooms/${id}`),
@@ -80,4 +102,5 @@ export const adminService = {
   getTimetableSlots: () => api.get('/api/admin/timetable-slots'),
   createTimetableSlot: (data) => api.post('/api/admin/timetable-slots', data),
   deleteTimetableSlot: (id) => api.delete(`/api/admin/timetable-slots/${id}`),
+  getCourseSchedules: (params) => api.get('/api/admin/course-schedules', { params }),
 }

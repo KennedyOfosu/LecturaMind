@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import { Card } from '../../components/ui/Card'
 import { useToast } from '../../components/ui/Toast'
+import { AdminActionButton } from '../../components/ui/AdminActionButton'
 
 export default function Enrolments() {
   const [enrolments, setEnrolments] = useState([])
@@ -73,7 +74,7 @@ export default function Enrolments() {
       {loading ? <Spinner /> : (
         <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="superadmin-admin-table w-full text-sm">
               <thead>
                 <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
                   <th className="text-left px-5 py-3 font-semibold">Student</th>
@@ -93,7 +94,7 @@ export default function Enrolments() {
                     <td className="px-5 py-3 text-gray-800">{e.courses?.course_name} ({e.courses?.course_code})</td>
                     <td className="px-5 py-3 text-gray-500 text-xs">{new Date(e.created_at).toLocaleDateString()}</td>
                     <td className="px-5 py-3 text-right">
-                      <button onClick={() => handleRemove(e)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                      <AdminActionButton icon="remove" tone="danger" label={`Remove enrolment for ${e.profiles?.full_name || 'student'}`} onClick={() => handleRemove(e)} />
                     </td>
                   </tr>
                 ))}

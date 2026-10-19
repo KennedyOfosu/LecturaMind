@@ -4,8 +4,29 @@ Role is always read from the profiles table (most reliable source).
 """
 
 from functools import wraps
+import time
 from flask import request, jsonify, g
+import httpx
 from services.supabase_client import supabase
+
+
+def _retry_transient_supabase_call(call, attempts=3):
+    """Retry short-lived socket failures from the shared Supabase HTTP client."""
+    for attempt in range(attempts):
+        try:
+            return call()
+        except Exception as exc:
+            detail = f"{type(exc).__name__}: {exc}".lower()
+            transient = isinstance(exc, (httpx.TransportError, OSError)) or any(
+                marker in detail for marker in (
+                    "winerror 10035",
+                    "non-blocking socket operation",
+                    "temporarily unavailable",
+                )
+            )
+            if not transient or attempt == attempts - 1:
+                raise
+            time.sleep(0.15 * (attempt + 1))
 
 
 def require_auth(f):
@@ -28,7 +49,7 @@ def require_auth(f):
 
         # Verify token with Supabase
         try:
-            user_res = supabase.auth.get_user(token)
+            user_res = _retry_transient_supabase_call(lambda: supabase.auth.get_user(token))
             user = user_res.user
             if not user:
                 raise Exception("No user")
@@ -38,22 +59,39 @@ def require_auth(f):
             print(f"[AUTH] Token verification failed: {e}")
             return jsonify({"error": "Invalid or expired token", "code": 401}), 401
 
-        # Always read role from profiles table — most reliable source
+        # The profile table is authoritative for both role and account state.
         try:
-            profile_res = supabase.table("profiles").select("role, full_name, email").eq("id", g.user_id).execute()
-            if profile_res.data:
-                g.user_role = profile_res.data[0].get("role")
-                g.user_full_name = profile_res.data[0].get("full_name", "")
-            else:
-                # Fallback to user_metadata if profile missing
-                meta = user.user_metadata or {}
-                g.user_role = meta.get("role")
-                g.user_full_name = meta.get("full_name", "")
+            try:
+                profile_res = _retry_transient_supabase_call(lambda: supabase.table("profiles").select(
+                    "role, full_name, email, account_status"
+                ).eq("id", g.user_id).limit(1).execute())
+            except Exception as e:
+                # account_status was introduced by migration 008. Keep existing
+                # installations usable until that additive migration is applied;
+                # all pre-migration profiles have the legacy active behavior.
+                error_text = str(e).lower()
+                missing_status = (
+                    "account_status" in error_text
+                    and ("does not exist" in error_text or "42703" in error_text)
+                )
+                if not missing_status:
+                    raise
+                print("[AUTH] profiles.account_status is not migrated yet; using legacy active status.")
+                profile_res = _retry_transient_supabase_call(lambda: supabase.table("profiles").select(
+                    "role, full_name, email"
+                ).eq("id", g.user_id).limit(1).execute())
         except Exception as e:
-            print(f"[AUTH] Profile lookup failed: {e}")
-            meta = user.user_metadata or {}
-            g.user_role = meta.get("role")
-            g.user_full_name = meta.get("full_name", "")
+            print(f"[AUTH] Profile lookup failed: {type(e).__name__}: {e}")
+            return jsonify({"error": "Account status could not be verified.", "code": 503}), 503
+
+        if not profile_res.data:
+            return jsonify({"error": "No active account profile was found.", "code": 403}), 403
+
+        profile = profile_res.data[0]
+        g.user_role = profile.get("role")
+        g.user_full_name = profile.get("full_name", "")
+        if profile.get("account_status", "active") != "active":
+            return jsonify({"error": "This account is not active.", "code": 403}), 403
 
         print(f"[AUTH] user_id={g.user_id} role={g.user_role} email={g.user_email}")
         return f(*args, **kwargs)

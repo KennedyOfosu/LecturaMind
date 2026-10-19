@@ -8,6 +8,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO
 from werkzeug.exceptions import RequestEntityTooLarge
 from config import Config
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = (Config.SUPABASE_SERVICE_KEY or "fallback-secret")[:32]
@@ -83,13 +84,30 @@ def handle_file_too_large(e):
 
 @app.get("/api/health")
 def health():
-    """Health check — also confirms env vars are loaded."""
+    """Health check — confirms the API's configured Supabase project and read access."""
+    classroom_count = None
+    database_status = "not_configured"
+    if Config.SUPABASE_URL and Config.SUPABASE_SERVICE_KEY:
+        try:
+            from services.supabase_client import supabase
+            classrooms = supabase.table("classrooms").select("id", count="exact").execute()
+            classroom_count = classrooms.count if classrooms.count is not None else len(classrooms.data or [])
+            database_status = "connected"
+        except Exception as exc:
+            # Keep credentials and provider response details out of the public health response.
+            database_status = f"error:{type(exc).__name__}"
+
+    project_host = urlparse(Config.SUPABASE_URL).hostname or ""
+    supabase_project = project_host.split(".")[0] if project_host else None
     return jsonify({
         "status": "ok",
         "service": "LecturaMind API",
         "build": "deploy-marks-1",
         "supabase_url_set": bool(Config.SUPABASE_URL),
         "service_key_set": bool(Config.SUPABASE_SERVICE_KEY),
+        "supabase_project": supabase_project,
+        "database_status": database_status,
+        "classrooms_count": classroom_count,
         "anthropic_key_set": bool(Config.ANTHROPIC_API_KEY),
         "frontend_url": Config.FRONTEND_URL,
         "allowed_origins": allowed_origins,

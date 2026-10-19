@@ -7,6 +7,11 @@ Supports level-based filtering (100, 200, 300, 400).
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
 from middleware.auth_middleware import require_auth, require_role
+from services.lecturer_access import (
+    lecturer_can_manage_student,
+    lecturer_managed_student_ids,
+    lecturer_owns_course,
+)
 
 courses_bp = Blueprint("courses", __name__)
 
@@ -209,7 +214,10 @@ def enrol_student(course_id: str):
             "code": 400
         }), 400
 
-    profile_res = supabase.table("profiles").select("id, full_name, role").eq(
+    if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
+        return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
+
+    profile_res = supabase.table("profiles").select("id, full_name, role, classroom_id").eq(
         "user_id_number", student_id_number
     ).execute()
 
@@ -226,6 +234,9 @@ def enrol_student(course_id: str):
             "error": f"{student_id_number} belongs to a Lecturer, not a Student.",
             "code": 400
         }), 400
+
+    if g.user_role != "superadmin" and not lecturer_can_manage_student(supabase, g.user_id, student["id"]):
+        return jsonify({"error": "This student is outside your assigned classes.", "code": 403}), 403
 
     existing = supabase.table("enrolments").select("id").eq(
         "student_id", student["id"]
@@ -256,8 +267,26 @@ def enrol_student(course_id: str):
 @require_auth
 @require_role("lecturer")
 def get_course_students(course_id: str):
+    if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
+        return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
     res = supabase.table("enrolments").select(
-        "*, profiles!enrolments_student_id_fkey(id, full_name, avatar_url, user_id_number)"
+        "*, profiles!enrolments_student_id_fkey(id, full_name, avatar_url, user_id_number, classroom_id, role)"
     ).eq("course_id", course_id).execute()
-    students = [row["profiles"] for row in res.data if row.get("profiles")]
+    enrolled_students = [
+        row["profiles"] for row in (res.data or [])
+        if row.get("profiles") and row["profiles"].get("role") == "student"
+    ]
+    allowed_student_ids = (
+        lecturer_managed_student_ids(
+            supabase, g.user_id, [student["id"] for student in enrolled_students]
+        )
+        if g.user_role != "superadmin" else None
+    )
+    students = [
+        student for student in enrolled_students
+        if allowed_student_ids is None or student["id"] in allowed_student_ids
+    ]
+    for student in students:
+        student.pop("classroom_id", None)
+        student.pop("role", None)
     return jsonify(students), 200

@@ -4,6 +4,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/Toast'
+import { AdminActionButton } from '../../components/ui/AdminActionButton'
 
 const TAB_COLORS = {
   active: 'bg-white text-gray-900 shadow-sm',
@@ -77,7 +78,7 @@ function AcademicYearsTab({ toast }) {
     <div className="space-y-4">
       <div className="flex justify-end"><Button variant="primary" onClick={openCreate}>+ Academic Year</Button></div>
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-        <table className="w-full text-sm">
+        <table className="superadmin-admin-table w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
               <th className="text-left px-5 py-3 font-semibold">Name</th>
@@ -101,7 +102,7 @@ function AcademicYearsTab({ toast }) {
                   ) : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <button onClick={() => openEdit(item)} className="text-xs text-gray-500 hover:text-gray-800">Edit</button>
+                  <AdminActionButton icon="edit" label={`Edit ${item.name}`} onClick={() => openEdit(item)} />
                 </td>
               </tr>
             ))}
@@ -211,7 +212,7 @@ function SemestersTab({ toast }) {
         <Button variant="primary" onClick={openCreate}>+ Semester</Button>
       </div>
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-        <table className="w-full text-sm">
+        <table className="superadmin-admin-table w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
               <th className="text-left px-5 py-3 font-semibold">Name</th>
@@ -239,7 +240,7 @@ function SemestersTab({ toast }) {
                   ) : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <button onClick={() => openEdit(item)} className="text-xs text-gray-500 hover:text-gray-800">Edit</button>
+                  <AdminActionButton icon="edit" label={`Edit ${item.name}`} onClick={() => openEdit(item)} />
                 </td>
               </tr>
             ))}
@@ -373,7 +374,7 @@ function GradingScalesTab({ toast }) {
         <Button variant="primary" onClick={openCreate}>+ Grade Band</Button>
       </div>
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#fff', border: '1px solid #D2D4D9' }}>
-        <table className="w-full text-sm">
+        <table className="superadmin-admin-table w-full text-sm">
           <thead>
             <tr className="text-xs text-gray-500 uppercase" style={{ borderBottom: '1px solid #F0F0F2' }}>
               <th className="text-left px-5 py-3 font-semibold">Label</th>
@@ -402,8 +403,8 @@ function GradingScalesTab({ toast }) {
                 </td>
                 <td className="px-5 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => openEdit(item)} className="text-xs text-gray-500 hover:text-gray-800">Edit</button>
-                    <button onClick={() => handleDelete(item)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
+                    <AdminActionButton icon="edit" label={`Edit ${item.label}`} onClick={() => openEdit(item)} />
+                    <AdminActionButton icon="delete" tone="danger" label={`Delete ${item.label}`} onClick={() => handleDelete(item)} />
                   </div>
                 </td>
               </tr>
