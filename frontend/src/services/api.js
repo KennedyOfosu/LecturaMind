@@ -31,15 +31,38 @@ const processQueue = (error, token = null) => {
   failedQueue = []
 }
 
+// Export for use by authService proactive refresh
+export const refreshTokenIfNeeded = async () => {
+  if (isRefreshing) {
+    // Wait for ongoing refresh
+    return new Promise((resolve, reject) => {
+      failedQueue.push({ resolve, reject })
+    })
+  }
+
+  const token = authService.getAccessToken()
+  if (token && authService.isTokenExpired(token)) {
+    isRefreshing = true
+    try {
+      const newToken = await authService.refreshAccessToken()
+      isRefreshing = false
+      processQueue(null, newToken)
+      return newToken
+    } catch (error) {
+      isRefreshing = false
+      processQueue(error, null)
+      throw error
+    }
+  }
+  return token
+}
+
 const startTokenRefreshScheduler = () => {
   const checkAndRefresh = async () => {
-    const token = authService.getAccessToken()
-    if (token && authService.isTokenExpired(token)) {
-      try {
-        await authService.refreshAccessToken()
-      } catch (e) {
-        // Token refresh failed, user will be logged out
-      }
+    try {
+      await refreshTokenIfNeeded()
+    } catch (e) {
+      // Token refresh failed, user will be logged out
     }
   }
 
