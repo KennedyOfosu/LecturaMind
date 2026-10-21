@@ -1,33 +1,37 @@
 /**
  * AuthContext.jsx — Global auth state using ID-number based login.
  * Token and user are persisted in localStorage for page-refresh survival.
+ * Includes automatic token refresh before expiry.
  */
 
-import { createContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { authService } from '../services/authService'
+import { authService, TOKEN_KEY, REFRESH_TOKEN_KEY } from '../services/authService'
 import { Modal } from '../components/ui/Modal'
 import { Button } from '../components/ui/Button'
 
 export const AuthContext = createContext(null)
 
 const SESSION_EXIT_SECONDS = 120
+let sessionRestoreRequest = null
+let sessionRestoreToken = null
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate()
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('lm_user')) || null } catch { return null }
   })
-  const [token, setToken] = useState(() => localStorage.getItem('lm_token'))
+  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY))
   const [loading, setLoading] = useState(true)
   const [isAuthReady, setIsAuthReady] = useState(false)
+  const [authError, setAuthError] = useState(false)
+  const restoreAttempt = useRef(0)
   const [sessionPromptOpen, setSessionPromptOpen] = useState(false)
   const [sessionSecondsLeft, setSessionSecondsLeft] = useState(SESSION_EXIT_SECONDS)
   const [checkingSession, setCheckingSession] = useState(false)
 
   const clearSession = useCallback(() => {
-    localStorage.removeItem('lm_token')
-    localStorage.removeItem('lm_user')
+    authService.clearTokens()
     setUser(null)
     setToken(null)
   }, [])
@@ -43,29 +47,66 @@ export function AuthProvider({ children }) {
     navigate('/login', { replace: true })
   }, [clearSession, navigate])
 
-  // Restore session on mount
-  useEffect(() => {
-    const storedToken = localStorage.getItem('lm_token')
+  const restoreSession = useCallback(async () => {
+    const attempt = ++restoreAttempt.current
+    const storedToken = localStorage.getItem(TOKEN_KEY)
     if (!storedToken) {
+      clearSession()
+      setAuthError(false)
       setLoading(false)
       setIsAuthReady(true)
       return
     }
     setToken(storedToken)
-    authService.me({ skipAuthPrompt: true })
-      .then((res) => setUser(res.data))
-      .catch(() => {
+    setLoading(true)
+    setAuthError(false)
+    try {
+      if (!sessionRestoreRequest || sessionRestoreToken !== storedToken) {
+        sessionRestoreToken = storedToken
+        sessionRestoreRequest = authService.me({ skipAuthPrompt: true })
+          .finally(() => {
+            if (sessionRestoreToken === storedToken) sessionRestoreRequest = null
+          })
+      }
+      const res = await sessionRestoreRequest
+      if (attempt !== restoreAttempt.current) return
+      setUser(res.data)
+      localStorage.setItem('lm_user', JSON.stringify(res.data))
+    } catch (error) {
+      if (attempt !== restoreAttempt.current) return
+      if ([401, 403, 404].includes(error.response?.status)) {
         clearSession()
-      })
-      .finally(() => {
+      } else {
+        // Keep credentials for a retry; transient API failures are not sign-outs.
+        setAuthError(true)
+      }
+    } finally {
+      if (attempt === restoreAttempt.current) {
         setLoading(false)
         setIsAuthReady(true)
-      })
+      }
+    }
+  }, [clearSession])
+
+  // Restore session on mount. The shared request prevents StrictMode's
+  // development remount from issuing two simultaneous identity checks.
+  useEffect(() => { restoreSession() }, [restoreSession])
+
+  useEffect(() => {
+    const invalidate = () => {
+      restoreAttempt.current += 1
+      clearSession()
+      setAuthError(false)
+      setLoading(false)
+      setIsAuthReady(true)
+    }
+    window.addEventListener('lecturamind:session-invalid', invalidate)
+    return () => window.removeEventListener('lecturamind:session-invalid', invalidate)
   }, [clearSession])
 
   useEffect(() => {
     const handler = () => {
-      if (!localStorage.getItem('lm_token')) return
+      if (!localStorage.getItem(TOKEN_KEY)) return
       setSessionSecondsLeft(SESSION_EXIT_SECONDS)
       setSessionPromptOpen(true)
     }
@@ -91,11 +132,13 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (idNumber, password) => {
     const res = await authService.login({ id_number: idNumber, password })
-    const { token: tok, user: userData } = res.data
-    localStorage.setItem('lm_token', tok)
-    localStorage.setItem('lm_user', JSON.stringify(userData))
+    const { token: tok, user: userData, refresh_token: refreshTok } = res.data
+    authService.setTokens(tok, refreshTok)
     setToken(tok)
     setUser(userData)
+    setAuthError(false)
+    setIsAuthReady(true)
+    setLoading(false)
     setSessionPromptOpen(false)
     return userData
   }, [])
@@ -103,22 +146,23 @@ export function AuthProvider({ children }) {
   const register = useCallback(async (payload) => {
     // Accepts: { full_name, email, password, id_number, programme?, level?, academic_year? }
     const res = await authService.register(payload)
-    const { token: tok, user: userData } = res.data
-    localStorage.setItem('lm_token', tok)
-    localStorage.setItem('lm_user', JSON.stringify(userData))
+    const { token: tok, user: userData, refresh_token: refreshTok } = res.data
+    authService.setTokens(tok, refreshTok)
     setToken(tok)
     setUser(userData)
+    setAuthError(false)
+    setIsAuthReady(true)
+    setLoading(false)
     setSessionPromptOpen(false)
     return userData
   }, [])
 
   const refreshUser = useCallback(async () => {
     const res = await authService.me()
-    const merged = { ...user, ...res.data }
-    localStorage.setItem('lm_user', JSON.stringify(merged))
-    setUser(merged)
-    return merged
-  }, [user])
+    localStorage.setItem('lm_user', JSON.stringify(res.data))
+    setUser(res.data)
+    return res.data
+  }, [])
 
   const logout = useCallback(async () => {
     await finishSession()
@@ -147,7 +191,7 @@ export function AuthProvider({ children }) {
   const minutesLeft = Math.max(1, Math.ceil(sessionSecondsLeft / 60))
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAuthReady, login, logout, register, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthReady, authError, retryAuth: restoreSession, login, logout, register, refreshUser }}>
       {children}
       <Modal
         isOpen={sessionPromptOpen}

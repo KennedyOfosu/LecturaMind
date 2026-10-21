@@ -231,12 +231,14 @@ def register():
     try:
         session_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
         token = session_res.session.access_token
+        refresh_token = session_res.session.refresh_token
     except Exception as e:
         return jsonify({"error": f"Account created but sign-in failed: {str(e)}", "code": 500}), 500
 
     print(f"[REGISTER] Success: {id_number} as {role}")
     return jsonify({
         "token": token,
+        "refresh_token": refresh_token,
         "user": {
             "id":             user_id,
             "full_name":      full_name,
@@ -288,12 +290,14 @@ def login():
         if not auth_res.session:
             raise Exception("No session")
         token = auth_res.session.access_token
+        refresh_token = auth_res.session.refresh_token
     except Exception:
         return jsonify({"error": "Incorrect password. Please try again.", "code": 401}), 401
 
     print(f"[LOGIN] Success: {id_number} as {profile['role']}")
     return jsonify({
         "token": token,
+        "refresh_token": refresh_token,
         "user": {
             "id": profile["id"],
             "full_name": profile["full_name"],
@@ -431,6 +435,39 @@ def logout():
     except Exception:
         pass
     return jsonify({"message": "Logged out successfully"}), 200
+
+
+@auth_bp.post("/refresh")
+def refresh_token():
+    """
+    Refresh access token using refresh token.
+    Expects: { "refresh_token": "..." }
+    Returns: { "access_token": "...", "refresh_token": "..." }
+    """
+    data = request.get_json(silent=True) or {}
+    refresh_token = data.get("refresh_token")
+
+    if not refresh_token:
+        return jsonify({"error": "Refresh token is required.", "code": 400}), 400
+
+    try:
+        # Use Supabase's refresh_session method
+        session_res = supabase.auth.refresh_session(refresh_token)
+        if not session_res.session:
+            raise Exception("No session returned")
+
+        access_token = session_res.session.access_token
+        new_refresh_token = session_res.session.refresh_token
+
+        print("[REFRESH] Token refreshed successfully")
+        return jsonify({
+            "access_token": access_token,
+            "refresh_token": new_refresh_token,
+        }), 200
+
+    except Exception as e:
+        print(f"[REFRESH] Token refresh failed: {e}")
+        return jsonify({"error": "Invalid or expired refresh token. Please sign in again.", "code": 401}), 401
 
 
 @auth_bp.get("/me")
