@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { adminService } from '../../services/adminService'
 import { useAuth } from '../../hooks/useAuth'
@@ -53,7 +54,7 @@ function Panel({ title, subtitle, action, className = '', children }) {
 
 function CoverageBar({ label, assigned, total }) {
   const available = assigned != null && total != null
-  const percent = available && total > 0 ? Math.min(100, Math.round((assigned / total) * 100)) : 0
+  const percent = available && total > 0 ? Math.min(100, Math.max(0, Math.round((assigned / total) * 100))) : 0
   return <div className="ops-coverage-item">
     <div><span>{label}</span><strong>{available ? `${formatNumber(assigned)} / ${formatNumber(total)}` : 'Unavailable'}</strong></div>
     <div className="ops-progress" role="progressbar" aria-label={label} aria-valuenow={available ? percent : undefined} aria-valuemin="0" aria-valuemax="100"><i style={{ width: `${percent}%` }} /></div>
@@ -66,6 +67,64 @@ export default function SuperadminDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [attentionOpen, setAttentionOpen] = useState(false)
+  const [attentionPosition, setAttentionPosition] = useState(null)
+  const attentionTriggerRef = useRef(null)
+  const attentionPanelRef = useRef(null)
+  const wasAttentionOpen = useRef(false)
+
+  const closeAttention = useCallback(() => setAttentionOpen(false), [])
+  const toggleAttention = () => {
+    if (attentionOpen) return closeAttention()
+    const bounds = attentionTriggerRef.current?.getBoundingClientRect()
+    if (bounds) setAttentionPosition({ top: bounds.bottom + 8, right: Math.max(12, window.innerWidth - bounds.right) })
+    setAttentionOpen(true)
+  }
+
+  useEffect(() => {
+    if (!attentionOpen) {
+      if (wasAttentionOpen.current) attentionTriggerRef.current?.focus()
+      wasAttentionOpen.current = false
+      return undefined
+    }
+    wasAttentionOpen.current = true
+    attentionPanelRef.current?.focus()
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeAttention()
+        return
+      }
+      if (event.key === 'Tab') {
+        const focusable = attentionPanelRef.current?.querySelectorAll('button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')
+        if (!focusable?.length) {
+          event.preventDefault()
+          attentionPanelRef.current?.focus()
+          return
+        }
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === attentionPanelRef.current)) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    const updatePosition = () => {
+      const bounds = attentionTriggerRef.current?.getBoundingClientRect()
+      if (bounds) setAttentionPosition({ top: bounds.bottom + 8, right: Math.max(12, window.innerWidth - bounds.right) })
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [attentionOpen, closeAttention])
 
   const loadDashboard = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true)
@@ -73,8 +132,11 @@ export default function SuperadminDashboard() {
     try {
       const response = await adminService.getDashboard()
       setData(response.data || {})
-    } catch {
-      setError('We could not load the school overview. Check your connection and try again.')
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || 'Unknown error'
+      const status = err?.response?.status
+      console.error('[SuperadminDashboard] Load failed:', { status, msg, err })
+      setError(`Failed to load overview (${status || 'network'}): ${msg}`)
     } finally {
       setLoading(false)
     }
@@ -118,14 +180,14 @@ export default function SuperadminDashboard() {
       <div className="ops-header-actions">
         {data?.academic_period && <span className="ops-term"><span className="ops-status-dot" />{data.academic_period}</span>}
         <button className="ops-refresh" onClick={() => loadDashboard()} disabled={loading}><Icon name="clock" />{loading ? 'Updating' : 'Refresh'}</button>
-        <button className="ops-notification" onClick={() => document.getElementById('ops-attention')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} aria-label={`${formatNumber(data?.attention_count)} items need attention`}>
-          <Icon name="alert" /><span>{formatNumber(data?.attention_count)}</span>
+        <button ref={attentionTriggerRef} type="button" className={`ops-notification${attentionOpen ? ' is-open' : ''}`} onClick={toggleAttention} aria-label="Administrative attention" aria-haspopup="dialog" aria-expanded={attentionOpen} aria-controls="ops-attention-popover" title="Administrative attention">
+          <Icon name="alert" />{Number(data?.attention_count) > 0 && <span className="ops-notification-count">{formatNumber(data.attention_count)}</span>}
         </button>
       </div>
     </header>
 
     {error && <div className="ops-inline-notice" role="status">Showing the last loaded overview. <button onClick={() => loadDashboard()}>Retry</button></div>}
-    {!!data?.data_warnings?.length && <div className="ops-inline-notice" role="status">Some records could not be loaded: {data.data_warnings.join(', ')}. Counts depending on those records may be unavailable.</div>}
+    {!!data?.data_warnings?.length && <div className="ops-inline-notice" role="status">Dashboard data needs attention: {data.data_warnings.join(', ')}. Counts depending on those records may be unavailable.</div>}
 
     <section className="ops-metrics" aria-label="School totals">
       {metrics.map((metric) => <MetricCard key={metric.label} {...metric} onClick={() => navigate(metric.path)} />)}
@@ -137,27 +199,11 @@ export default function SuperadminDashboard() {
         {data?.class_distribution?.length ? <div className="ops-class-list">{data.class_distribution.map((row) => <button className="ops-class-row" key={row.id} onClick={() => navigate(`/superadmin/users?role=student&classroom_id=${encodeURIComponent(row.id)}`)}>
           <span className="ops-class-name"><b>{row.name}</b><small>{row.code}{row.building ? ` · ${row.building}` : ''}</small></span>
           <span className="ops-enrollment-cell"><span className="ops-enrollment-bar"><i style={{ width: `${Math.round(((Number(row.students) || 0) / maximumStudents) * 100)}%` }} /></span><b>{formatNumber(row.students)}</b></span>
-          <span className={`ops-lecturer-count ${row.lecturers ? '' : 'is-missing'}`}>{formatNumber(row.lecturers)}</span>
+          <span className={`ops-lecturer-count ${row.lecturers === 0 ? 'is-missing' : ''}`}>{formatNumber(row.lecturers)}</span>
         </button>)}</div> : <p className="ops-empty">{data?.total_classrooms === 0 ? 'No classes have been created yet.' : 'Class distribution is unavailable.'}</p>}
-        <div className="ops-coverage-grid">
-          <CoverageBar label="Students assigned to a class" assigned={data?.coverage?.students_assigned} total={data?.coverage?.total_students} />
-          <CoverageBar label="Lecturers assigned to a class" assigned={data?.coverage?.lecturers_assigned} total={data?.coverage?.total_lecturers} />
-          <CoverageBar label="Classes with a lecturer" assigned={data?.coverage?.classes_with_lecturers} total={data?.coverage?.total_classes} />
-        </div>
       </Panel>
 
       <div className="ops-side-column">
-        <Panel title="Administrative attention" subtitle="Open a filtered list to review" className="ops-attention-panel" action={<span className="ops-open-count">{formatNumber(data?.attention_count)} open</span>}>
-          <div className="ops-attention-list" id="ops-attention">
-            {attentionItems.length ? attentionItems.map((item) => <button className="ops-attention-row" key={item.key} onClick={() => navigate(item.href)}>
-              <span className="ops-attention-mark"><Icon name="alert" /></span>
-              <span className="ops-attention-label">{item.label}</span>
-              <strong>{formatNumber(item.count)}</strong>
-              <span className="ops-row-arrow" aria-hidden="true">→</span>
-            </button>) : <p className="ops-empty">No administrative attention items are available.</p>}
-          </div>
-        </Panel>
-
         <Panel title="Quick actions" subtitle="Common school administration tasks" className="ops-actions-panel">
           <div className="ops-quick-actions">
             <button onClick={() => navigate('/superadmin/users', { state: { openCreateRole: 'lecturer' } })}><Icon name="plus" /><span><b>Add lecturer</b><small>Create a lecturer account</small></span><i>→</i></button>
@@ -167,8 +213,32 @@ export default function SuperadminDashboard() {
             <button onClick={() => navigate('/superadmin/users')}><Icon name="people" /><span><b>Manage accounts</b><small>View students and staff</small></span><i>→</i></button>
           </div>
         </Panel>
+        <Panel title="Class Assignment Progress" className="ops-assignment-progress-panel">
+          <div className="ops-coverage-grid">
+            <CoverageBar label="Students assigned to a class" assigned={data?.coverage?.students_assigned} total={data?.coverage?.total_students} />
+            <CoverageBar label="Lecturers assigned to a class" assigned={data?.coverage?.lecturers_assigned} total={data?.coverage?.total_lecturers} />
+            <CoverageBar label="Classes with a lecturer" assigned={data?.coverage?.classes_with_lecturers} total={data?.coverage?.total_classes} />
+          </div>
+        </Panel>
       </div>
     </div>
     <footer className="ops-footer">Overview refreshed {formatTime(data?.generated_at)}</footer>
+    {attentionOpen && createPortal(<div className="ops-attention-layer">
+      <button className="ops-attention-backdrop" type="button" aria-label="Close administrative attention" onClick={closeAttention} />
+      <section ref={attentionPanelRef} id="ops-attention-popover" className="ops-attention-popover" role="dialog" aria-modal="true" aria-labelledby="ops-attention-title" tabIndex={-1} style={attentionPosition || undefined}>
+        <header className="ops-attention-popover-header">
+          <div><h2 id="ops-attention-title">Administrative attention</h2><p>Open a filtered list to review</p></div>
+          {!!attentionItems.length && <span className="ops-open-count">{formatNumber(data?.attention_count)} open</span>}
+        </header>
+        <div className="ops-attention-list">
+          {attentionItems.length ? attentionItems.map((item) => <button className="ops-attention-row" key={item.key} onClick={() => { closeAttention(); navigate(item.href) }}>
+            <span className="ops-attention-mark"><Icon name="alert" /></span>
+            <span className="ops-attention-label">{item.label}</span>
+            <strong>{formatNumber(item.count)}</strong>
+            <span className="ops-row-arrow" aria-hidden="true">→</span>
+          </button>) : <p className="ops-empty"><span className="ops-attention-check" aria-hidden="true">✓</span>You're all caught up</p>}
+        </div>
+      </section>
+    </div>, document.body)}
   </main>
 }
