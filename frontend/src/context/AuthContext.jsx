@@ -61,6 +61,15 @@ export function AuthProvider({ children }) {
     setLoading(true)
     setAuthError(false)
     try {
+      // Proactively refresh token if expired before verifying session
+      if (authService.isTokenExpired(storedToken)) {
+        try {
+          await authService.refreshAccessToken()
+        } catch {
+          // Refresh failed, will be handled by me() call
+        }
+      }
+      
       if (!sessionRestoreRequest || sessionRestoreToken !== storedToken) {
         sessionRestoreToken = storedToken
         sessionRestoreRequest = authService.me({ skipAuthPrompt: true })
