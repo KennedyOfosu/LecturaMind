@@ -1,7 +1,17 @@
 -- ============================================================================
 -- LECTURAMIND DEPLOYMENT MIGRATIONS
--- Run in Supabase SQL Editor in order: 007 → 008 → 011 → 012 → 009 → 010
--- Then apply all RLS policies at the end
+-- Run in Supabase SQL Editor in order:
+--   1. 000_core_tables.sql (THIS FILE - creates all core tables)
+--   2. 004_academic_structure.sql
+--   3. 005_fees_and_attendance.sql
+--   4. 006_report_cards.sql
+--   5. 007_registration_identity_uniqueness.sql
+--   6. 008_lecturer_activation.sql
+--   7. 011_account_id_generation.sql
+--   8. 012_classrooms_and_physical_rooms.sql
+--   9. 009_course_schedules.sql
+--   10. 010_school_activity_log.sql
+-- Then apply all RLS policies at the end (already included in each file)
 -- ============================================================================
 
 -- ============================================================================

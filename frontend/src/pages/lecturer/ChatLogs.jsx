@@ -34,9 +34,15 @@ export default function ChatLogs() {
     if (!selectedCourse) return
     setLoading(true)
     chatService.getLogs(selectedCourse)
-      .then((res) => setLogs(res.data))
+      .then((res) => {
+        const logsData = res.data?.data || res.data
+        setLogs(Array.isArray(logsData) ? logsData : [])
+        if (res.data?.data_warnings?.length) {
+          toast.warning(`Chat logs data incomplete: ${res.data.data_warnings.join(', ')}`)
+        }
+      })
       .finally(() => setLoading(false))
-  }, [selectedCourse])
+  }, [selectedCourse, toast])
 
   const handleFlag = async (messageId) => {
     setFlagging(messageId)

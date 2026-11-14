@@ -10,6 +10,7 @@ import { useCourses } from '../../context/CoursesContext'
 import { useSessions } from '../../context/SessionsContext'
 import AIChatInterface from '../../components/chat/AIChatInterface'
 import { classroomLabel } from '../../utils/classroomDisplay'
+import { useToast } from '../../components/ui/Toast'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -22,14 +23,30 @@ export default function StudentDashboard() {
   const { user }            = useAuth()
   const { courses }         = useCourses()
   const { refreshSessions } = useSessions()
+  const toast               = useToast()
   const [profile, setProfile] = useState(null)
   const [profileLoadError, setProfileLoadError] = useState(false)
 
   useEffect(() => {
-    api.get('/api/profile/')
-      .then((response) => setProfile(response.data))
-      .catch(() => setProfileLoadError(true))
-  }, [])
+    const controller = new AbortController()
+    let active = true
+    setProfile(null)
+    setProfileLoadError(false)
+    api.get('/api/profile/', { signal: controller.signal })
+      .then((response) => {
+        if (active) {
+          const profileData = response.data?.data || response.data
+          setProfile(profileData)
+          if (response.data?.data_warnings?.length) {
+            toast.warning(`Profile data incomplete: ${response.data.data_warnings.join(', ')}`)
+          }
+        }
+      })
+      .catch((error) => {
+        if (active && error.code !== 'ERR_CANCELED') setProfileLoadError(true)
+      })
+    return () => { active = false; controller.abort() }
+  }, [user?.id, toast])
 
   const firstName = user?.full_name?.split(' ')[0] || 'Student'
 

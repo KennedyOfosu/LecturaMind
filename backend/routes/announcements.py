@@ -114,10 +114,16 @@ def get_my_announcements():
 @require_auth
 def get_course_announcements(course_id: str):
     """Return all announcements for a course, newest first."""
+    unavailable = []
     res = supabase.table("announcements").select("*").eq(
         "course_id", course_id
     ).order("posted_at", desc=True).execute()
-    return jsonify(res.data), 200
+    if not res.data:
+        unavailable.append("announcements")
+    return jsonify({
+        "data": res.data or [],
+        "data_warnings": unavailable
+    }), 200
 
 
 @announcements_bp.put("/<announcement_id>")

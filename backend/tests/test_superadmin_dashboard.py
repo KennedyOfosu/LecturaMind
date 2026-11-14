@@ -77,6 +77,37 @@ class DashboardQuery:
         return SimpleNamespace(data=rows, count=len(rows))
 
 
+class UnavailableQuery:
+    def select(self, *_args, **_kwargs):
+        return self
+
+    def range(self, *_args, **_kwargs):
+        return self
+
+    def order(self, *_args, **_kwargs):
+        return self
+
+    def limit(self, *_args, **_kwargs):
+        return self
+
+    def execute(self):
+        raise RuntimeError("profiles unavailable")
+
+
+class ProfilesUnavailableDatabase(DashboardDatabase):
+    def table(self, table_name):
+        if table_name == "profiles":
+            return UnavailableQuery()
+        return super().table(table_name)
+
+
+class ActivityLogUnavailableDatabase(DashboardDatabase):
+    def table(self, table_name):
+        if table_name == "school_activity_log":
+            return UnavailableQuery()
+        return super().table(table_name)
+
+
 class SuperadminDashboardTests(unittest.TestCase):
     def test_aggregates_unique_profiles_and_class_coverage_without_returning_private_profiles(self):
         app = Flask(__name__)
@@ -100,6 +131,67 @@ class SuperadminDashboardTests(unittest.TestCase):
         self.assertNotIn("email", payload)
         self.assertNotIn("full_name", payload)
         self.assertNotIn("profiles", payload)
+
+    def test_class_coverage_ignores_orphaned_classroom_references(self):
+        app = Flask(__name__)
+        database = DashboardDatabase()
+        database.rows["profiles"].append({
+            "id": "s3", "role": "student", "classroom_id": "missing-class",
+            "created_at": "2026-10-07",
+        })
+        database.rows["lecturer_classrooms"].append({
+            "lecturer_id": "l1", "classroom_id": "missing-class",
+            "assigned_at": "2026-10-07T10:00:00Z",
+        })
+        handler = superadmin.admin_dashboard.__wrapped__.__wrapped__
+        with app.test_request_context("/api/admin/dashboard"), patch.object(superadmin, "supabase", database):
+            response, status_code = handler()
+
+        payload = response.get_json()
+        self.assertEqual(status_code, 200)
+        self.assertEqual(payload["coverage"]["students_assigned"], 1)
+        self.assertEqual(payload["coverage"]["lecturers_assigned"], 1)
+        self.assertEqual(payload["attention"][1]["count"], 2)
+        self.assertIn("classroom_assignments", payload["data_warnings"])
+
+    def test_classroom_rows_remain_available_when_student_counts_are_unavailable(self):
+        app = Flask(__name__)
+        handler = superadmin.admin_dashboard.__wrapped__.__wrapped__
+        with app.test_request_context("/api/admin/dashboard"), patch.object(superadmin, "supabase", ProfilesUnavailableDatabase()):
+            response, status_code = handler()
+
+        payload = response.get_json()
+        self.assertEqual(status_code, 200)
+        self.assertEqual(len(payload["class_distribution"]), 2)
+        self.assertIsNone(payload["class_distribution"][0]["students"])
+        self.assertIn("profiles", payload["data_warnings"])
+
+    def test_empty_activity_log_is_healthy_and_uses_existing_fallback_feed(self):
+        app = Flask(__name__)
+        database = DashboardDatabase()
+        database.rows["school_activity_log"] = []
+        handler = superadmin.admin_dashboard.__wrapped__.__wrapped__
+        with app.test_request_context("/api/admin/dashboard"), patch.object(superadmin, "supabase", database):
+            response, status_code = handler()
+
+        payload = response.get_json()
+        self.assertEqual(status_code, 200)
+        self.assertNotIn("school_activity_log", payload["data_warnings"])
+        self.assertEqual(payload["total_classrooms"], 2)
+        self.assertEqual(payload["total_course_enrolments"], 8)
+        self.assertTrue(payload["recent_activity"])
+
+    def test_activity_log_failure_is_reported_without_breaking_other_metrics(self):
+        app = Flask(__name__)
+        handler = superadmin.admin_dashboard.__wrapped__.__wrapped__
+        with app.test_request_context("/api/admin/dashboard"), patch.object(superadmin, "supabase", ActivityLogUnavailableDatabase()):
+            response, status_code = handler()
+
+        payload = response.get_json()
+        self.assertEqual(status_code, 200)
+        self.assertIn("school_activity_log", payload["data_warnings"])
+        self.assertEqual(payload["total_classrooms"], 2)
+        self.assertEqual(payload["total_course_enrolments"], 8)
 
 
 if __name__ == "__main__":

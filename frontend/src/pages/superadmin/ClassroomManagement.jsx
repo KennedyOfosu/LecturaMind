@@ -24,6 +24,7 @@ export default function ClassroomManagement() {
   const [reviewRows, setReviewRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [supportingDataError, setSupportingDataError] = useState('')
   const [createModal, setCreateModal] = useState(false)
   const [editModal, setEditModal] = useState(false)
   const [selected, setSelected] = useState(null)
@@ -37,16 +38,32 @@ export default function ClassroomManagement() {
   const fetch = useCallback((silent = false) => {
     if (!silent) setLoading(true)
     setLoadError('')
-    Promise.all([
+    setSupportingDataError('')
+    Promise.allSettled([
       adminService.getClassrooms(lecturerAssignmentFilter ? { lecturer_assignment: lecturerAssignmentFilter } : {}),
       adminService.getRooms(),
       adminService.getCourses(),
       adminService.getClassroomMigrationReview(),
-    ]).then(([classroomResponse, roomResponse, courseResponse, reviewResponse]) => {
-      setClassrooms(Array.isArray(classroomResponse.data) ? classroomResponse.data : [])
-      setRooms(Array.isArray(roomResponse.data) ? roomResponse.data : [])
-      setCourses(Array.isArray(courseResponse.data) ? courseResponse.data : [])
-      setReviewRows(Array.isArray(reviewResponse.data) ? reviewResponse.data : [])
+    ]).then(([classroomsResult, roomsResult, coursesResult, reviewResult]) => {
+      if (classroomsResult.status === 'rejected') throw classroomsResult.reason
+      const classroomResponse = classroomsResult.value
+      if (!Array.isArray(classroomResponse.data)) throw new Error('The classrooms API returned an unexpected response.')
+      setClassrooms(classroomResponse.data)
+
+      const unavailable = []
+      const setOptionalRows = (result, setter, label) => {
+        if (result.status === 'fulfilled' && Array.isArray(result.value.data)) setter(result.value.data)
+        else {
+          setter([])
+          unavailable.push(label)
+        }
+      }
+      setOptionalRows(roomsResult, setRooms, 'physical rooms')
+      setOptionalRows(coursesResult, setCourses, 'programs and levels')
+      setOptionalRows(reviewResult, setReviewRows, 'classroom review details')
+      setSupportingDataError(unavailable.length
+        ? `Some supporting data could not be loaded (${unavailable.join(', ')}). Available classroom records are still shown.`
+        : '')
     }).catch((error) => {
       const status = error.response?.status
       const apiMessage = error.response?.data?.error
@@ -258,6 +275,8 @@ export default function ClassroomManagement() {
           {reviewRows.map((record) => <li key={record.classroom_id}><strong>{record.original_name}</strong> — {record.reason}</li>)}
         </ul>
       </details>}
+
+      {supportingDataError && <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800" role="status">{supportingDataError}</p>}
 
       {loading ? <Spinner /> : (
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">

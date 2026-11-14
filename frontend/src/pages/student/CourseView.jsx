@@ -13,6 +13,7 @@ import AnnouncementsView from './AnnouncementsView'
 import QuizView from './QuizView'
 import StudentLiveQnA from './LiveQnA'
 import api from '../../services/api'
+import { useToast } from '../../components/ui/Toast'
 
 /* ── Tab definitions ──────────────────────────────────────────────── */
 const TABS = ['Materials', 'Announcements', 'AI Assistant', 'Quiz', 'Live Q&A']
@@ -61,6 +62,7 @@ export default function CourseView() {
   const { courseId }        = useParams()
   const [searchParams]      = useSearchParams()
   const { refreshSessions } = useSessions()
+  const toast               = useToast()
 
   /* resolve initial tab from URL params */
   const sessionId = searchParams.get('session')
@@ -85,7 +87,13 @@ export default function CourseView() {
     setLoading(true)
     setFetchError(false)
     api.get(`/api/courses/${courseId}`)
-      .then((res) => setCourse(res.data))
+      .then((res) => {
+        const courseData = res.data?.data || res.data
+        setCourse(courseData)
+        if (res.data?.data_warnings?.length) {
+          toast.warning(`Course data incomplete: ${res.data.data_warnings.join(', ')}`)
+        }
+      })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
   }

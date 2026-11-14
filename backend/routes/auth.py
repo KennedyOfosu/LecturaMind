@@ -8,7 +8,7 @@ import requests as http_requests
 import uuid
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, g
-from services.supabase_client import supabase
+from services.supabase_client import supabase, create_auth_client
 from middleware.auth_middleware import require_auth
 from config import Config
 from services.registration_identity import (
@@ -67,7 +67,7 @@ def _create_auth_user(email: str, password: str, full_name: str, role: str):
 
     # Strategy 2: sign_up fallback
     try:
-        res = supabase.auth.sign_up({
+        res = create_auth_client().auth.sign_up({
             "email": email,
             "password": password,
             "options": {"data": {"full_name": full_name, "role": role}},
@@ -229,7 +229,7 @@ def register():
 
     # Sign in for session token
     try:
-        session_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        session_res = create_auth_client().auth.sign_in_with_password({"email": email, "password": password})
         token = session_res.session.access_token
         refresh_token = session_res.session.refresh_token
     except Exception as e:
@@ -286,7 +286,7 @@ def login():
 
     # Authenticate with Supabase
     try:
-        auth_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        auth_res = create_auth_client().auth.sign_in_with_password({"email": email, "password": password})
         if not auth_res.session:
             raise Exception("No session")
         token = auth_res.session.access_token
@@ -431,7 +431,11 @@ def complete_lecturer_activation():
 @require_auth
 def logout():
     try:
-        supabase.auth.sign_out()
+        token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+        if token:
+            # Revoke this user's refresh session without changing the shared
+            # service-role client's auth state.
+            supabase.auth.admin.sign_out(token, scope="local")
     except Exception:
         pass
     return jsonify({"message": "Logged out successfully"}), 200
@@ -452,7 +456,7 @@ def refresh_token():
 
     try:
         # Use Supabase's refresh_session method
-        session_res = supabase.auth.refresh_session(refresh_token)
+        session_res = create_auth_client().auth.refresh_session(refresh_token)
         if not session_res.session:
             raise Exception("No session returned")
 

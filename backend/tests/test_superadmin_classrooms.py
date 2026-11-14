@@ -30,11 +30,17 @@ class ClassroomQuery:
                 raise OSError("temporary database socket failure")
             return SimpleNamespace(data=[{
                 "id": "class-1", "name": "Level 100 Networking", "code": "NET-100",
+                "physical_rooms": {
+                    "id": "room-1", "name": "North Lab", "code": "NL-01",
+                    "building": "North Building", "campus": "Main Campus", "capacity": 30,
+                },
             }])
         if self.table_name == "lecturer_classrooms":
             if self.database.assignment_table_missing:
                 raise RuntimeError("Could not find the table 'public.lecturer_classrooms' in the schema cache (PGRST205)")
             return SimpleNamespace(data=[{"lecturer_id": "lecturer-1", "classroom_id": "class-1"}])
+        if self.table_name == "profiles":
+            return SimpleNamespace(data=[{"classroom_id": "class-1"} for _ in range(3)])
         return SimpleNamespace(count=3, data=[])
 
 
@@ -63,8 +69,12 @@ class SuperadminClassroomTests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertEqual(response.get_json(), [{
-            "id": "class-1", "name": "Level 100 Networking", "code": "NET-100",
-            "student_count": 3, "lecturer_count": 1, "capacity": 3,
+            "id": "class-1", "name": "Level 100 Networking", "code": "NL-01",
+            "class_code": "NET-100", "physical_room": {
+                "id": "room-1", "name": "North Lab", "code": "NL-01",
+                "building": "North Building", "campus": "Main Campus", "capacity": 30,
+            }, "room_name": "North Lab", "building": "North Building", "campus": "Main Campus",
+            "capacity": 30, "student_count": 3, "lecturer_count": 1,
         }])
 
     def test_classrooms_remain_visible_when_lecturer_assignment_migration_is_missing(self):

@@ -55,12 +55,19 @@ def get_logs(course_id: str):
     Return all chat messages for a course, joined with student profiles.
     Grouped view for the lecturer's chat log review panel.
     """
+    unavailable = []
     if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
         return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
-    res = supabase.table("chat_messages").select(
-        "*, profiles!chat_messages_student_id_fkey(full_name, avatar_url, classroom_id)"
-    ).eq("course_id", course_id).order("timestamp", desc=True).execute()
-    log_rows = res.data or []
+    try:
+        res = supabase.table("chat_messages").select(
+            "*, profiles!chat_messages_student_id_fkey(full_name, avatar_url, classroom_id)"
+        ).eq("course_id", course_id).order("timestamp", desc=True).execute()
+        log_rows = res.data or []
+    except Exception as exc:
+        print(f"[chatbot_logs] query failed: {exc}")
+        log_rows = []
+        unavailable.append("chat_messages")
+
     allowed_student_ids = lecturer_managed_student_ids(
         supabase, g.user_id, [row.get("student_id") for row in log_rows if row.get("student_id")]
     ) if g.user_role != "superadmin" else set()
@@ -68,7 +75,10 @@ def get_logs(course_id: str):
     for row in rows:
         if row.get("profiles"):
             row["profiles"].pop("classroom_id", None)
-    return jsonify(rows), 200
+    return jsonify({
+        "data": rows,
+        "data_warnings": unavailable
+    }), 200
 
 
 @chatbot_bp.get("/sessions")

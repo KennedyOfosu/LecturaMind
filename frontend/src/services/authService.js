@@ -54,10 +54,14 @@ export const authService = {
       }
       return access_token
     } catch (error) {
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(REFRESH_TOKEN_KEY)
-      localStorage.removeItem(USER_KEY)
-      window.dispatchEvent(new CustomEvent('lecturamind:session-invalid'))
+      // Only discard the saved session when Supabase definitively rejects the
+      // refresh token. A temporary API outage must not sign the user out.
+      if ([400, 401].includes(error.response?.status)) {
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(REFRESH_TOKEN_KEY)
+        localStorage.removeItem(USER_KEY)
+        window.dispatchEvent(new CustomEvent('lecturamind:session-invalid'))
+      }
       throw error
     }
   },

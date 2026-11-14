@@ -13,10 +13,10 @@ import { Button } from '../components/ui/Button'
 export const AuthContext = createContext(null)
 
 const SESSION_EXIT_SECONDS = 120
-let sessionRestoreRequest = null
-let sessionRestoreToken = null
 
 export function AuthProvider({ children }) {
+  const sessionRestoreRequest = useRef(null)
+  const sessionRestoreToken = useRef(null)
   const navigate = useNavigate()
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('lm_user')) || null } catch { return null }
@@ -34,9 +34,16 @@ export function AuthProvider({ children }) {
     authService.clearTokens()
     setUser(null)
     setToken(null)
+    sessionRestoreRequest.current = null
+    sessionRestoreToken.current = null
   }, [])
 
   const finishSession = useCallback(async () => {
+    // Increment restore attempt to invalidate any in-flight restoreSession calls
+    restoreAttempt.current += 1
+    sessionRestoreRequest.current = null
+    sessionRestoreToken.current = null
+
     setSessionPromptOpen(false)
     setCheckingSession(false)
     try { await authService.logout({ skipAuthPrompt: true }) } catch { /* ignore */ }
@@ -50,44 +57,69 @@ export function AuthProvider({ children }) {
   const restoreSession = useCallback(async () => {
     const attempt = ++restoreAttempt.current
     const storedToken = localStorage.getItem(TOKEN_KEY)
+
+    // No token - clear session immediately and mark ready
     if (!storedToken) {
       clearSession()
+      sessionRestoreRequest.current = null
+      sessionRestoreToken.current = null
       setAuthError(false)
       setLoading(false)
       setIsAuthReady(true)
       return
     }
+
+    // Set token immediately for request interceptors
     setToken(storedToken)
     setLoading(true)
     setAuthError(false)
+
+    let retryCount = 0
+    const maxRetries = 3
+
     try {
-      // Proactively refresh token if expired before verifying session
-      if (authService.isTokenExpired(storedToken)) {
+      while (retryCount <= maxRetries) {
         try {
-          await authService.refreshAccessToken()
-        } catch {
-          // Refresh failed, will be handled by me() call
+          // Proactively refresh token if expired before verifying session
+          if (authService.isTokenExpired(storedToken)) {
+            try {
+              await authService.refreshAccessToken()
+            } catch {
+              // Refresh failed, will be handled by me() call
+            }
+          }
+
+          // ALWAYS make a fresh request for this attempt - don't share promises across attempts
+          // This prevents race conditions where an old logout's promise resolves after a new login
+          const res = await authService.me({ skipAuthPrompt: true })
+
+          // If another restore attempt started while we were waiting, discard this result
+          if (attempt !== restoreAttempt.current) return
+
+          setUser(res.data)
+          localStorage.setItem('lm_user', JSON.stringify(res.data))
+          break // Success - exit retry loop
+        } catch (error) {
+          // If another restore attempt started, discard this result
+          if (attempt !== restoreAttempt.current) return
+
+          const status = error.response?.status
+          const isTransient = !status || status >= 500 || status === 0 || error.code === 'ECONNABORTED'
+
+          if ([401, 403, 404].includes(status)) {
+            clearSession()
+            break
+          } else if (isTransient && retryCount < maxRetries) {
+            retryCount++
+            // Wait before retry: 500ms, 1000ms, 2000ms
+            await new Promise(r => setTimeout(r, 500 * retryCount))
+            continue
+          } else {
+            // Non-transient error or max retries exceeded
+            setAuthError(true)
+            break
+          }
         }
-      }
-      
-      if (!sessionRestoreRequest || sessionRestoreToken !== storedToken) {
-        sessionRestoreToken = storedToken
-        sessionRestoreRequest = authService.me({ skipAuthPrompt: true })
-          .finally(() => {
-            if (sessionRestoreToken === storedToken) sessionRestoreRequest = null
-          })
-      }
-      const res = await sessionRestoreRequest
-      if (attempt !== restoreAttempt.current) return
-      setUser(res.data)
-      localStorage.setItem('lm_user', JSON.stringify(res.data))
-    } catch (error) {
-      if (attempt !== restoreAttempt.current) return
-      if ([401, 403, 404].includes(error.response?.status)) {
-        clearSession()
-      } else {
-        // Keep credentials for a retry; transient API failures are not sign-outs.
-        setAuthError(true)
       }
     } finally {
       if (attempt === restoreAttempt.current) {
@@ -104,6 +136,8 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const invalidate = () => {
       restoreAttempt.current += 1
+      sessionRestoreRequest.current = null
+      sessionRestoreToken.current = null
       clearSession()
       setAuthError(false)
       setLoading(false)
@@ -140,6 +174,11 @@ export function AuthProvider({ children }) {
   }, [finishSession, sessionPromptOpen, sessionSecondsLeft])
 
   const login = useCallback(async (idNumber, password) => {
+    // Reset restore attempt counter on fresh login to prevent old promises from interfering
+    restoreAttempt.current = 0
+    sessionRestoreRequest.current = null
+    sessionRestoreToken.current = null
+
     const res = await authService.login({ id_number: idNumber, password })
     const { token: tok, user: userData, refresh_token: refreshTok } = res.data
     authService.setTokens(tok, refreshTok)
@@ -154,6 +193,11 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (payload) => {
     // Accepts: { full_name, email, password, id_number, programme?, level?, academic_year? }
+    // Reset restore attempt counter on fresh registration
+    restoreAttempt.current = 0
+    sessionRestoreRequest.current = null
+    sessionRestoreToken.current = null
+
     const res = await authService.register(payload)
     const { token: tok, user: userData, refresh_token: refreshTok } = res.data
     authService.setTokens(tok, refreshTok)
@@ -187,11 +231,17 @@ export function AuthProvider({ children }) {
       window.dispatchEvent(new CustomEvent('lecturamind:toast', {
         detail: { message: 'Session continued successfully.', type: 'success' },
       }))
-    } catch {
-      window.dispatchEvent(new CustomEvent('lecturamind:toast', {
-        detail: { message: 'Your session has ended. Please sign in again.', type: 'warning' },
-      }))
-      await finishSession()
+    } catch (error) {
+      if ([400, 401, 403].includes(error.response?.status)) {
+        window.dispatchEvent(new CustomEvent('lecturamind:toast', {
+          detail: { message: 'Your session has ended. Please sign in again.', type: 'warning' },
+        }))
+        await finishSession()
+      } else {
+        window.dispatchEvent(new CustomEvent('lecturamind:toast', {
+          detail: { message: 'Could not check your session because the server is unavailable. Please try again.', type: 'warning' },
+        }))
+      }
     } finally {
       setCheckingSession(false)
     }

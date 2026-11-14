@@ -136,10 +136,20 @@ def upload_material():
 @require_auth
 def get_course_materials(course_id: str):
     """Return all materials for a given course (accessible to enrolled students and the lecturer)."""
-    res = supabase.table("materials").select(
-        "id, course_id, file_name, file_path, file_type, uploaded_at"
-    ).eq("course_id", course_id).order("uploaded_at", desc=True).execute()
-    return jsonify(res.data), 200
+    unavailable = []
+    try:
+        res = supabase.table("materials").select(
+            "id, course_id, file_name, file_path, file_type, uploaded_at"
+        ).eq("course_id", course_id).order("uploaded_at", desc=True).execute()
+    except Exception as exc:
+        print(f"[get_course_materials] query failed: {exc}")
+        res = type('obj', (object,), {'data': []})()
+        unavailable.append("materials")
+
+    return jsonify({
+        "data": res.data or [],
+        "data_warnings": unavailable
+    }), 200
 
 
 @materials_bp.get("/<material_id>/file")
@@ -206,9 +216,13 @@ def _extract_signed_url(signed_response):
 
     # Primary: plain dict with "signedURL" key (storage3's actual format)
     if isinstance(signed_response, dict):
+        # Check signedURL first (storage3's actual format)
+        url = signed_response.get("signedURL")
+        if url:
+            return url
+        # Fallback to other possible keys
         url = (
-            signed_response.get("signedURL")
-            or signed_response.get("signedUrl")
+            signed_response.get("signedUrl")
             or signed_response.get("signed_url")
         )
         if url:

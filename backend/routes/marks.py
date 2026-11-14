@@ -23,6 +23,7 @@ def get_student_marks(student_id: str, course_id: str):
     Return all marks for a student in a course.
     Combines manual student_marks rows with auto-graded quiz_attempts.
     """
+    unavailable = []
     results = []
     if g.user_role != "superadmin" and not lecturer_can_manage_course_student(supabase, g.user_id, student_id, course_id):
         return jsonify({"error": "Student is outside your assigned classes or this course is not yours.", "code": 403}), 403
@@ -35,6 +36,7 @@ def get_student_marks(student_id: str, course_id: str):
         results.extend(manual.data or [])
     except Exception as e:
         print(f"[marks] student_marks query failed: {e}")
+        unavailable.append("student_marks")
 
     # ── Auto quiz scores ───────────────────────────────────────────────────
     try:
@@ -60,10 +62,14 @@ def get_student_marks(student_id: str, course_id: str):
             })
     except Exception as e:
         print(f"[marks] quiz_attempts query failed: {e}")
+        unavailable.append("quiz_attempts")
 
     # Sort by date descending
     results.sort(key=lambda x: x.get("awarded_at") or "", reverse=True)
-    return jsonify(results), 200
+    return jsonify({
+        "data": results,
+        "data_warnings": unavailable
+    }), 200
 
 
 @marks_bp.post("")

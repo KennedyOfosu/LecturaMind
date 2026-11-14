@@ -327,10 +327,16 @@ export default function MaterialsView({ courseId }) {
     setLoading(true)
     setFetchError(false)
     materialService.getByCourse(courseId)
-      .then((res) => setMaterials(res.data || []))
+      .then((res) => {
+        const materialsData = res.data?.data || res.data
+        setMaterials(Array.isArray(materialsData) ? materialsData : [])
+        if (res.data?.data_warnings?.length) {
+          toast.warning(`Materials data incomplete: ${res.data.data_warnings.join(', ')}`)
+        }
+      })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
-  }, [courseId])
+  }, [courseId, toast])
 
   useEffect(load, [load])
 

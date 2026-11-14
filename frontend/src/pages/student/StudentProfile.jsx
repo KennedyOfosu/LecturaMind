@@ -110,7 +110,8 @@ export default function StudentProfile() {
         api.get('/api/profile/'),
         courseService.getEnrolled(),
       ])
-      const d = pRes.data
+      const profileData = pRes.data?.data || pRes.data
+      const d = profileData
       const initial = {
         full_name:      d.full_name      || '',
         phone:          d.phone          || '',
@@ -122,7 +123,14 @@ export default function StudentProfile() {
       setProfile(d)
       setForm(initial)
       setOriginal(initial)
-      setCourses(Array.isArray(cRes.data) ? cRes.data : [])
+      const coursesData = cRes.data?.data || cRes.data
+      setCourses(Array.isArray(coursesData) ? coursesData : [])
+      if (pRes.data?.data_warnings?.length) {
+        toast.warning(`Profile data incomplete: ${pRes.data.data_warnings.join(', ')}`)
+      }
+      if (cRes.data?.data_warnings?.length) {
+        toast.warning(`Courses data incomplete: ${cRes.data.data_warnings.join(', ')}`)
+      }
     } catch {
       toast.error('Failed to load profile')
     } finally {

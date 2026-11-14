@@ -10,23 +10,32 @@ import httpx
 from services.supabase_client import supabase
 
 
-def _retry_transient_supabase_call(call, attempts=3):
+def _is_transient_supabase_error(exc):
+    """Identify transport and server failures that do not invalidate a token."""
+    detail = f"{type(exc).__name__}: {exc}".lower()
+    status = getattr(exc, "status", getattr(exc, "status_code", None))
+    return (
+        isinstance(exc, (httpx.TransportError, OSError))
+        or (isinstance(status, int) and status >= 500)
+        or any(marker in detail for marker in (
+            "winerror 10035",
+            "non-blocking socket operation",
+            "temporarily unavailable",
+        ))
+    )
+
+
+def _retry_transient_supabase_call(call, attempts=4):
     """Retry short-lived socket failures from the shared Supabase HTTP client."""
     for attempt in range(attempts):
         try:
             return call()
         except Exception as exc:
-            detail = f"{type(exc).__name__}: {exc}".lower()
-            transient = isinstance(exc, (httpx.TransportError, OSError)) or any(
-                marker in detail for marker in (
-                    "winerror 10035",
-                    "non-blocking socket operation",
-                    "temporarily unavailable",
-                )
-            )
-            if not transient or attempt == attempts - 1:
+            if not _is_transient_supabase_error(exc) or attempt == attempts - 1:
                 raise
-            time.sleep(0.15 * (attempt + 1))
+            # Give the connection time to recover. The shorter previous delay
+            # (150/300 ms) was not enough for intermittent Windows socket reads.
+            time.sleep(0.5 * (2 ** attempt))
 
 
 def require_auth(f):
@@ -52,11 +61,14 @@ def require_auth(f):
             user_res = _retry_transient_supabase_call(lambda: supabase.auth.get_user(token))
             user = user_res.user
             if not user:
-                raise Exception("No user")
+                return jsonify({"error": "Invalid or expired token", "code": 401}), 401
             g.user_id = user.id
             g.user_email = user.email
         except Exception as e:
             print(f"[AUTH] Token verification failed: {e}")
+            status = getattr(e, "status", getattr(e, "status_code", None))
+            if _is_transient_supabase_error(e) or status is None or status == 429:
+                return jsonify({"error": "Authentication service is temporarily unavailable.", "code": 503}), 503
             return jsonify({"error": "Invalid or expired token", "code": 401}), 401
 
         # The profile table is authoritative for both role and account state.

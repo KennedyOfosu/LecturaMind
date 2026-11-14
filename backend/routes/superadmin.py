@@ -29,6 +29,7 @@ superadmin_bp = Blueprint("superadmin", __name__)
 @require_superadmin
 def admin_dashboard():
     unavailable = []
+    print("[DEBUG] admin_dashboard called", flush=True)
 
     def read_all(table, columns, warning_key, configure=None):
         rows = []
@@ -38,14 +39,17 @@ def admin_dashboard():
                 query = supabase.table(table).select(columns)
                 if configure:
                     query = configure(query)
-                page = query.range(offset, offset + 999).execute().data or []
+                page = _retry_transient_supabase_call(
+                    lambda: query.range(offset, offset + 999).execute()
+                ).data or []
                 rows.extend(page)
                 if len(page) < 1000:
                     break
                 offset += 1000
+            print(f"[DEBUG] read_all {table}: {len(rows)} rows", flush=True)
             return rows
         except Exception as exc:
-            print(f"[admin_dashboard] {warning_key} unavailable: {exc}")
+            print(f"[admin_dashboard] {warning_key} unavailable: {exc}", flush=True)
             unavailable.append(warning_key)
             return None
 
@@ -79,22 +83,41 @@ def admin_dashboard():
     lecturers = [profile for profile in profiles if profile.get("role") == "lecturer"]
     status = lambda profile: profile.get("account_status") or "active"
     active_lecturer_ids = {profile.get("id") for profile in lecturers if status(profile) == "active"}
-    lecturer_ids_with_classes = {row.get("lecturer_id") for row in lecturer_assignments} & active_lecturer_ids
-    classroom_ids_with_lecturers = {
-        row.get("classroom_id") for row in lecturer_assignments
-        if row.get("lecturer_id") in active_lecturer_ids
-    }
+    classroom_ids = {classroom.get("id") for classroom in classrooms if classroom.get("id")}
 
     student_counts = {}
+    orphaned_student_assignments = 0
     for student in students:
         classroom_id = student.get("classroom_id")
         if classroom_id:
-            student_counts[classroom_id] = student_counts.get(classroom_id, 0) + 1
+            if classroom_id in classroom_ids:
+                student_counts[classroom_id] = student_counts.get(classroom_id, 0) + 1
+            else:
+                orphaned_student_assignments += 1
+
     lecturer_counts = {}
+    lecturer_ids_with_classes = set()
+    classroom_ids_with_lecturers = set()
+    orphaned_lecturer_assignments = 0
     for assignment in lecturer_assignments:
         classroom_id = assignment.get("classroom_id")
-        if classroom_id and assignment.get("lecturer_id") in active_lecturer_ids:
+        if classroom_id not in classroom_ids:
+            if classroom_id:
+                orphaned_lecturer_assignments += 1
+            continue
+        lecturer_id = assignment.get("lecturer_id")
+        if lecturer_id in active_lecturer_ids:
+            lecturer_ids_with_classes.add(lecturer_id)
+            classroom_ids_with_lecturers.add(classroom_id)
             lecturer_counts[classroom_id] = lecturer_counts.get(classroom_id, 0) + 1
+
+    print(f"[DEBUG] orphaned_student={orphaned_student_assignments}, orphaned_lecturer={orphaned_lecturer_assignments}, classroom_ids={classroom_ids}", flush=True)
+    if orphaned_student_assignments or orphaned_lecturer_assignments:
+        print(
+            "[admin_dashboard] classroom references do not match existing classes: "
+            f"students={orphaned_student_assignments}, lecturers={orphaned_lecturer_assignments}"
+        )
+        unavailable.append("classroom_assignments")
 
     course_count = None
     enrolment_count = None
@@ -103,7 +126,9 @@ def admin_dashboard():
         ("enrolments", "enrolment_count", "enrolments"),
     ):
         try:
-            result = supabase.table(table).select("id", count="exact").execute()
+            result = _retry_transient_supabase_call(
+                lambda: supabase.table(table).select("id", count="exact").execute()
+            )
             value = result.count if result.count is not None else len(result.data or [])
             if target == "course_count":
                 course_count = value
@@ -116,14 +141,16 @@ def admin_dashboard():
     academic_year = None
     semester = None
     try:
-        year_result = supabase.table("academic_years").select("id, name").eq(
-            "is_active", True
-        ).limit(1).execute()
+        year_result = _retry_transient_supabase_call(lambda: supabase.table(
+            "academic_years"
+        ).select("id, name").eq("is_active", True).limit(1).execute())
         if year_result.data:
             academic_year = year_result.data[0].get("name")
-            semester_result = supabase.table("semesters").select("name").eq(
+            semester_result = _retry_transient_supabase_call(lambda: supabase.table(
+                "semesters"
+            ).select("name").eq(
                 "academic_year_id", year_result.data[0]["id"]
-            ).eq("is_active", True).limit(1).execute()
+            ).eq("is_active", True).limit(1).execute())
             if semester_result.data:
                 semester = semester_result.data[0].get("name")
     except Exception as exc:
@@ -132,9 +159,12 @@ def admin_dashboard():
 
     activity = []
     try:
-        events = supabase.table("school_activity_log").select(
+        events_result = _retry_transient_supabase_call(lambda: supabase.table(
+            "school_activity_log"
+        ).select(
             "id, event_type, details, occurred_at"
-        ).order("occurred_at", desc=True).limit(12).execute().data or []
+        ).order("occurred_at", desc=True).limit(12).execute())
+        events = events_result.data or []
         labels = {
             "account_created": "Account created",
             "account_activated": "Account activated",
@@ -168,10 +198,10 @@ def admin_dashboard():
         "name": classroom.get("name") or "Unnamed class",
         "code": classroom.get("code") or "",
         "building": classroom.get("building") or "",
-        "students": student_counts.get(classroom.get("id"), 0),
-        "lecturers": lecturer_counts.get(classroom.get("id"), 0),
+        "students": student_counts.get(classroom.get("id"), 0) if profiles_available else None,
+        "lecturers": lecturer_counts.get(classroom.get("id"), 0) if profiles_available and assignment_data_available else None,
     } for classroom in classrooms]
-    class_distribution.sort(key=lambda row: (-row["students"], row["name"].lower()))
+    class_distribution.sort(key=lambda row: (-(row["students"] or 0), row["name"].lower()))
 
     if not activity:
         # The log starts collecting events when migration 010 is installed.
@@ -207,9 +237,12 @@ def admin_dashboard():
                     "timestamp": when,
                 })
         try:
-            published = supabase.table("announcements").select(
+            published_result = _retry_transient_supabase_call(lambda: supabase.table(
+                "announcements"
+            ).select(
                 "id, title, posted_at"
-            ).eq("status", "published").order("posted_at", desc=True).limit(8).execute().data or []
+            ).eq("status", "published").order("posted_at", desc=True).limit(8).execute())
+            published = published_result.data or []
             activity.extend({
                 "id": f"announcement-{row.get('id')}",
                 "type": "announcement_published",
@@ -225,9 +258,9 @@ def admin_dashboard():
 
     attention = [
         {"key": "pending_activations", "label": "Pending account activations", "count": sum(1 for p in profiles if status(p) == "pending_activation") if profiles_available and account_states_available else None, "href": "/superadmin/users?role=lecturer&status=pending_activation"},
-        {"key": "students_without_class", "label": "Students without a class", "count": sum(1 for p in students if not p.get("classroom_id")) if profiles_available else None, "href": "/superadmin/users?role=student&unassigned=true"},
-        {"key": "lecturers_without_class", "label": "Active lecturers without a class", "count": sum(1 for p in lecturers if status(p) == "active" and p.get("id") not in lecturer_ids_with_classes) if assignment_data_available else None, "href": "/superadmin/users?role=lecturer&status=active&unassigned=true"},
-        {"key": "classes_without_lecturers", "label": "Classes without assigned lecturers", "count": sum(1 for c in classrooms if c.get("id") not in classroom_ids_with_lecturers) if assignment_data_available else None, "href": "/superadmin/classrooms?lecturer_assignment=missing"},
+        {"key": "students_without_class", "label": "Students without a class", "count": sum(1 for p in students if p.get("classroom_id") not in classroom_ids) if profiles_available and classrooms_available else None, "href": "/superadmin/users?role=student&unassigned=true"},
+        {"key": "lecturers_without_class", "label": "Active lecturers without a class", "count": sum(1 for p in lecturers if status(p) == "active" and p.get("id") not in lecturer_ids_with_classes) if assignment_data_available and classrooms_available and profiles_available else None, "href": "/superadmin/users?role=lecturer&status=active&unassigned=true"},
+        {"key": "classes_without_lecturers", "label": "Classes without assigned lecturers", "count": sum(1 for c in classrooms if c.get("id") not in classroom_ids_with_lecturers) if assignment_data_available and classrooms_available and profiles_available else None, "href": "/superadmin/classrooms?lecturer_assignment=missing"},
         {"key": "deactivated_accounts", "label": "Deactivated accounts", "count": sum(1 for p in profiles if status(p) == "deactivated") if profiles_available and account_states_available else None, "href": "/superadmin/users?status=deactivated"},
     ]
     attention_count = sum(item["count"] or 0 for item in attention)
@@ -245,11 +278,11 @@ def admin_dashboard():
         "attention_count": attention_count,
         "class_distribution": class_distribution,
         "coverage": {
-            "students_assigned": len(students) - sum(1 for student in students if not student.get("classroom_id")) if profiles_available else None,
+            "students_assigned": sum(student_counts.values()) if profiles_available and classrooms_available else None,
             "total_students": len(students) if profiles_available else None,
-            "lecturers_assigned": len(lecturer_ids_with_classes) if assignment_data_available else None,
+            "lecturers_assigned": len(lecturer_ids_with_classes) if assignment_data_available and classrooms_available and profiles_available else None,
             "total_lecturers": len(active_lecturer_ids) if profiles_available else None,
-            "classes_with_lecturers": len(classroom_ids_with_lecturers) if assignment_data_available else None,
+            "classes_with_lecturers": len(classroom_ids_with_lecturers) if assignment_data_available and classrooms_available and profiles_available else None,
             "total_classes": len(classrooms) if classrooms_available else None,
         },
         "recent_activity": activity,
@@ -1096,7 +1129,7 @@ def list_enrolments():
     )
     if course_id:
         query = query.eq("course_id", course_id)
-    res = query.order("created_at", desc=True).execute()
+    res = _retry_transient_supabase_call(lambda: query.order("created_at", desc=True).execute())
     return jsonify(res.data or []), 200
 
 
@@ -1498,13 +1531,24 @@ def allocate_lecturer():
     if not lecturer.data or lecturer.data[0].get("role") != "lecturer":
         return jsonify({"error": "Select a lecturer account", "code": 400}), 400
 
-    course = supabase.table("courses").select("programme, level").eq("id", course_id).execute()
+    course = supabase.table("courses").select("programme, level, lecturer_id").eq("id", course_id).execute()
     if not course.data:
         return jsonify({"error": "Course not found", "code": 404}), 404
 
     course_assignments = supabase.table("lecturer_assignments").select("*").eq("course_id", course_id).execute().data or []
-    if any(assignment.get("lecturer_id") == lecturer_id for assignment in course_assignments):
-        return jsonify({"error": "Lecturer already assigned to this course", "code": 409}), 409
+    existing_for_lecturer = [
+        assignment for assignment in course_assignments
+        if assignment.get("lecturer_id") == lecturer_id
+    ]
+    if existing_for_lecturer:
+        if course.data[0].get("lecturer_id") != lecturer_id:
+            supabase.table("courses").update({"lecturer_id": lecturer_id}).eq(
+                "id", course_id
+            ).execute()
+        return jsonify({
+            "assignments": existing_for_lecturer,
+            "message": "Lecturer assignment confirmed and course ownership synchronized.",
+        }), 200
 
     if course_assignments:
         # A course has one canonical lecturer in the course catalogue. Update
@@ -1600,7 +1644,7 @@ def list_fees():
     )
     if status_filter:
         query = query.eq("status", status_filter)
-    res = query.order("created_at", desc=True).execute()
+    res = _retry_transient_supabase_call(lambda: query.order("created_at", desc=True).execute())
     return jsonify(res.data or []), 200
 
 
@@ -1644,7 +1688,7 @@ def update_fee(fee_id):
 @require_auth
 @require_superadmin
 def list_fee_types():
-    res = supabase.table("fee_types").select("*").order("name").execute()
+    res = _retry_transient_supabase_call(lambda: supabase.table("fee_types").select("*").order("name").execute())
     return jsonify(res.data or []), 200
 
 
@@ -1687,7 +1731,7 @@ def list_payments():
     ).order("payment_date", desc=True)
     if fee_id:
         query = query.eq("fee_record_id", fee_id)
-    res = query.execute()
+    res = _retry_transient_supabase_call(lambda: query.execute())
     return jsonify(res.data or []), 200
 
 

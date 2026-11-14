@@ -838,11 +838,10 @@ function Gradebook({ students, marksMap, activeTypes, onSelectStudent, onEnterMa
 /* ─────────────── course form (create / edit) ─────────────────── */
 function CourseForm({ initial = {}, onSubmit, loading }) {
   const [form, setForm] = useState({
-    course_name:'', course_code:'', description:'',
-    credits:'', schedule_days:'', schedule_time:'', room:'',
+    course_name: '', course_code: '', description: '',
+    credits: '', schedule_days: '', schedule_time: '', room: '',
     level: initial.level ?? '',
     ...initial,
-    level: initial.level ?? '',
   })
   const [errors, setErrors] = useState({})
 
@@ -963,12 +962,15 @@ export default function CourseManager() {
     setStudents([]); setMarksMap({})
     try {
       const sRes  = await api.get(`/api/courses/${courseId}/students`)
-      const sList = sRes.data || []
+      const sList = sRes.data?.data || sRes.data || []
+      if (sRes.data?.data_warnings?.length) {
+        toast.warning(`Student data incomplete: ${sRes.data.data_warnings.join(', ')}`)
+      }
       setStudents(sList)
       const results = await Promise.all(
         sList.map(s =>
           api.get(`/api/marks/student/${s.id}/course/${courseId}`)
-            .then(r => ({ id:s.id, marks:r.data||[] }))
+            .then(r => ({ id:s.id, marks:r.data?.data || r.data || [] }))
             .catch(()  => ({ id:s.id, marks:[] }))
         )
       )
@@ -977,7 +979,7 @@ export default function CourseManager() {
       setMarksMap(map)
     } catch { toast.error('Failed to load course data') }
     finally { setLoadingData(false) }
-  }, [])
+  }, [toast])
 
   useEffect(() => { loadAnalytics(selectedId) }, [selectedId, loadAnalytics])
 

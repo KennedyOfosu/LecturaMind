@@ -54,7 +54,14 @@ def lecturer_managed_student_ids(supabase, lecturer_id, student_ids):
     course_result = supabase.table("courses").select("id").eq(
         "lecturer_id", lecturer_id
     ).execute()
-    course_ids = [row["id"] for row in (course_result.data or []) if row.get("id")]
+    course_ids = {row["id"] for row in (course_result.data or []) if row.get("id")}
+    assignment_result = supabase.table("lecturer_assignments").select("course_id").eq(
+        "lecturer_id", lecturer_id
+    ).execute()
+    course_ids.update(
+        row["course_id"] for row in (assignment_result.data or []) if row.get("course_id")
+    )
+    course_ids = list(course_ids)
     if not course_ids or not students:
         return set()
     enrolments = supabase.table("enrolments").select("student_id").in_(
@@ -70,7 +77,14 @@ def lecturer_owns_course(supabase, lecturer_id, course_id):
     result = supabase.table("courses").select("id").eq(
         "id", course_id
     ).eq("lecturer_id", lecturer_id).limit(1).execute()
-    return bool(result.data)
+    if result.data:
+        return True
+    # The teaching assignment is the explicit lecturer-to-course relationship.
+    # Older/admin-imported data can have this row without a matching courses.lecturer_id.
+    assignment = supabase.table("lecturer_assignments").select("id").eq(
+        "lecturer_id", lecturer_id
+    ).eq("course_id", course_id).limit(1).execute()
+    return bool(assignment.data)
 
 
 def lecturer_can_manage_course_student(supabase, lecturer_id, student_id, course_id):

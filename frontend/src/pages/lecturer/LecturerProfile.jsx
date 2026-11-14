@@ -50,6 +50,7 @@ export default function LecturerProfile() {
   const [courses,     setCourses]     = useState([])
   const [assignments, setAssignments] = useState([])
   const [loading,     setLoading]     = useState(true)
+  const [profileLoadError, setProfileLoadError] = useState('')
   const [saving,      setSaving]      = useState(false)
   const [dirty,       setDirty]       = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -88,24 +89,41 @@ export default function LecturerProfile() {
 
   const fetchAll = async () => {
     setLoading(true)
-    try {
-      const [pRes, cRes, aRes] = await Promise.all([
-        api.get('/api/profile/'),
-        courseService.getMyCourses(),
-        api.get('/api/assignments/my'),
-      ])
-      const d = pRes.data
-      const initial = { full_name: d.full_name || '', department: d.department || '', phone: d.phone || '', bio: d.bio || '', user_id_number: d.user_id_number || '' }
-      setProfile(d)
+    setProfileLoadError('')
+    const profileRequest = api.get('/api/profile/').then((response) => {
+      const data = response.data?.data || response.data
+      if (!data?.id) throw new Error('Profile response did not include a user profile.')
+      const initial = {
+        full_name: data.full_name || '',
+        department: data.department || '',
+        phone: data.phone || '',
+        bio: data.bio || '',
+        user_id_number: data.user_id_number || '',
+      }
+      setProfile(data)
       setForm(initial)
       setOriginal(initial)
-      setCourses(cRes.data)
-      setAssignments(Array.isArray(aRes.data) ? aRes.data : [])
-    } catch {
-      toast.error('Failed to load profile')
-    } finally {
-      setLoading(false)
-    }
+    }).catch((error) => {
+      setProfileLoadError(error.response?.data?.error || 'Your profile could not be loaded. Check the connection and retry.')
+    })
+
+    const coursesRequest = courseService.getMyCourses().then((response) => {
+      const data = response.data?.data || response.data
+      setCourses(Array.isArray(data) ? data : [])
+    }).catch(() => {
+      setCourses([])
+      toast.warning('Your profile loaded, but the course list could not be loaded.')
+    })
+
+    const assignmentsRequest = api.get('/api/assignments/my').then((response) => {
+      setAssignments(Array.isArray(response.data) ? response.data : [])
+    }).catch(() => {
+      setAssignments([])
+      toast.warning('Your profile loaded, but teaching assignments could not be loaded.')
+    })
+
+    await Promise.all([profileRequest, coursesRequest, assignmentsRequest])
+    setLoading(false)
   }
 
   useEffect(() => { if (user && token) fetchAll() }, [user, token])
@@ -149,6 +167,16 @@ export default function LecturerProfile() {
   }
 
   if (loading) return <div className="flex justify-center py-24"><Spinner size="lg" /></div>
+
+  if (!profile) return (
+    <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+      <h1 className="font-semibold text-gray-900">Profile temporarily unavailable</h1>
+      <p className="mt-2 text-sm text-gray-600">{profileLoadError || 'Your profile could not be loaded.'}</p>
+      <button type="button" onClick={fetchAll} className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white">
+        Try again
+      </button>
+    </div>
+  )
 
   const grouped = assignments.reduce((acc, a) => {
     const key = `${a.programme} — Level ${a.level}`

@@ -133,3 +133,5 @@ DROP TRIGGER IF EXISTS school_announcement_activity_trigger ON public.announceme
 CREATE TRIGGER school_announcement_activity_trigger
 AFTER INSERT OR UPDATE ON public.announcements
 FOR EACH ROW EXECUTE FUNCTION public.log_school_announcement_activity();
+
+NOTIFY pgrst, 'reload schema';

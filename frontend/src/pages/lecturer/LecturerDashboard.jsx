@@ -334,6 +334,7 @@ export default function LecturerDashboard() {
   const [stats,         setStats]         = useState(null)
   const [assignedClasses, setAssignedClasses] = useState([])
   const [classesError, setClassesError] = useState(false)
+  const [fetchWarnings, setFetchWarnings] = useState([])
   const [openedClass, setOpenedClass] = useState(null)
   const [classStudents, setClassStudents] = useState([])
   const [classStudentsLoading, setClassStudentsLoading] = useState(false)
@@ -368,38 +369,90 @@ export default function LecturerDashboard() {
   }
 
   useEffect(() => {
-    api.get('/api/dashboard/lecturer/classes')
-      .then((response) => setAssignedClasses(Array.isArray(response.data) ? response.data : []))
-      .catch(() => setClassesError(true))
-    const statsRequest = api.get('/api/dashboard/lecturer/stats')
-      .then((statsRes) => setStats(statsRes.data || {}))
-      .catch(() => toast.error('Could not load lecturer overview figures. Please refresh the page.'))
+    const controller = new AbortController()
+    let active = true
+    const { signal } = controller
+    const optionalRequest = (url, label) => api.get(url, { signal }).catch((error) => {
+      if (active && error.code !== 'ERR_CANCELED') {
+        setFetchWarnings((warnings) => warnings.includes(label) ? warnings : [...warnings, label])
+      }
+      return { data: [] }
+    })
+    setLoading(true)
+    setStats(null)
+    setAssignedClasses([])
+    setClassesError(false)
+    setFetchWarnings([])
+    setMyCourseIds([])
+    setAnnouncements([])
+    setChatLogs([])
+    setMaterials([])
+    setAllStudents([])
+    api.get('/api/dashboard/lecturer/classes', { signal })
+      .then((response) => {
+        if (active) {
+          const classesData = response.data?.data || response.data
+          setAssignedClasses(Array.isArray(classesData) ? classesData : [])
+          if (response.data?.data_warnings?.length) {
+            toast.warning(`Classes data incomplete: ${response.data.data_warnings.join(', ')}`)
+          }
+        }
+      })
+      .catch(() => { if (active) setClassesError(true) })
+    const statsRequest = api.get('/api/dashboard/lecturer/stats', { signal })
+      .then((statsRes) => {
+        if (active) {
+          setStats(statsRes.data || {})
+          if (statsRes.data?.data_warnings?.length) {
+            toast.warning(`Dashboard data incomplete: ${statsRes.data.data_warnings.join(', ')}`)
+          }
+        }
+      })
+      .catch(() => { if (active) toast.error('Could not load lecturer overview figures. Please refresh the page.') })
 
-    const coursesRequest = courseService.getMyCourses().then(async (coursesRes) => {
-      const courses = Array.isArray(coursesRes.data) ? coursesRes.data : []
-      setMyCourseIds(courses.map((c) => c.id))
+    const coursesRequest = courseService.getMyCourses({ signal }).then(async (coursesRes) => {
+      const coursesData = coursesRes.data?.data || coursesRes.data
+      const courses = Array.isArray(coursesData) ? coursesData : []
+      if (active) setMyCourseIds(courses.map((c) => c.id))
+      if (coursesRes.data_warnings?.length) {
+        toast.warning(`Courses data incomplete: ${coursesRes.data_warnings.join(', ')}`)
+      }
 
       if (courses.length) {
         const firstId = courses[0].id
         const [annRes, chatRes, matRes, ...studentArrs] = await Promise.all([
-          api.get(`/api/announcements/course/${firstId}`).catch(() => ({ data: [] })),
-          api.get(`/api/chatbot/logs/${firstId}`).catch(() => ({ data: [] })),
-          api.get(`/api/materials/course/${firstId}`).catch(() => ({ data: [] })),
+          optionalRequest(`/api/announcements/course/${firstId}`, 'announcements'),
+          optionalRequest(`/api/chatbot/logs/${firstId}`, 'chat logs'),
+          optionalRequest(`/api/materials/course/${firstId}`, 'materials'),
           ...courses.map((c) =>
-            api.get(`/api/courses/${c.id}/students`)
-              .then((r) => r.data.map((s) => ({ ...s, course_name: c.course_name })))
-              .catch(() => [])
+            api.get(`/api/courses/${c.id}/students`, { signal })
+              .then((r) => {
+                const studentsData = r.data?.data || r.data
+                return Array.isArray(studentsData) ? studentsData.map((s) => ({ ...s, course_name: c.course_name })) : []
+              })
+              .catch((error) => {
+                if (active && error.code !== 'ERR_CANCELED') {
+                  setFetchWarnings((warnings) => warnings.includes('course students') ? warnings : [...warnings, 'course students'])
+                }
+                return []
+              })
           ),
         ])
-        setAnnouncements(annRes.data.slice(0, 4))
-        setChatLogs(chatRes.data.slice(0, 5))
-        setMaterials(matRes.data.slice(0, 4))
-        setAllStudents(studentArrs.flat().slice(0, 8))
+        if (active) {
+          const annData = annRes.data?.data || annRes.data
+          const chatData = chatRes.data?.data || chatRes.data
+          const matData = matRes.data?.data || matRes.data
+          setAnnouncements(Array.isArray(annData) ? annData.slice(0, 4) : [])
+          setChatLogs(Array.isArray(chatData) ? chatData.slice(0, 5) : [])
+          setMaterials(Array.isArray(matData) ? matData.slice(0, 4) : [])
+          setAllStudents(studentArrs.flat().slice(0, 8))
+        }
       }
-    }).catch(() => toast.error('Could not load your courses. Please refresh the page.'))
+    }).catch(() => { if (active) toast.error('Could not load your courses. Please refresh the page.') })
 
-    Promise.all([statsRequest, coursesRequest]).finally(() => setLoading(false))
-  }, [])
+    Promise.all([statsRequest, coursesRequest]).finally(() => { if (active) setLoading(false) })
+    return () => { active = false; controller.abort() }
+  }, [user?.id, toast])
 
   useEffect(() => {
     if (!socket) return
@@ -456,6 +509,11 @@ export default function LecturerDashboard() {
           Some lecturer overview data could not be loaded ({stats.data_warnings.join(', ')}). Other available figures are shown.
         </div>
       )}
+      {!!fetchWarnings.length && (
+        <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          Some dashboard sections could not be loaded ({fetchWarnings.join(', ')}). Refresh to try again.
+        </div>
+      )}
 
       <section className="rounded-2xl border bg-white px-5 py-4" style={{ borderColor: '#D2D4D9' }}>
         <div className="flex items-center justify-between">
@@ -500,7 +558,7 @@ export default function LecturerDashboard() {
               <p className="text-sm font-bold text-gray-900 leading-snug">{label}</p>
               <p className="text-sm mt-0.5">
                 <span className="font-bold" style={{ color: iconColor }}>
-                  {loading ? '—' : (value ?? 0)}
+                  {loading ? '—' : value == null ? 'Unavailable' : value}
                 </span>
                 <span className="text-gray-400 font-normal text-xs ml-1">{unit}</span>
               </p>

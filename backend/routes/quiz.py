@@ -121,6 +121,7 @@ def create_manual():
 @require_auth
 def get_course_quizzes(course_id: str):
     """Return all quizzes for a course. Students only see active quizzes."""
+    unavailable = []
     course = supabase.table("courses").select("id, lecturer_id").eq("id", course_id).limit(1).execute()
     if not course.data:
         return jsonify({"error": "Course not found", "code": 404}), 404
@@ -131,8 +132,17 @@ def get_course_quizzes(course_id: str):
     if g.user_role == "student":
         query = query.eq("is_active", True)
 
-    res = query.order("generated_at", desc=True).execute()
-    return jsonify(res.data), 200
+    try:
+        res = query.order("generated_at", desc=True).execute()
+    except Exception as exc:
+        print(f"[get_course_quizzes] query failed: {exc}")
+        res = type('obj', (object,), {'data': []})()
+        unavailable.append("quizzes")
+
+    return jsonify({
+        "data": res.data or [],
+        "data_warnings": unavailable
+    }), 200
 
 
 @quiz_bp.patch("/<quiz_id>/activate")

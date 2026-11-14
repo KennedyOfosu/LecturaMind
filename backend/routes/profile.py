@@ -6,7 +6,7 @@ Students who update programme/level trigger auto-enrolment.
 import uuid
 from flask import Blueprint, request, jsonify, g
 from services.supabase_client import supabase
-from middleware.auth_middleware import require_auth
+from middleware.auth_middleware import require_auth, _retry_transient_supabase_call
 
 profile_bp = Blueprint("profile", __name__)
 
@@ -123,9 +123,25 @@ def upload_avatar():
 @require_auth
 def get_profile():
     """Return the full profile for the authenticated user."""
-    res = supabase.table("profiles").select(
-        "*, classrooms!profiles_classroom_id_fkey(id, name, code, programme, level, room_id, physical_rooms!classrooms_room_id_fkey(id, name, code, building, campus, capacity))"
-    ).eq("id", g.user_id).execute()
+    unavailable = []
+    try:
+        res = _retry_transient_supabase_call(lambda: supabase.table("profiles").select(
+            "*, classrooms!profiles_classroom_id_fkey(id, name, code, programme, level, room_id, physical_rooms!classrooms_room_id_fkey(id, name, code, building, campus, capacity))"
+        ).eq("id", g.user_id).execute())
+    except Exception as exc:
+        # A physical room is optional. If its schema relationship is missing,
+        # still return the person's profile and assigned class group.
+        try:
+            res = _retry_transient_supabase_call(lambda: supabase.table("profiles").select(
+                "*, classrooms!profiles_classroom_id_fkey(id, name, code, programme, level)"
+            ).eq("id", g.user_id).execute())
+            unavailable.append("physical_room")
+            print(f"[get_profile] room details unavailable; returned profile without room: {exc}")
+        except Exception as fallback_exc:
+            print(f"[get_profile] query failed: {fallback_exc}")
+            res = type('obj', (object,), {'data': []})()
+            unavailable.append("profile")
+
     if not res.data:
         return jsonify({"error": "Profile not found", "code": 404}), 404
     profile = res.data[0]
@@ -137,4 +153,7 @@ def get_profile():
         classroom["code"] = room.get("code") if room else None
     profile["classroom"] = classroom
     profile["email"] = g.user_email
-    return jsonify(profile), 200
+    return jsonify({
+        "data": profile,
+        "data_warnings": unavailable
+    }), 200

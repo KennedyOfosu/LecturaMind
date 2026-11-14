@@ -136,7 +136,8 @@ api.interceptors.response.use(
             isRefreshing = false
             processQueue(refreshError, null)
             
-            if (!isLoginRequest(config) && requestToken && requestToken === activeToken) {
+            const refreshWasRejected = [400, 401].includes(refreshError.response?.status)
+            if (refreshWasRejected && !isLoginRequest(config) && requestToken && requestToken === activeToken) {
               showToast('Your session has expired. Please sign in again.', 'warning')
               window.dispatchEvent(new CustomEvent('lecturamind:session-invalid'))
             }

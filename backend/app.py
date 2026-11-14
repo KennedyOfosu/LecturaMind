@@ -29,8 +29,10 @@ socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode="threading",
-    logger=True,
-    engineio_logger=True,
+    # Packet debug logging includes authentication payloads, so keep it off.
+    # Route-level logs retain request outcomes and database error context.
+    logger=False,
+    engineio_logger=False,
 )
 
 # Register blueprints

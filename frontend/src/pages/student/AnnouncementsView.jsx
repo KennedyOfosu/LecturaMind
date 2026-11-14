@@ -143,9 +143,13 @@ export default function AnnouncementsView({ courseId }) {
     setFetchError(false)
     announcementService.getByCourse(courseId)
       .then((res) => {
-        const data = res.data || []
+        const announcementsData = res.data?.data || res.data
+        const data = Array.isArray(announcementsData) ? announcementsData : []
         setAnnouncements(data)
         setSelectedId((current) => current || data[0]?.id || null)
+        if (res.data?.data_warnings?.length) {
+          toast.warning(`Announcements data incomplete: ${res.data.data_warnings.join(', ')}`)
+        }
       })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false))

@@ -50,7 +50,13 @@ export default function QuizView({ courseId }) {
     setLoading(true)
     setFetchError(false)
     quizService.getByCourse(courseId)
-      .then((res) => setQuizzes(res.data))
+      .then((res) => {
+        const quizzesData = res.data?.data || res.data
+        setQuizzes(Array.isArray(quizzesData) ? quizzesData : [])
+        if (res.data?.data_warnings?.length) {
+          toast.warning(`Quiz data incomplete: ${res.data.data_warnings.join(', ')}`)
+        }
+      })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
   }

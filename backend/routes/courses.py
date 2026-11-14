@@ -60,33 +60,85 @@ def create_course():
 @require_auth
 @require_role("lecturer")
 def get_my_courses():
+    unavailable = []
     level_filter = request.args.get("level")
-    query = supabase.table("courses").select("*, enrolments(count), materials(count)").eq(
-        "lecturer_id", g.user_id
-    )
+    courses_by_id = {}
+    try:
+        owned = supabase.table("courses").select(
+            "*, enrolments(count), materials(count)"
+        ).eq("lecturer_id", g.user_id).execute()
+        courses_by_id.update({row["id"]: row for row in (owned.data or []) if row.get("id")})
+    except Exception as exc:
+        print(f"[get_my_courses] query failed: {exc}")
+        unavailable.append("courses")
+
+    try:
+        assignments = supabase.table("lecturer_assignments").select("course_id").eq(
+            "lecturer_id", g.user_id
+        ).execute().data or []
+        assigned_ids = list({row["course_id"] for row in assignments if row.get("course_id")})
+        missing_ids = [course_id for course_id in assigned_ids if course_id not in courses_by_id]
+        if missing_ids:
+            assigned_courses = supabase.table("courses").select(
+                "*, enrolments(count), materials(count)"
+            ).in_("id", missing_ids).execute()
+            courses_by_id.update({row["id"]: row for row in (assigned_courses.data or []) if row.get("id")})
+    except Exception as exc:
+        print(f"[get_my_courses] teaching assignments query failed: {exc}")
+        unavailable.append("lecturer_assignments")
+
+    courses = list(courses_by_id.values())
     if level_filter:
         try:
-            query = query.eq("level", int(level_filter))
+            selected_level = int(level_filter)
+            courses = [course for course in courses if course.get("level") == selected_level]
         except ValueError:
             pass
-    res = query.order("level").order("created_at", desc=True).execute()
-    return jsonify(res.data), 200
+    courses.sort(key=lambda course: (course.get("level") or 0, course.get("created_at") or ""))
+    return jsonify({
+        "data": courses,
+        "data_warnings": unavailable
+    }), 200
 
 
 @courses_bp.get("/enrolled")
 @require_auth
 @require_role("student")
 def get_enrolled_courses():
-    res = supabase.table("enrolments").select(
-        "*, courses(*, profiles!courses_lecturer_id_fkey(full_name, avatar_url))"
-    ).eq("student_id", g.user_id).execute()
-    courses = [row["courses"] for row in res.data if row.get("courses")]
-    return jsonify(courses), 200
+    unavailable = []
+    try:
+        res = supabase.table("enrolments").select(
+            "*, courses(*, profiles!courses_lecturer_id_fkey(full_name, avatar_url))"
+        ).eq("student_id", g.user_id).execute()
+    except Exception as exc:
+        print(f"[get_enrolled_courses] query failed: {exc}")
+        res = type('obj', (object,), {'data': []})()
+        unavailable.append("enrolments")
+    courses = [row["courses"] for row in (res.data or []) if row.get("courses")]
+    return jsonify({
+        "data": courses,
+        "data_warnings": unavailable
+    }), 200
 
 
 @courses_bp.get("/<course_id>")
 @require_auth
 def get_course(course_id: str):
+    # Course details are private to enrolled students and assigned lecturers.
+    # Authentication alone is not sufficient to grant access to another
+    # user's course record.
+    if g.user_role == "student":
+        access = supabase.table("enrolments").select("id").eq(
+            "student_id", g.user_id
+        ).eq("course_id", course_id).limit(1).execute()
+        if not access.data:
+            return jsonify({"error": "Course not found or not available to this account.", "code": 404}), 404
+    elif g.user_role == "lecturer":
+        if not lecturer_owns_course(supabase, g.user_id, course_id):
+            return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
+    elif g.user_role != "superadmin":
+        return jsonify({"error": "Access denied.", "code": 403}), 403
+
     res = supabase.table("courses").select(
         "*, profiles!courses_lecturer_id_fkey(full_name, avatar_url)"
     ).eq("id", course_id).execute()
@@ -267,11 +319,17 @@ def enrol_student(course_id: str):
 @require_auth
 @require_role("lecturer")
 def get_course_students(course_id: str):
+    unavailable = []
     if g.user_role != "superadmin" and not lecturer_owns_course(supabase, g.user_id, course_id):
         return jsonify({"error": "Course not found or not assigned to you.", "code": 404}), 404
-    res = supabase.table("enrolments").select(
-        "*, profiles!enrolments_student_id_fkey(id, full_name, avatar_url, user_id_number, classroom_id, role)"
-    ).eq("course_id", course_id).execute()
+    try:
+        res = supabase.table("enrolments").select(
+            "*, profiles!enrolments_student_id_fkey(id, full_name, avatar_url, user_id_number, classroom_id, role)"
+        ).eq("course_id", course_id).execute()
+    except Exception as exc:
+        print(f"[get_course_students] query failed: {exc}")
+        res = type('obj', (object,), {'data': []})()
+        unavailable.append("enrolments")
     enrolled_students = [
         row["profiles"] for row in (res.data or [])
         if row.get("profiles") and row["profiles"].get("role") == "student"
@@ -289,4 +347,7 @@ def get_course_students(course_id: str):
     for student in students:
         student.pop("classroom_id", None)
         student.pop("role", None)
-    return jsonify(students), 200
+    return jsonify({
+        "data": students,
+        "data_warnings": unavailable
+    }), 200
